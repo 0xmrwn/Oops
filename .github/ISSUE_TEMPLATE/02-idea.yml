@@ -1,0 +1,15 @@
+name: Idea
+description: A problem Oops could solve, or something it could do better.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the problem and where you run into it. An example using made-up text helps.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Any thoughts on how it could work?
+      description: Optional. A specific solution isn't needed to discuss the problem.

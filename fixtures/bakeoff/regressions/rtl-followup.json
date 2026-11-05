@@ -1,0 +1,776 @@
+[
+ {
+  "id": "rtl-old-g025-monaco-safari",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "safari",
+  "layout": "document",
+  "content": "mentions",
+  "reaction": "combobox",
+  "presentation": "rtl",
+  "target": "selection",
+  "embedding": "xframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني @Alice Martin من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   66
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "Monaco mirrors only the selection into its hidden textarea, so Oops can correct a selection. After the paste, nothing can find the corrected span again (its selection sync is Chrome-only), so no revert or flash, as for copy-and-paste editors."
+  }
+ },
+ {
+  "id": "rtl-old-g026-monaco-webkit",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "webkit",
+  "layout": "thread",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "zoom",
+  "target": "whole",
+  "embedding": "iframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 65,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "Monaco paints its lines and takes input in a hidden textarea that holds only the word before the caret (a page of lines only with a screen reader on). Oops can't see the draft, so it should ask for a selection, which Monaco does mirror into the textarea."
+  }
+ },
+ {
+  "id": "rtl-old-g011-quill-webkit",
+  "family": "web",
+  "engine": "quill",
+  "shell": "webkit",
+  "layout": "thread",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "normal",
+  "target": "multiline",
+  "embedding": "shadow",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 53,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-old-g010-quill-safari",
+  "family": "web",
+  "engine": "quill",
+  "shell": "safari",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "combobox",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "shadow",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-fresh-g020-tinymce-safari",
+  "family": "web",
+  "engine": "tinymce",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "emoji-images",
+  "reaction": "combobox",
+  "presentation": "rtl",
+  "target": "whole",
+  "embedding": "xframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة 🎉 واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 60,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-fresh-g030-roosterjs-safari",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "safari",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "multiline",
+  "embedding": "shadow",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق،"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تحديت سريع عن خطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " الأسبوع القادم."
+     },
+     {
+      "text": " /"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تم نقل المراجعه إلى يوم الخميس."
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق،\n\nتحديت سريع عن خطة @Alice Martin الأسبوع القادم. /\n\nتم نقل المراجعه إلى يوم الخميس.",
+  "typos": {
+   "تحديت": "تحديث",
+   "المراجعه": "المراجعة"
+  },
+  "caret": 65,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-fresh-g007-slate-chrome",
+  "family": "web",
+  "engine": "slate",
+  "shell": "chrome",
+  "layout": "modal",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "rtl",
+  "target": "selection",
+  "embedding": "iframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني @Alice Martin من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   66
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-fresh-g038-textarea-zen",
+  "family": "web",
+  "engine": "textarea",
+  "shell": "zen",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "zoom",
+  "target": "whole",
+  "embedding": "xframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix @Alice Martin for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 77,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-old-r091-blocks-zen",
+  "family": "web",
+  "engine": "blocks",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة واصبحت الأولويات واضحة الآن"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة واصبحت الأولويات واضحة الآن /",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 59,
+  "span": [
+   0,
+   59
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-old-r089-trix-webkit",
+  "family": "web",
+  "engine": "trix",
+  "shell": "webkit",
+  "layout": "thread",
+  "content": "emoji-images",
+  "reaction": "ime",
+  "presentation": "rtl",
+  "target": "multiline",
+  "embedding": "iframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق،"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تحديت سريع عن خطة "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " الأسبوع القادم."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تم نقل المراجعه إلى يوم الخميس."
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق،\n\nتحديت سريع عن خطة 🎉 الأسبوع القادم.\n\nتم نقل المراجعه إلى يوم الخميس.",
+  "typos": {
+   "تحديت": "تحديث",
+   "المراجعه": "المراجعة"
+  },
+  "composed": {
+   "text": "にほんご",
+   "inText": true,
+   "inCapture": true
+  },
+  "caret": 52,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "This field shows Accessibility no marked text, and a correction during the composition lands cleanly. Graded on what the field shows, as if the composition were committed."
+  }
+ },
+ {
+  "id": "rtl-fresh-r075-quill-chrome",
+  "family": "web",
+  "engine": "quill",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "rtl",
+  "target": "whole",
+  "embedding": "xframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 71,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-old-r072-slate-electron",
+  "family": "web",
+  "engine": "slate",
+  "shell": "electron",
+  "layout": "side-panel",
+  "content": "plain",
+  "reaction": "rerender",
+  "presentation": "rtl",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 57,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-fresh-g032-trix-chrome",
+  "family": "web",
+  "engine": "trix",
+  "shell": "chrome",
+  "layout": "nested-scroll",
+  "content": "mentions",
+  "reaction": "combobox",
+  "presentation": "normal",
+  "target": "multiline",
+  "embedding": "shadow",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 67,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-w016-monaco-zen",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "zen",
+  "layout": "side-panel",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "normal",
+  "target": "multiline",
+  "embedding": "iframe",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning for next week."
+     },
+     {
+      "text": " /"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning for next week. /\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 55,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "Monaco paints its lines and takes input in a hidden textarea that holds only the word before the caret (a page of lines only with a screen reader on). Oops can't see the draft, so it should ask for a selection, which Monaco does mirror into the textarea."
+  }
+ },
+ {
+  "id": "rtl-fresh-g029-roosterjs-electron",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "electron",
+  "layout": "nested-scroll",
+  "content": "emoji-images",
+  "reaction": "paste-intercept",
+  "presentation": "rtl",
+  "target": "selection",
+  "embedding": "shadow",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني 🎉 من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   55
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "rtl-w075-quill-zen",
+  "family": "web",
+  "engine": "quill",
+  "shell": "zen",
+  "layout": "document",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن /",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 73,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ }
+]

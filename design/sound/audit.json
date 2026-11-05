@@ -1,0 +1,65 @@
+{
+ "start": {
+  "ms": 199,
+  "lufs_mmax": -37.0,
+  "peak_dbfs": -22.4,
+  "centroid_hz": 661,
+  "share_2_6k": 0.0,
+  "clicks": 0,
+  "tail_end_db": -70.8
+ },
+ "success-1": {
+  "ms": 587,
+  "lufs_mmax": -30.0,
+  "peak_dbfs": -20.5,
+  "centroid_hz": 1321,
+  "share_2_6k": 0.003,
+  "clicks": 0,
+  "tail_end_db": -70.1
+ },
+ "success-2": {
+  "ms": 586,
+  "lufs_mmax": -30.0,
+  "peak_dbfs": -20.4,
+  "centroid_hz": 1323,
+  "share_2_6k": 0.005,
+  "clicks": 0,
+  "tail_end_db": -70.1
+ },
+ "success-3": {
+  "ms": 587,
+  "lufs_mmax": -30.0,
+  "peak_dbfs": -20.2,
+  "centroid_hz": 1320,
+  "share_2_6k": 0.004,
+  "clicks": 0,
+  "tail_end_db": -71.9
+ },
+ "failure-1": {
+  "ms": 542,
+  "lufs_mmax": -31.0,
+  "peak_dbfs": -19.9,
+  "centroid_hz": 478,
+  "share_2_6k": 0.0,
+  "clicks": 0,
+  "tail_end_db": -71.3
+ },
+ "failure-2": {
+  "ms": 544,
+  "lufs_mmax": -31.0,
+  "peak_dbfs": -20.4,
+  "centroid_hz": 478,
+  "share_2_6k": 0.0,
+  "clicks": 0,
+  "tail_end_db": -70.5
+ },
+ "failure-3": {
+  "ms": 543,
+  "lufs_mmax": -31.0,
+  "peak_dbfs": -20.6,
+  "centroid_hz": 478,
+  "share_2_6k": 0.0,
+  "clicks": 0,
+  "tail_end_db": -69.7
+ }
+}

@@ -1,0 +1,2865 @@
+[
+ {
+  "id": "n001-swiftui-editor-native",
+  "family": "native",
+  "toolkit": "swiftui-editor",
+  "layout": "nested-scroll",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "rtl",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق،"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تحديت سريع عن خطة الأسبوع القادم."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تم نقل المراجعه إلى يوم الخميس."
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق،\n\nتحديت سريع عن خطة الأسبوع القادم.\n\nتم نقل المراجعه إلى يوم الخميس.",
+  "typos": {
+   "تحديت": "تحديث",
+   "المراجعه": "المراجعة"
+  },
+  "caret": 49,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n002-appkit-tk1-native",
+  "family": "native",
+  "toolkit": "appkit-tk1",
+  "layout": "modal",
+  "content": "emoji-images",
+  "reaction": "paste-intercept",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning 🎉 for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 56,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n003-catalyst-textview-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-textview",
+  "layout": "document",
+  "content": "mentions",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix @Alice Martin for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 77,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n004-appkit-field-native",
+  "family": "native",
+  "toolkit": "appkit-field",
+  "layout": "composer",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "rtl",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني @Alice Martin من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   66
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n005-custom-opaque-native",
+  "family": "native",
+  "toolkit": "custom-opaque",
+  "layout": "thread",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 65,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "n006-swing-swing",
+  "family": "native",
+  "toolkit": "swing",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "rerender",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n007-appkit-tk2-native",
+  "family": "native",
+  "toolkit": "appkit-tk2",
+  "layout": "side-panel",
+  "content": "emoji-images",
+  "reaction": "ime",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة 🎉 واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 60,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "composing|composition|typing|input method|IME",
+   "why": "An input method is composing at the caret. The marked text isn't the user's yet, and replacing text under it breaks the composition, so Oops should touch nothing and say to finish typing first."
+  }
+ },
+ {
+  "id": "n008-swiftui-rich-native",
+  "family": "native",
+  "toolkit": "swiftui-rich",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 67,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n009-swiftui-field-native",
+  "family": "native",
+  "toolkit": "swiftui-field",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "ime",
+  "presentation": "zoom",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "composed": {
+   "text": "にほんご",
+   "inText": true,
+   "inCapture": true
+  },
+  "caret": 67,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "This field shows Accessibility no marked text, and a correction during the composition lands cleanly. Graded on what the field shows, as if the composition were committed."
+  }
+ },
+ {
+  "id": "n010-catalyst-textview-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-textview",
+  "layout": "composer",
+  "content": "emoji-images",
+  "reaction": "slash-menu",
+  "presentation": "zoom",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " for next week."
+     },
+     {
+      "text": " /"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning 🎉 for next week. /\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 58,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n011-appkit-tk2-native",
+  "family": "native",
+  "toolkit": "appkit-tk2",
+  "layout": "thread",
+  "content": "emoji-images",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second 🎉 part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   70
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n012-qt-qt",
+  "family": "native",
+  "toolkit": "qt",
+  "layout": "modal",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن /",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 73,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n013-catalyst-field-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-field",
+  "layout": "nested-scroll",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n014-qt-qt",
+  "family": "native",
+  "toolkit": "qt",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "ime",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "composed": {
+   "text": "にほんご",
+   "inText": false,
+   "inCapture": false
+  },
+  "caret": 53,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "This field shows Accessibility no marked text, and a correction during the composition lands cleanly. Graded on what the field shows, as if the composition were committed."
+  }
+ },
+ {
+  "id": "n015-swiftui-field-native",
+  "family": "native",
+  "toolkit": "swiftui-field",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "rerender",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n016-appkit-tk1-native",
+  "family": "native",
+  "toolkit": "appkit-tk1",
+  "layout": "document",
+  "content": "emoji-images",
+  "reaction": "rerender",
+  "presentation": "rtl",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني 🎉 من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   55
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n017-catalyst-textview-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-textview",
+  "layout": "side-panel",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "normal",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n018-swing-swing",
+  "family": "native",
+  "toolkit": "swing",
+  "layout": "nested-scroll",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     },
+     {
+      "text": " /"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week. /\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 69,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n019-custom-opaque-native",
+  "family": "native",
+  "toolkit": "custom-opaque",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second @Alice Martin part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   81
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "n020-swiftui-rich-native",
+  "family": "native",
+  "toolkit": "swiftui-rich",
+  "layout": "thread",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 57,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n021-appkit-tk1-native",
+  "family": "native",
+  "toolkit": "appkit-tk1",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "ime",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "composing|composition|typing|input method|IME",
+   "why": "An input method is composing at the caret. The marked text isn't the user's yet, and replacing text under it breaks the composition, so Oops should touch nothing and say to finish typing first."
+  }
+ },
+ {
+  "id": "n022-appkit-field-native",
+  "family": "native",
+  "toolkit": "appkit-field",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n023-appkit-tk2-native",
+  "family": "native",
+  "toolkit": "appkit-tk2",
+  "layout": "nested-scroll",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "zoom",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 67,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n024-catalyst-field-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-field",
+  "layout": "composer",
+  "content": "mentions",
+  "reaction": "none",
+  "presentation": "rtl",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني @Alice Martin من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   66
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n025-swiftui-editor-native",
+  "family": "native",
+  "toolkit": "swiftui-editor",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix @Alice Martin for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 79,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n026-swiftui-field-native",
+  "family": "native",
+  "toolkit": "swiftui-field",
+  "layout": "nested-scroll",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "rtl",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   52
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n027-swing-swing",
+  "family": "native",
+  "toolkit": "swing",
+  "layout": "document",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 71,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n028-custom-opaque-native",
+  "family": "native",
+  "toolkit": "custom-opaque",
+  "layout": "modal",
+  "content": "mentions",
+  "reaction": "ime",
+  "presentation": "rtl",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق،"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تحديت سريع عن خطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " الأسبوع القادم."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تم نقل المراجعه إلى يوم الخميس."
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق،\n\nتحديت سريع عن خطة @Alice Martin الأسبوع القادم.\n\nتم نقل المراجعه إلى يوم الخميس.",
+  "typos": {
+   "تحديت": "تحديث",
+   "المراجعه": "المراجعة"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "n029-swiftui-editor-native",
+  "family": "native",
+  "toolkit": "swiftui-editor",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second @Alice Martin part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   81
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n030-catalyst-textview-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-textview",
+  "layout": "nested-scroll",
+  "content": "emoji-images",
+  "reaction": "ime",
+  "presentation": "rtl",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق،"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تحديت سريع عن خطة "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " الأسبوع القادم."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "تم نقل المراجعه إلى يوم الخميس."
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق،\n\nتحديت سريع عن خطة 🎉 الأسبوع القادم.\n\nتم نقل المراجعه إلى يوم الخميس.",
+  "typos": {
+   "تحديت": "تحديث",
+   "المراجعه": "المراجعة"
+  },
+  "composed": {
+   "text": "にほんご",
+   "inText": false,
+   "inCapture": true
+  },
+  "caret": 52,
+  "expect": {
+   "result": "unsupported",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "UIKit shows Accessibility no marked text, so Oops can't see the composition, and its paste replaces the composed text while a typo stays. Run and recorded, but outside pass and fail until Oops can see it."
+  }
+ },
+ {
+  "id": "n031-swiftui-rich-native",
+  "family": "native",
+  "toolkit": "swiftui-rich",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n032-appkit-tk2-native",
+  "family": "native",
+  "toolkit": "appkit-tk2",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 65,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n033-qt-qt",
+  "family": "native",
+  "toolkit": "qt",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second @Alice Martin part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   81
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n034-catalyst-field-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-field",
+  "layout": "modal",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "normal",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second @Alice Martin part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   81
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n035-appkit-tk1-native",
+  "family": "native",
+  "toolkit": "appkit-tk1",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     },
+     {
+      "text": " /"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week. /\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 69,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n036-appkit-field-native",
+  "family": "native",
+  "toolkit": "appkit-field",
+  "layout": "side-panel",
+  "content": "plain",
+  "reaction": "rerender",
+  "presentation": "normal",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n037-swiftui-rich-native",
+  "family": "native",
+  "toolkit": "swiftui-rich",
+  "layout": "modal",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن /",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 73,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n038-catalyst-textview-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-textview",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "rerender",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning @Alice Martin for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 67,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n039-qt-qt",
+  "family": "native",
+  "toolkit": "qt",
+  "layout": "composer",
+  "content": "mentions",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second @Alice Martin part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   81
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n040-appkit-field-native",
+  "family": "native",
+  "toolkit": "appkit-field",
+  "layout": "thread",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 65,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n041-catalyst-field-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-field",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن /",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 73,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n042-appkit-tk2-native",
+  "family": "native",
+  "toolkit": "appkit-tk2",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n043-swing-swing",
+  "family": "native",
+  "toolkit": "swing",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n044-swiftui-field-native",
+  "family": "native",
+  "toolkit": "swiftui-field",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix @Alice Martin for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 77,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n045-appkit-tk1-native",
+  "family": "native",
+  "toolkit": "appkit-tk1",
+  "layout": "side-panel",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 53,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n046-qt-qt",
+  "family": "native",
+  "toolkit": "qt",
+  "layout": "nested-scroll",
+  "content": "plain",
+  "reaction": "rerender",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n047-swiftui-editor-native",
+  "family": "native",
+  "toolkit": "swiftui-editor",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "ime",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "composing|composition|typing|input method|IME",
+   "why": "An input method is composing at the caret. The marked text isn't the user's yet, and replacing text under it breaks the composition, so Oops should touch nothing and say to finish typing first."
+  }
+ },
+ {
+  "id": "n048-swiftui-field-native",
+  "family": "native",
+  "toolkit": "swiftui-field",
+  "layout": "modal",
+  "content": "mentions",
+  "reaction": "slash-menu",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن /",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 73,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n049-swiftui-editor-native",
+  "family": "native",
+  "toolkit": "swiftui-editor",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n050-catalyst-field-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-field",
+  "layout": "thread",
+  "content": "plain",
+  "reaction": "ime",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "composed": {
+   "text": "にほんご",
+   "inText": false,
+   "inCapture": true
+  },
+  "caret": 63,
+  "expect": {
+   "result": "unsupported",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "UIKit shows Accessibility no marked text, so Oops can't see the composition, and its paste replaces the composed text while a typo stays. Run and recorded, but outside pass and fail until Oops can see it."
+  }
+ },
+ {
+  "id": "n051-appkit-field-native",
+  "family": "native",
+  "toolkit": "appkit-field",
+  "layout": "nested-scroll",
+  "content": "mentions",
+  "reaction": "ime",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix @Alice Martin for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "composed": {
+   "text": "にほんご",
+   "inText": true,
+   "inCapture": true
+  },
+  "caret": 77,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "This field shows Accessibility no marked text, and a correction during the composition lands cleanly. Graded on what the field shows, as if the composition were committed."
+  }
+ },
+ {
+  "id": "n052-swiftui-rich-native",
+  "family": "native",
+  "toolkit": "swiftui-rich",
+  "layout": "nested-scroll",
+  "content": "mentions",
+  "reaction": "ime",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 71,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "composing|composition|typing|input method|IME",
+   "why": "An input method is composing at the caret. The marked text isn't the user's yet, and replacing text under it breaks the composition, so Oops should touch nothing and say to finish typing first."
+  }
+ },
+ {
+  "id": "n053-swing-swing",
+  "family": "native",
+  "toolkit": "swing",
+  "layout": "side-panel",
+  "content": "mentions",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second @Alice Martin part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   81
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n054-custom-opaque-native",
+  "family": "native",
+  "toolkit": "custom-opaque",
+  "layout": "nested-scroll",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "n055-catalyst-textview-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-textview",
+  "layout": "modal",
+  "content": "emoji-images",
+  "reaction": "slash-menu",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix 🎉 for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 68,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n056-appkit-tk1-native",
+  "family": "native",
+  "toolkit": "appkit-tk1",
+  "layout": "nested-scroll",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "rtl",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني من الخطه"
+     }
+    ]
+   ]
+  },
+  "text": "اترك هاذا الجزء كما هو. ثم صحح الجزء التاني من الخطه",
+  "typos": {
+   "التاني": "الثاني",
+   "الخطه": "الخطة"
+  },
+  "selection": [
+   24,
+   52
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n057-custom-opaque-native",
+  "family": "native",
+  "toolkit": "custom-opaque",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "zoom",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 53,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "n058-swing-swing",
+  "family": "native",
+  "toolkit": "swing",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 71,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n059-qt-qt",
+  "family": "native",
+  "toolkit": "qt",
+  "layout": "thread",
+  "content": "mentions",
+  "reaction": "paste-intercept",
+  "presentation": "zoom",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix @Alice Martin for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 77,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n060-appkit-tk2-native",
+  "family": "native",
+  "toolkit": "appkit-tk2",
+  "layout": "composer",
+  "content": "emoji-images",
+  "reaction": "ime",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix 🎉 for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 66,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "composing|composition|typing|input method|IME",
+   "why": "An input method is composing at the caret. The marked text isn't the user's yet, and replacing text under it breaks the composition, so Oops should touch nothing and say to finish typing first."
+  }
+ },
+ {
+  "id": "n061-swiftui-editor-native",
+  "family": "native",
+  "toolkit": "swiftui-editor",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "paste-intercept",
+  "presentation": "zoom",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n062-custom-opaque-native",
+  "family": "native",
+  "toolkit": "custom-opaque",
+  "layout": "document",
+  "content": "mentions",
+  "reaction": "ime",
+  "presentation": "rtl",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "mention": "Alice Martin"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة @Alice Martin واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 71,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "n063-swiftui-field-native",
+  "family": "native",
+  "toolkit": "swiftui-field",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "slash-menu",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     },
+     {
+      "text": " /"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now /",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 65,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "n064-swiftui-rich-native",
+  "family": "native",
+  "toolkit": "swiftui-rich",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "multiline",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "Hi team,"
+     }
+    ],
+    [],
+    [
+     {
+      "text": "Quick update on teh planning for next week."
+     }
+    ],
+    [],
+    [
+     {
+      "text": "The review moved to thursday, plese have your slides ready."
+     }
+    ]
+   ]
+  },
+  "text": "Hi team,\n\nQuick update on teh planning for next week.\n\nThe review moved to thursday, plese have your slides ready.",
+  "typos": {
+   "teh": "the",
+   "plese": "please"
+  },
+  "caret": 53,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ }
+]

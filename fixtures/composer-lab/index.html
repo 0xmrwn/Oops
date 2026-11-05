@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oops composer lab</title>
+<!--
+  Composer lab: synthetic editors in the layouts oops meets in Chromium apps (Teams, Claude,
+  Codex). Pick a scenario with #name; the editor is focused with the caret at the end on load.
+  contenteditable composers expose no caret rect to Accessibility; <textarea> ones do.
+-->
+<style>
+  :root { color-scheme: light dark; --bg: #f4f4f6; --panel: #fff; --line: #d9d9e0; --text: #1d1d22; --muted: #6b6b76; --accent: #5b5bd6; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #17171b; --panel: #222228; --line: #34343c; --text: #ececf1; --muted: #9a9aa6; } }
+  /* ?theme=light|dark overrides the system appearance (design recordings). */
+  html.light { color-scheme: light; --bg: #f4f4f6; --panel: #fff; --line: #d9d9e0; --text: #1d1d22; --muted: #6b6b76; }
+  html.dark { color-scheme: dark; --bg: #17171b; --panel: #222228; --line: #34343c; --text: #ececf1; --muted: #9a9aa6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, system-ui, sans-serif; }
+  nav { position: fixed; top: 8px; left: 8px; z-index: 5; display: flex; gap: 4px; flex-wrap: wrap; max-width: 60%; font-size: 11px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 2px 6px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); }
+  nav a.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .scenario { display: none; height: 100%; }
+  .scenario.on { display: flex; }
+  .chat { flex-direction: column; width: 100%; }
+  .history { flex: 1; overflow: auto; padding: 48px 24px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 62%; padding: 8px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+  .msg.me { align-self: flex-end; background: color-mix(in srgb, var(--accent) 16%, var(--panel)); }
+  .composer { margin: 0 16px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 10px 12px 6px; }
+  .editor { outline: none; min-height: 22px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+  textarea.editor { width: 100%; border: 0; resize: none; background: transparent; color: inherit; font: inherit; }
+  .toolbar { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; padding-top: 6px; }
+  .toolbar .send { margin-left: auto; background: var(--accent); color: #fff; border-radius: 8px; padding: 3px 10px; }
+  .page { flex-direction: column; width: 100%; padding: 44px 24px 24px; gap: 16px; }
+  .search { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 8px 12px; }
+  .search input { width: 100%; border: 0; outline: none; background: transparent; color: inherit; font: inherit; }
+  .doc { flex: 1; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 20px 28px; overflow: auto; }
+  .doc .editor, .doc textarea.editor { max-height: none; height: 100%; }
+  .card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 14px 16px; }
+  .reply { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+  .split { flex-direction: row; width: 100%; }
+  .split .main { flex: 1; padding: 48px 24px; color: var(--muted); }
+  .split .side { width: 300px; border-left: 1px solid var(--line); display: flex; flex-direction: column; justify-content: flex-end; }
+  .split .side .composer { margin: 12px; }
+  .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / .35); display: grid; place-items: center; }
+  .dialog { width: min(520px, 90%); border-radius: 16px; background: var(--panel); border: 1px solid var(--line); padding: 18px; box-shadow: 0 20px 60px rgb(0 0 0 / .3); }
+  .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  #showcase { background: linear-gradient(135deg, #ff6b6b, #f7b733 30%, #4ecdc4 60%, #5b5bd6 85%, #c44dff); }
+  #showcase .history { gap: 14px; }
+  #showcase .msg { background: rgb(255 255 255 / .82); color: #1d1d22; border: 0; font-weight: 500; }
+  #showcase .msg.me { background: rgb(20 20 30 / .78); color: #fff; }
+  #showcase .photo { align-self: flex-end; width: 360px; height: 150px; border-radius: 16px;
+    background: radial-gradient(circle at 30% 40%, #fff6 0 18%, transparent 19%), repeating-linear-gradient(45deg, #ff3d7f 0 14px, #ffd23f 14px 28px, #3dd6ff 28px 42px); }
+  #showcase .stripes { align-self: flex-end; font: 800 34px/1 -apple-system, system-ui; color: #fff; text-shadow: 0 2px 0 #0003; letter-spacing: -.02em; }
+  /* High-contrast band right behind where the capsule lands (above the composer's trailing edge). */
+  #showcase .history { padding-bottom: 0; justify-content: flex-end; }
+  #showcase .band { align-self: flex-end; width: 420px; height: 70px; margin-bottom: -6px; border-radius: 14px 14px 0 0;
+    background: repeating-linear-gradient(90deg, #fff 0 6px, #111 6px 12px, #ff2d55 12px 18px, #ffd60a 18px 24px, #0a84ff 24px 30px);
+    display: grid; place-items: center; font: 900 26px/1 -apple-system, system-ui; color: #fff; -webkit-text-stroke: 1px #000; }
+</style>
+</head>
+<body>
+<nav id="nav"></nav>
+
+<!-- 1. Chat app, contenteditable composer with toolbar at the window bottom (Teams, Claude, Codex). -->
+<section class="scenario chat" id="chat" data-title="Chat · contenteditable">
+  <div class="history">
+    <div class="msg">Can you send the release notes before the stand-up?</div>
+    <div class="msg me">Sure, drafting them now.</div>
+    <div class="msg">Great, and include the login fix please.</div>
+  </div>
+  <div class="composer" role="group" aria-label="Composer"><div class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message">hey, i just pushed the fix for the login bug. it shoud work now but can you double check befor we ship it ?</div>
+    <div class="toolbar"><span>B</span><span>I</span><span>@</span><span>📎</span><span class="send">Send</span></div></div>
+</section>
+
+<!-- 0. Glass showcase: vivid content right where the capsule lands, so refraction is visible. -->
+<section class="scenario chat" id="showcase" data-title="Glass showcase">
+  <div class="history">
+    <div class="msg">Here are the shots from the offsite 🎉</div>
+    <div class="photo"></div>
+    <div class="msg me">These are great, sending the recap now</div>
+    <div class="stripes">oops · liquid glass · refraction</div>
+    <div class="band">refraction test</div>
+  </div>
+  <div class="composer" role="group" aria-label="Composer"><div class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message">thnaks everyone, the recap is coming in a minute</div>
+    <div class="toolbar"><span>B</span><span>I</span><span class="send">Send</span></div></div>
+</section>
+
+<!-- 2. Same chat, but a native textarea: Chromium reports caret rects for it. -->
+<section class="scenario chat" id="chat-textarea" data-title="Chat · textarea">
+  <div class="history"><div class="msg">Ping me when the build is green.</div></div>
+  <div class="composer" role="group" aria-label="Composer"><textarea class="editor" rows="2" aria-label="Message">the build is green now, ill merge after lunch if nobody objets</textarea>
+    <div class="toolbar"><span>📎</span><span class="send">Send</span></div></div>
+</section>
+
+<!-- 3. A multi-line draft that has grown the composer tall (still contenteditable). -->
+<section class="scenario chat" id="chat-tall" data-title="Chat · grown draft">
+  <div class="history"><div class="msg">How did the migration go?</div></div>
+  <div class="composer" role="group" aria-label="Composer"><div class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message">so the migration mostly went fine.
+first we backed up the db and checked the replica lag, it was under a second.
+then we ran the schema change, wich took about 4 minutes on the big table.
+one index failed to build becuase of a duplicate, we fixed the data and retried.
+after that the app servers restarted cleanly and error rates stayed flat.
+ill write the full postmortem tomorow morning</div>
+    <div class="toolbar"><span>B</span><span>I</span><span class="send">Send</span></div></div>
+</section>
+
+<!-- 4. Single-line field at the very top of the window: no room above it. -->
+<section class="scenario page" id="top" data-title="Top field">
+  <div class="search"><input aria-label="Search" value="recieve aproval for the budjet"></div>
+  <div class="card">Results appear here.</div>
+</section>
+
+<!-- 5. Tall document editor (Mail-like body), contenteditable. -->
+<section class="scenario page" id="document" data-title="Document · contenteditable">
+  <div class="doc"><div class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Body">Hi team,
+
+Quick update on the quarterly planing. We have finalised the roadmap for the next two sprints and the priorites are now clear.
+
+The design review is moved to thursday, please make sure your slides are ready by wedensday evening.
+
+Thanks,
+M</div></div>
+</section>
+
+<!-- 6. Tall document editor as a native textarea: caret rects are available. -->
+<section class="scenario page" id="document-textarea" data-title="Document · textarea">
+  <div class="doc"><textarea class="editor" aria-label="Body">Hi team,
+
+Quick update on the quarterly planing. We have finalised the roadmap for the next two sprints and the priorites are now clear.
+
+The design review is moved to thursday, please make sure your slides are ready by wedensday evening.
+
+Thanks,
+M</textarea></div>
+</section>
+
+<!-- 7. Inline thread reply in the middle of the page, content below it. -->
+<section class="scenario page" id="inline" data-title="Inline reply">
+  <div class="card">Ana: Can someone review PR #482 today?
+    <div class="reply"><div class="editor" contenteditable="true" role="textbox" aria-label="Reply">ill take it, give me an hour or so</div></div></div>
+  <div class="card">Ben: The staging deploy is scheduled for 4pm.</div>
+  <div class="card">Chloé: Reminder, retro is tomorrow at 10.</div>
+</section>
+
+<!-- 8. Narrow side-panel composer against the right edge; its wrapper has no role, so Chromium prunes it. -->
+<section class="scenario split" id="side" data-title="Side panel">
+  <div class="main">Document preview</div>
+  <div class="side"><div class="composer"><div class="editor" contenteditable="true" role="textbox" aria-label="Comment">lgtm, one small nit on the secon paragraph</div></div></div>
+</section>
+
+<!-- 9. Composer inside a modal dialog. -->
+<section class="scenario page" id="modal" data-title="Modal dialog">
+  <div class="card">Background page</div>
+  <div class="scrim"><div class="dialog"><div class="label">Share with a note</div>
+    <div class="composer" role="group" aria-label="Composer" style="margin:0"><div class="editor" contenteditable="true" role="textbox" aria-label="Note">heres the deck we discused, let me know what you think</div></div></div></div>
+</section>
+
+<script>
+  const theme = new URLSearchParams(location.search).get('theme');
+  if (theme) document.documentElement.classList.add(theme);
+  const sections = [...document.querySelectorAll('.scenario')];
+  const nav = document.getElementById('nav');
+  for (const s of sections) {
+    const a = document.createElement('a'); a.href = '#' + s.id; a.textContent = s.dataset.title; nav.append(a);
+  }
+  function show() {
+    const id = location.hash.slice(1) || 'chat';
+    for (const s of sections) s.classList.toggle('on', s.id === id);
+    for (const a of nav.children) a.classList.toggle('on', a.getAttribute('href') === '#' + id);
+    const editor = document.querySelector('#' + CSS.escape(id) + ' .editor, #' + CSS.escape(id) + ' input');
+    if (!editor) return;
+    editor.focus();
+    // Caret at the end, like a user who just finished typing.
+    if (editor.setSelectionRange) { const n = editor.value.length; editor.setSelectionRange(n, n); editor.scrollTop = editor.scrollHeight; }
+    else { const r = document.createRange(); r.selectNodeContents(editor); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    document.title = 'oops composer lab · ' + (document.getElementById(id)?.dataset.title ?? id);
+  }
+  addEventListener('hashchange', show); show();
+  // ?follow=1 switches to whatever control.json names (written by the recording script).
+  if (new URLSearchParams(location.search).get('follow')) {
+    let last = '';
+    setInterval(async () => {
+      try {
+        const control = await (await fetch('control.json?' + Date.now(), { cache: 'no-store' })).json();
+        if (control.nonce !== last) { last = control.nonce; location.hash = control.scenario; show(); }
+      } catch {}
+    }, 250);
+  }
+  // ?cycle=7 steps through every scenario every 7 s (for unattended recordings).
+  const cycle = Number(new URLSearchParams(location.search).get('cycle'));
+  if (cycle > 0) {
+    let index = Math.max(0, sections.findIndex(s => s.id === (location.hash.slice(1) || 'chat')));
+    setInterval(() => { index = (index + 1) % sections.length; location.hash = sections[index].id; }, cycle * 1000);
+  }
+</script>
+</body>
+</html>

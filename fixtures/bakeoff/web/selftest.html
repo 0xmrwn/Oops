@@ -1,0 +1,42 @@
+<!doctype html><meta charset=utf-8><title>selftest</title><link rel=stylesheet href=bakeoff.css>
+<body><pre id=log></pre><div id=slot class=slot style="height:300px"></div>
+<script>
+const engines = (new URLSearchParams(location.search).get('engines') || 'textarea,contenteditable,prosemirror,lexical,slate,quill,draftjs,ckeditor,tinymce,codemirror,monaco,roosterjs,trix,blocks').split(',');
+const contents = (new URLSearchParams(location.search).get('contents') || 'plain,mentions,emoji-images').split(',');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const results = [];
+async function one(engine, content) {
+  const segs = [{text: 'hey, i pushed teh fix '}];
+  if (content === 'mentions') segs.push({mention: 'Alice Martin'}, {text: ' for the bug. it shoud work'});
+  else if (content === 'emoji-images') segs.push({emoji: '🎉'}, {text: ' for the bug. it shoud work'});
+  else segs.push({text: 'for the bug. it shoud work'});
+  window.bakeoffCase = {id: 'x', engine, layout: 'composer', presentation: 'normal', content, reaction: 'none', embedding: 'page', draft: {paragraphs: [[{text: 'Hi team,'}], [], segs]}};
+  const frame = document.createElement('iframe'); frame.className = 'editor-frame'; frame.style.height = '200px';
+  frame.src = '/page.html?embed=frame&host=self'; document.getElementById('slot').replaceChildren(frame);
+  await new Promise(r => frame.onload = r);
+  for (let i = 0; i < 100 && !frame.contentWindow.bakeoff && !frame.contentWindow.bakeoffError; i++) await sleep(50);
+  const out = {engine, content};
+  if (!frame.contentWindow.bakeoff) { out.error = frame.contentWindow.bakeoffError || 'no mount'; return out; }
+  const h = frame.contentWindow.bakeoff.handle;
+  const sel = () => { const r = h.root.getRootNode(); return String((r.getSelection ? r : h.root.ownerDocument).getSelection?.() ?? ''); };
+  try {
+    out.initial = h.text(); out.counts = JSON.stringify(h.counts());
+    const at = out.initial.indexOf('teh'); frame.contentWindow.focus(); h.focus(); h.select(at, at + 3); await sleep(250);
+    out.selected = sel(); h.insert('the'); await sleep(250);
+    out.insertOk = h.text() === out.initial.replace('teh', 'the');
+    out.caret = h.caret?.();
+    h.rerender(); await sleep(400);
+    out.rerenderOk = h.text() === out.initial.replace('teh', 'the') && JSON.stringify(h.counts()) === out.counts;
+    out.caretAfter = h.caret?.();
+    const at2 = h.text().indexOf('shoud'); h.select(at2, at2 + 5); await sleep(250); out.selected2 = sel();
+  } catch (e) { out.error = e.message; }
+  return out;
+}
+(async () => {
+  for (const e of engines) for (const c of contents) {
+    const r = await one(e, c); results.push(r);
+    document.getElementById('log').textContent += JSON.stringify(r) + '\n';
+  }
+  window.selftestDone = results;
+})();
+</script>

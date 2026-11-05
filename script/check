@@ -1,0 +1,152 @@
+#!/bin/bash
+# The gate: checks only what changed since BASE (default HEAD: staged, unstaged and new files), cheapest first,
+# and stops at the first failure.
+#   1. hooks   the commit hooks (.pre-commit-config.yaml) on the changed files
+#   2. build   Swift, when Swift changed: incremental, niced, half the cores (warnings are errors: Package.swift)
+#   3. tests   unit tests, when OopsCore, OopsEval, the tests, their data or the package changed
+# Prints one line per step and a progress line every 10 s; the full output is in .build/check.log, rewritten
+# on every run. Usage: script/check [BASE]   (a branch or commit: checks everything since it forked)
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+LOG=.build/check.log
+STEP=.build/check.step
+mkdir -p .build
+: >"$LOG"
+export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
+JOBS=$(($(sysctl -n hw.ncpu) / 2))
+
+if [ -n "${1:-}" ]; then
+  base=$(git merge-base "$1" HEAD) || {
+    echo "check: unknown base '$1'"
+    exit 2
+  }
+  since=$1
+else
+  base=HEAD
+  since="HEAD (uncommitted changes)"
+fi
+git rev-parse --verify --quiet HEAD >/dev/null || base=$(git hash-object -t tree /dev/null)
+
+changed=$({
+  git diff --name-only --no-renames "$base"
+  git ls-files --others --exclude-standard
+} | sort -u)
+if [ -z "$changed" ]; then
+  echo "check: nothing changed since $since"
+  exit 0
+fi
+existing=()
+while IFS= read -r file; do [ -f "$file" ] && existing+=("$file"); done <<<"$changed"
+count=$(wc -l <<<"$changed" | tr -d ' ')
+echo "check: $count changed file$([ "$count" = 1 ] || echo s) since $since"
+started=$SECONDS
+
+has() { grep -qE "$1" <<<"$changed"; }
+
+# Runs one step with its output in the log, a progress line every 10 s, and its result on one line.
+step() {
+  local name=$1 shown=10 status
+  shift
+  local began=$SECONDS
+  printf '\n== %s: %s\n' "$name" "$*" >>"$LOG"
+  "$@" >"$STEP" 2>&1 &
+  local pid=$!
+  # Interrupted: stop the step's compiler too, not just the shell running it.
+  trap 'pkill -TERM -P $pid 2>/dev/null; kill $pid 2>/dev/null; exit 130' INT TERM
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 0.2
+    if [ $((SECONDS - began)) -ge $shown ]; then
+      printf '  %-6s still running (%ss)\n' "$name" "$shown"
+      shown=$((shown + 10))
+    fi
+  done
+  wait "$pid"
+  status=$?
+  trap - INT TERM
+  # Compiler colours and links would clutter the log.
+  sed -i '' -e $'s/\x1b\\[[0-9;]*m//g' -e $'s/\x1b\\]8;;[^\x1b]*\x1b\\\\//g' "$STEP"
+  cat "$STEP" >>"$LOG"
+  if [ $status = 0 ]; then
+    printf '✓ %-6s %ss\n' "$name" $((SECONDS - began))
+  else
+    printf '✗ %-6s %ss\n' "$name" $((SECONDS - began))
+  fi
+  return $status
+}
+
+skip() { printf '– %-6s skipped: %s\n' "$1" "$2"; }
+
+fail() { # The step's key lines, then where to find the rest.
+  local lines
+  lines=$(grep -E "$1" "$STEP" | sed "s|$PWD/||" | awk '!seen[$0]++' | head -20)
+  [ -n "$lines" ] || lines=$(tail -20 "$STEP")
+  awk '{ print "  " $0 }' <<<"$lines"
+  echo "check failed at $2 after $((SECONDS - started))s · full log: $LOG"
+  rm -f "$STEP"
+  exit 1
+}
+
+# 1. Commit hooks: token budget, hygiene, formatters (which fix files in place), linters.
+if [ ${#existing[@]} -gt 0 ]; then
+  TOKEN_BUDGET_BASE=$base step hooks mise exec -- prek run --quiet --color never --files "${existing[@]}" ||
+    fail '.' hooks
+else
+  skip hooks "only deletions"
+fi
+
+if has '^fixtures/eval/(evaluation/|test_.*\.py$|manage\.py$|rubric\.json$|cases\.jsonl$|dataset\.json$)'; then
+  step eval python3 -m unittest discover -s fixtures/eval -p 'test_*.py' || fail 'ERROR|FAIL|Error|Traceback' eval
+fi
+
+# Unit tests cover OopsCore and the eval harness, and read the decode corpus and the bundled sound cues; app-only
+# changes stop at the build.
+tested='^Sources/OopsCore/|^Sources/OopsEval/|^Tests/|^Package\.(swift|resolved)$|^fixtures/corpus/|^Resources/Sounds/'
+
+# Packaging contracts run without compiling Swift or opening an app.
+if has '^script/(release.*|test_release.*\.py)$'; then
+  step release python3 -m unittest discover -s script -p 'test_release*.py' || fail '.' release
+fi
+
+# 2. Build: the package (also before tests, so their binary exists), and the standalone lab tools under fixtures/.
+if has '^(Sources|Tests)/.*\.swift$|^Package\.(swift|resolved)$' || has "$tested"; then
+  step build nice -n 10 swift build --build-tests --disable-keychain --jobs "$JOBS" || fail '^/.*:[0-9]+:[0-9]+: error:' build
+else
+  skip build "no Swift changes"
+fi
+labs=$(grep -E '^fixtures/.*\.swift$' <<<"$changed" || true)
+if [ -n "$labs" ]; then
+  # A lab is one file, or a folder with a main.swift whose files make one app (typechecked together).
+  # A folder that imports UIKit is a Mac Catalyst app.
+  typecheck() {
+    local file dir sdk seen=" "
+    sdk=$(xcrun --show-sdk-path --sdk macosx)
+    for file in $labs; do
+      [ -f "$file" ] || continue
+      dir=$(dirname "$file")
+      if [ ! -f "$dir/main.swift" ]; then
+        nice -n 10 swiftc -typecheck "$file" || return 1
+        continue
+      fi
+      case $seen in *" $dir "*) continue ;; esac
+      seen="$seen$dir "
+      if grep -q '^import UIKit' "$dir"/*.swift; then
+        nice -n 10 xcrun swiftc -typecheck -target arm64-apple-ios18.0-macabi -sdk "$sdk" \
+          -Fsystem "$sdk/System/iOSSupport/System/Library/Frameworks" "$dir"/*.swift || return 1
+      else
+        nice -n 10 swiftc -typecheck "$dir"/*.swift || return 1
+      fi
+    done
+  }
+  step labs typecheck || fail '^/.*:[0-9]+:[0-9]+: error:' labs
+fi
+
+# 3. Unit tests.
+if has "$tested"; then
+  step tests nice -n 10 swift test --skip-build --disable-sandbox || fail ': error:|✘|Fatal error| [1-9][0-9]* failures? \(' tests
+else
+  skip tests "no OopsCore, test or test data changes"
+fi
+
+rm -f "$STEP"
+echo "check passed in $((SECONDS - started))s · full log: $LOG"

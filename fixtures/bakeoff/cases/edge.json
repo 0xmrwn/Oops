@@ -1,0 +1,950 @@
+[
+ {
+  "id": "e001-password-safari",
+  "family": "web",
+  "engine": "password",
+  "shell": "safari",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e002-password-webkit",
+  "family": "web",
+  "engine": "password",
+  "shell": "webkit",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e003-password-chrome",
+  "family": "web",
+  "engine": "password",
+  "shell": "chrome",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e004-password-zen",
+  "family": "web",
+  "engine": "password",
+  "shell": "zen",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e005-password-electron",
+  "family": "web",
+  "engine": "password",
+  "shell": "electron",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e006-readonly-safari",
+  "family": "web",
+  "engine": "readonly",
+  "shell": "safari",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "edit|read-only|editable",
+   "why": "Selected text in a read-only document: there is no draft to correct, and pasting would do nothing."
+  }
+ },
+ {
+  "id": "e007-readonly-webkit",
+  "family": "web",
+  "engine": "readonly",
+  "shell": "webkit",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "edit|read-only|editable",
+   "why": "Selected text in a read-only document: there is no draft to correct, and pasting would do nothing."
+  }
+ },
+ {
+  "id": "e008-readonly-chrome",
+  "family": "web",
+  "engine": "readonly",
+  "shell": "chrome",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "edit|read-only|editable",
+   "why": "Selected text in a read-only document: there is no draft to correct, and pasting would do nothing."
+  }
+ },
+ {
+  "id": "e009-readonly-zen",
+  "family": "web",
+  "engine": "readonly",
+  "shell": "zen",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "edit|read-only|editable",
+   "why": "Selected text in a read-only document: there is no draft to correct, and pasting would do nothing."
+  }
+ },
+ {
+  "id": "e010-readonly-electron",
+  "family": "web",
+  "engine": "readonly",
+  "shell": "electron",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "edit|read-only|editable",
+   "why": "Selected text in a read-only document: there is no draft to correct, and pasting would do nothing."
+  }
+ },
+ {
+  "id": "e011-canvas-safari",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "safari",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "e012-canvas-safari",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "safari",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "e013-canvas-webkit",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "webkit",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "e014-canvas-webkit",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "webkit",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "e015-canvas-chrome",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "chrome",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "e016-canvas-chrome",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "chrome",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "e017-canvas-zen",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "zen",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "e018-canvas-zen",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "zen",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "e019-canvas-electron",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "electron",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "[Ss]elect",
+   "why": "The editor exposes no text and nothing is selected: Oops can't read the draft, and should ask for a selection."
+  }
+ },
+ {
+  "id": "e020-canvas-electron",
+  "family": "web",
+  "engine": "canvas",
+  "shell": "electron",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor draws its text and exposes none, but copy and paste work on a selection: Oops corrects the selection through the clipboard. Nothing can confirm the result, so no revert or flash, by design."
+  }
+ },
+ {
+  "id": "e021-appkit-secure-native",
+  "family": "native",
+  "toolkit": "appkit-secure",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e022-catalyst-secure-catalyst",
+  "family": "native",
+  "toolkit": "catalyst-secure",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e023-qt-secure-qt",
+  "family": "native",
+  "toolkit": "qt-secure",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e024-swing-secure-swing",
+  "family": "native",
+  "toolkit": "swing-secure",
+  "layout": "modal",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "password|secure",
+   "why": "A password field: Oops never reads secrets, and says it doesn't read password fields."
+  }
+ },
+ {
+  "id": "e025-appkit-readonly-native",
+  "family": "native",
+  "toolkit": "appkit-readonly",
+  "layout": "document",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "refuses",
+   "stages": [
+    "refused",
+    "untouched",
+    "message"
+   ],
+   "message": "edit|read-only|editable",
+   "why": "Selected text in a read-only document: there is no draft to correct, and pasting would do nothing."
+  }
+ }
+]

@@ -1,0 +1,47 @@
+[
+ {
+  "id": "rtl-old-g028-roosterjs-zen",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "zen",
+  "layout": "modal",
+  "content": "emoji-images",
+  "reaction": "combobox",
+  "presentation": "rtl",
+  "target": "whole",
+  "embedding": "shadow",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "مرحبا بالفريق، تم تحديت الخطة "
+     },
+     {
+      "emoji": "🎉"
+     },
+     {
+      "text": " واصبحت الأولويات واضحة الآن"
+     }
+    ]
+   ]
+  },
+  "text": "مرحبا بالفريق، تم تحديت الخطة 🎉 واصبحت الأولويات واضحة الآن",
+  "typos": {
+   "تحديت": "تحديث",
+   "واصبحت": "وأصبحت"
+  },
+  "caret": 60,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ }
+]

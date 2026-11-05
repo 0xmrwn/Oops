@@ -1,0 +1,111 @@
+# A vMAJOR.MINOR.PATCH tag: gate, build, sign, notarize, write the signed update feed and publish the GitHub
+# release. A thin wrapper over `just ci` and `just release …`; signing material comes only
+# from GitHub secrets, into a temporary keychain deleted at the end.
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: xcode-27
+    timeout-minutes: 90
+    # Secrets live in this environment, so only tag pushes it allows can read them.
+    environment: release
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      # Build numbers only grow: one release workflow, one run number per published build.
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+
+      - name: Gate
+        run: just ci
+
+      - name: Signing keychain
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          echo "KEYCHAIN=$KEYCHAIN" >>"$GITHUB_ENV"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$KEYCHAIN"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN"
+          security unlock-keychain -p "$password" "$KEYCHAIN"
+          security default-keychain -d user -s "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          printenv DEVELOPER_ID_P12_BASE64 | base64 --decode >"$certificate"
+          security import "$certificate" -k "$KEYCHAIN" -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$certificate"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$KEYCHAIN" >/dev/null
+          xcrun notarytool store-credentials oops-notary --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --keychain "$KEYCHAIN"
+
+      - name: Build
+        env:
+          DEVELOPER_ID_FINGERPRINT: ${{ secrets.DEVELOPER_ID_FINGERPRINT }}
+        run: just release build --from-tag --build-number "$BUILD_NUMBER" --signing-identity "$DEVELOPER_ID_FINGERPRINT"
+
+      - name: Notarize
+        run: |
+          artifact="dist/release/oops-${GITHUB_REF_NAME#v}-$BUILD_NUMBER"
+          # Each call waits at most 60 s and resumes the same submission; never resubmits.
+          for _ in $(seq 1 45); do
+            status="$(just release notarize --artifact "$artifact" --keychain-profile oops-notary --wait-seconds 60 | jq -r .data.status)"
+            if [ "$status" = Accepted ]; then exit 0; fi
+            if [ "$status" != "In Progress" ]; then exit 1; fi
+          done
+          echo "notarization still in progress after 45 attempts" >&2
+          exit 1
+
+      - name: Update feed
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          artifact="dist/notarized/oops-${GITHUB_REF_NAME#v}-$BUILD_NUMBER"
+          just release verify --artifact "$artifact"
+          printenv SPARKLE_ED_PRIVATE_KEY | just release appcast --artifact "$artifact" --ed-key-file -
+
+      # Branded first-download DMG (D6), into the same dist/publish/ folder. Updates keep the ZIP in appcast.xml.
+      - name: DMG
+        run: |
+          artifact="dist/notarized/oops-${GITHUB_REF_NAME#v}-$BUILD_NUMBER"
+          # Like Notarize: each call waits at most 60 s and resumes the same submission.
+          for _ in $(seq 1 45); do
+            status="$(just release dmg --artifact "$artifact" --keychain-profile oops-notary --wait-seconds 60 | jq -r .data.status)"
+            if [ "$status" = Accepted ]; then exit 0; fi
+            if [ "$status" != "In Progress" ]; then exit 1; fi
+          done
+          echo "DMG notarization still in progress after 45 attempts" >&2
+          exit 1
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          folder="dist/publish/oops-$version-$BUILD_NUMBER"
+          shopt -s nullglob
+          gh release create "$GITHUB_REF_NAME" --verify-tag --latest --title "Oops $version" \
+            --notes-file "$folder/Oops-$version.md" "$folder"/*.zip "$folder/Oops-$version.dmg" "$folder/appcast.xml"
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true

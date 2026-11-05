@@ -1,0 +1,7 @@
+{"id": "chat", "input": "on my way, runing 5 min late sory, save me a seet", "label": "accepted"}
+{"id": "mail", "input": "Bonjour Camille, je vous envoi le devis demain matin, désolé pour le retart. Bonne journé", "label": "accepted"}
+{"id": "doc", "input": "El informe trimestral esta casi listo, solo falta revisar las sifras de ventas y añadir las conclusiones.", "label": "accepted"}
+{"id": "page", "input": "我现在再开会，等一下在给你打电话", "label": "accepted"}
+{"id": "team", "input": "@Sami can you take a look at teh PR before tonite? the fix is in `RetryPolicy.swift`", "label": "accepted"}
+{"id": "note", "input": "ricordarsi di chiamare il dentista, e comprare il regallo per Giulia prima di venerdi", "label": "accepted"}
+{"id": "messenger", "input": "الاجتماغ غدا الساعه العاشرة، لا تتاخر من فضلك", "label": "accepted"}

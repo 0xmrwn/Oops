@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>oops composer lab · bakeoff</title>
+<!--
+  Bake-off page (fixtures/bakeoff/run.py serves it): one editor engine in one layout, as a case
+  describes it. Loaded with ?host=<shell>, it polls /control for its case and posts the editor's
+  own text (the engine's model, not the DOM) to /state, so every shell is driven the same way with
+  no browser driver. With ?embed=frame it is the inside of a same-origin iframe: it mounts only the
+  editor and the parent reads it through window.bakeoff.
+-->
+<link rel="stylesheet" href="bakeoff.css">
+<script src="segments.js"></script>
+<script src="layouts.js"></script>
+<script src="behaviours.js"></script>
+<script src="engines/plain.js"></script>
+<script src="engines/prosemirror.js"></script>
+<script src="engines/lexical.js"></script>
+<script src="engines/slate.js"></script>
+<script src="engines/quill.js"></script>
+<script src="engines/draftjs.js"></script>
+<script src="engines/ckeditor.js"></script>
+<script src="engines/tinymce.js"></script>
+<script src="engines/codemirror.js"></script>
+<script src="engines/monaco.js"></script>
+<script src="engines/rooster.js"></script>
+<script src="engines/trix.js"></script>
+<script src="engines/canvas.js"></script>
+<script src="engines/blocks.js"></script>
+</head>
+<body>
+<script src="bakeoff.js"></script>
+</body>
+</html>

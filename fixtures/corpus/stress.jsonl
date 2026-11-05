@@ -1,0 +1,40 @@
+{"id": "stress-00", "input": "hey can you check https://github.com/0xmrwn/oops/pul/12 befor i merge ?", "label": "accepted"}
+{"id": "stress-01", "input": "ping @alexandre about teh deploy, he said its fine", "label": "accepted"}
+{"id": "stress-02", "input": "the fix is in `parseDraft()` but i havent tested teh edge case yet", "label": "accepted"}
+{"id": "stress-03", "input": "todo for tomorow:\n- fix the loggin bug\n- update teh docs\n- ship it", "label": "accepted"}
+{"id": "stress-04", "input": "Salut l'équipe,\r\nje vais pas pouvoir venir a la réunion demain.\r\nDésolé !", "label": "accepted"}
+{"id": "stress-05", "input": "ça marche pour moi , on se voit a 14h ?", "label": "accepted"}
+{"id": "stress-06", "input": "c'est vraiment top !! merci pour ton aide", "label": "accepted"}
+{"id": "stress-07", "input": "he said \"its done\" but i dont think so...", "label": "accepted"}
+{"id": "stress-08", "input": "the 2-3 failing tests - they are all flakey", "label": "accepted"}
+{"id": "stress-09", "input": "lets meet at 10 -- or 11 if your late", "label": "accepted"}
+{"id": "stress-10", "input": "Bonjour,\n\nPouvez vous me renvoyer le devis ? Je ne l'ai pas recu.\n\nCordialement,\nCamille", "label": "accepted"}
+{"id": "stress-11", "input": "see ~/Projects/oops/README.md for teh setup steps", "label": "accepted"}
+{"id": "stress-12", "input": "run `npm run build` then open http://localhost:3000/settigns", "label": "accepted"}
+{"id": "stress-13", "input": "  indented line with a tpyo  ", "label": "accepted"}
+{"id": "stress-14", "input": "1. clone the repo\n2. instal deps\n3. run the tets", "label": "accepted"}
+{"id": "stress-15", "input": "> quoted reply with a mistke\nmy answer is yes", "label": "accepted"}
+{"id": "stress-16", "input": "## Notes\nthe meeting was postponned to friday", "label": "accepted"}
+{"id": "stress-17", "input": "thx @sam-k and @lea_b for the quick reveiw 🙏", "label": "accepted"}
+{"id": "stress-18", "input": "email me at camille@example.com if somthing breaks", "label": "accepted"}
+{"id": "stress-19", "input": "i'm not sure wether we should use v2 or v3 of the api", "label": "accepted"}
+{"id": "stress-20", "input": "Je pense qu’il faut qu'on revoie le plannig", "label": "accepted"}
+{"id": "stress-21", "input": "ok… i'll do it tommorow", "label": "accepted"}
+{"id": "stress-22", "input": "status: blokced on the infra team", "label": "accepted"}
+{"id": "stress-23", "input": "the build failled on main again, see the logs: https://ci.example.com/runs/4821?attempt=2", "label": "accepted"}
+{"id": "stress-24", "input": "Hi Paul,\nthanks for the update.\nI'll have a look this afternon.\nBest,\nM", "label": "accepted"}
+{"id": "stress-25", "input": "we need `--no-build` here otherwise the e2e run rebuild everything", "label": "accepted"}
+{"id": "stress-26", "input": "meeting notes\n\n* decision: go with option b\n* owner: @nina\n* deadline: end of the mounth", "label": "accepted"}
+{"id": "stress-27", "input": "i think the issue is in src/editor/apply.swift line 42 , the range is of by one", "label": "accepted"}
+{"id": "stress-28", "input": "Prix : 12 € HT ; livraison sous 3 jours ouvrés", "label": "accepted"}
+{"id": "stress-29", "input": "can u send me the slides befor 5pm ?", "label": "accepted"}
+{"id": "stress-30", "input": "quick q: is the `maxTokens` param still suported?", "label": "accepted"}
+{"id": "stress-31", "input": "Merci beaucoup !!! c'était génial 🎉", "label": "accepted"}
+{"id": "stress-32", "input": "the user said: 'it dosnt work on my mac'", "label": "accepted"}
+{"id": "stress-33", "input": "TL;DR — we ship tomorow if QA is green", "label": "accepted"}
+{"id": "stress-34", "input": "Reminder:\tstandup moved to 9:30", "label": "accepted"}
+{"id": "stress-35", "input": "lien du doc : https://docs.example.com/a/b?c=d , dis moi si ça te va", "label": "accepted"}
+{"id": "stress-36", "input": "@channel the prod deploy is done, pls report any isue", "label": "accepted"}
+{"id": "stress-37", "input": "i was like \"wait what\" lol", "label": "accepted"}
+{"id": "stress-38", "input": "Dear team,\r\n\r\nPlease find attatched the report.\r\n\r\nRegards", "label": "accepted"}
+{"id": "stress-39", "input": "its 5 o'clock somewhere ¯\\_(ツ)_/¯", "label": "accepted"}

@@ -1,0 +1,66 @@
+{
+  "attempts": 2,
+  "prices": "prices.json",
+  "providers": [
+    {
+      "name": "gemini", "lane": "api", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "key_env": "GEMINI_API_KEY",
+      "documented": {"requests": "about 5-10 a minute per model on Flash (trackers)", "daily": "per model, in the AI Studio dashboard; resets at midnight Pacific", "data": "free-tier prompts may be reviewed and used for training", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 12, "concurrency": 2, "daily_reset": "America/Los_Angeles"},
+      "models": [{"id": "gemini-3.5-flash-lite"}, {"id": "gemini-3.8-flash", "effort": "low"}, {"id": "gemma-4-31b-it"}]
+    },
+    {
+      "name": "groq", "lane": "api", "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY",
+      "documented": {"requests": "1,000 a day (headers)", "tokens": "8,000 a minute (headers)", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 30, "tpm": 7000, "concurrency": 2, "daily_requests": 1000},
+      "models": [{"id": "qwen/qwen3.8-27b", "effort": ["none", "low", null]}]
+    },
+    {
+      "name": "cerebras", "lane": "api", "base_url": "https://api.cerebras.ai/v1", "key_env": "CEREBRAS_API_KEY",
+      "documented": {"requests": "5 a minute per model (docs)", "tokens": "1M an hour and a day per model (docs)", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 4.5, "concurrency": 1},
+      "models": [{"id": "qwen-3.8-27b", "effort": ["none", "low", null]}]
+    },
+    {
+      "name": "mistral", "lane": "api", "base_url": "https://api.mistral.ai/v1", "key_env": "MISTRAL_API_KEY",
+      "documented": {"requests": "188 a minute on ministral-8b-latest (headers)", "tokens": "625k a minute (headers)", "data": "Experiment requests may train models unless opted out", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 60, "concurrency": 3},
+      "models": [{"id": "ministral-8b-latest"}, {"id": "ministral-14b-latest"}]
+    },
+    {
+      "name": "openrouter", "lane": "api", "base_url": "https://openrouter.ai/api/v1", "key_env": "OPENROUTER_API_KEY",
+      "documented": {"requests": "20 a minute (trackers)", "daily": "50 a day under $10 of lifetime purchases, 1,000 above (trackers)", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 16, "concurrency": 2, "daily_requests": 1000},
+      "models": [{"id": "nvidia/nemotron-3.5-lightning:free", "effort": "low"}]
+    },
+    {
+      "name": "cohere", "lane": "api", "base_url": "https://api.cohere.ai/compatibility/v1", "key_env": "CO_API_KEY",
+      "documented": {"requests": "about 20 chat requests a minute (docs)", "monthly": "1,000 calls across all endpoints (docs)", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 15, "concurrency": 2},
+      "models": [{"id": "command-a-plus-05-2026"}]
+    },
+    {
+      "name": "cloudflare", "lane": "api", "base_url": "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1", "key_env": "CF_WORKERS_AI_TOKEN",
+      "documented": {"daily": "10,000 Neurons a day shared by every model, reset at 00:00 UTC (docs)", "source": "provider documentation, October 2026"},
+      "pace": {"rpm": 60, "concurrency": 3},
+      "models": [{"id": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"}, {"id": "@cf/google/gemma-4-26b-a4b-it"}, {"id": "@cf/mistralai/mistral-small-3.1-24b-instruct"}]
+    },
+    {
+      "name": "claude", "lane": "claude",
+      "documented": {"requests": "the Team plan's usage windows, not published per minute", "source": "provider decisions, 24 October"},
+      "pace": {"concurrency": 2},
+      "models": [{"id": "latest:haiku", "effort": "low"}, {"id": "latest:sonnet", "effort": "low"}, {"id": "latest:opus", "effort": "low"}, {"id": "latest:fable", "effort": "low"}]
+    },
+    {
+      "name": "chatgpt", "lane": "chatgpt",
+      "documented": {"requests": "the ChatGPT plan's usage limits, not published per minute"},
+      "pace": {"concurrency": 2},
+      "models": [{"id": "latest:luna", "effort": "low"}, {"id": "latest:terra", "effort": "low"}, {"id": "latest:sol", "effort": "low"}, {"id": "latest:astra", "effort": "low"}]
+    },
+    {
+      "name": "openai", "lane": "openai", "key_env": "OPENAI_API_KEY",
+      "documented": {"route": "Paid Responses API; same request and parser as ChatGPT sign-in, Standard speed"},
+      "pace": {"concurrency": 2},
+      "models": [{"id": "gpt-6-luna", "effort": "low"}, {"id": "gpt-6.1-terra", "effort": "low"}, {"id": "gpt-6.1-sol", "effort": "low"}, {"id": "gpt-6-astra", "effort": "low"}]
+    }
+  ]
+}

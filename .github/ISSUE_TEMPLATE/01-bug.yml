@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in Oops isn't working as expected.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a made-up draft to show the problem. Remove private text, API keys
+        and sign-in tokens from screenshots and logs.
+
+        For a security vulnerability, use Security > Report a vulnerability
+        instead of opening a public issue.
+  - type: input
+    id: oops-version
+    attributes:
+      label: Oops version
+      description: The version and build number from Settings > About, or the commit if you built it yourself.
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: input
+    id: affected-app
+    attributes:
+      label: Affected app and version
+      description: Include the browser if the editor is on a website. Leave this blank for problems in Oops itself.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe what you expected and what Oops did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include whether text was selected. If it only happens sometimes, describe when you've seen it.
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      description: Include these if the problem involves a model request or its response. Never include a key or token.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs
+      description: Optional. Check for private text and credentials before attaching anything.

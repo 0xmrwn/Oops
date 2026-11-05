@@ -1,0 +1,4 @@
+# rumdl (version pinned in mise.toml): Markdown lint and format. Prose is written one paragraph per line.
+[global]
+disable = ["MD013", "MD029", "MD038"]  # Long lines are fine; list numbers can be phase numbers; `## ` keeps its space.
+exclude = [".build", "dist", "work", "outputs"]

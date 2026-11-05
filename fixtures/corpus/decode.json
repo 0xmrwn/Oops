@@ -1,0 +1,250 @@
+[
+  {
+    "name": "strict object",
+    "original": "ths is a test.",
+    "answer": "This is a test.",
+    "expect": "This is a test."
+  },
+  {
+    "name": "extra key is refused",
+    "original": "ok",
+    "raw": "{\"text\":\"ok\",\"comment\":\"extra\"}",
+    "error": true
+  },
+  {
+    "name": "non-string text is refused",
+    "original": "ok",
+    "raw": "{\"text\":42}",
+    "error": true
+  },
+  {
+    "name": "fenced JSON is refused",
+    "original": "ok",
+    "raw": "```json\n{\"text\":\"ok\"}\n```",
+    "error": true
+  },
+  {
+    "name": "plain text is refused",
+    "original": "ok",
+    "raw": "ok",
+    "error": true
+  },
+  {
+    "name": "trailing typing space restored",
+    "original": "lets writr a long sentence and not cre how it loks like and never backsapce ",
+    "answer": "Let's write a long sentence and not care how it looks and never backspace.",
+    "expect": "Let's write a long sentence and not care how it looks and never backspace. "
+  },
+  {
+    "name": "unicode edges and CRLF kept",
+    "original": "\t\r\n ths line\r\nnext line  \r\n",
+    "answer": "This line\r\nnext line",
+    "expect": "\t\r\n This line\r\nnext line  \r\n"
+  },
+  {
+    "name": "joined lines keep the other fix",
+    "original": "\t\r\n ths line\r\nnext line  \r\n",
+    "answer": "This line next line",
+    "expect": "\t\r\n This line\r\nnext line  \r\n",
+    "dropped": 1
+  },
+  {
+    "name": "LF answer gets the original CRLF back",
+    "original": "\t\r\n ths line\r\nnext line  \r\n",
+    "answer": "This line\nnext line",
+    "expect": "\t\r\n This line\r\nnext line  \r\n"
+  },
+  {
+    "name": "normalised CRLF restored",
+    "original": "ths line\r\nnext lne\r\nend",
+    "answer": "This line\nnext line\nend",
+    "expect": "This line\r\nnext line\r\nend"
+  },
+  {
+    "name": "mixed breaks restored by position",
+    "original": "one\rtwo\nthre\r\nfour",
+    "answer": "One\ntwo\r\nthree\nfour",
+    "expect": "One\rtwo\nthree\r\nfour"
+  },
+  {
+    "name": "a lost break keeps the other fixes",
+    "original": "ths line\r\nnext lne\r\nend",
+    "answer": "This line next line\nend",
+    "expect": "This line\r\nnext line\r\nend",
+    "dropped": 1,
+    "absorbed": 1
+  },
+  {
+    "name": "an added break keeps the other fixes",
+    "original": "ths line\r\nnext lne\r\nend",
+    "answer": "This line\n\nnext line\nend",
+    "expect": "This line\r\nnext line\r\nend",
+    "dropped": 1,
+    "absorbed": 1
+  },
+  {
+    "name": "edge whitespace repaired",
+    "original": "\tcorrect text \n",
+    "answer": " correct text ",
+    "expect": "\tcorrect text \n"
+  },
+  {
+    "name": "blank answer is refused",
+    "original": "\tcorrect text \n",
+    "answer": " \n ",
+    "error": true
+  },
+  {
+    "name": "changed code keeps the prose fix",
+    "original": "ths `code` ",
+    "answer": "This `other`",
+    "expect": "This `code` ",
+    "dropped": 1
+  },
+  {
+    "name": "only unsafe changes are refused",
+    "original": "see `code` at https://exmaple.com",
+    "answer": "see `other` at https://example.com",
+    "error": true
+  },
+  {
+    "name": "changed URL keeps the prose fix",
+    "original": "see https://exmaple.com/a for teh docs",
+    "answer": "see https://example.com/a for the docs",
+    "expect": "see https://exmaple.com/a for the docs",
+    "dropped": 1
+  },
+  {
+    "name": "changed mention keeps the prose fix",
+    "original": "teh @alic smal",
+    "answer": "the @alice small",
+    "expect": "the @alic small",
+    "dropped": 1
+  },
+  {
+    "name": "curly apostrophe the source never used",
+    "original": "dont do that, its fine",
+    "answer": "Don’t do that, it’s fine",
+    "expect": "Don't do that, it's fine"
+  },
+  {
+    "name": "curly apostrophe the source uses is kept",
+    "original": "I’m sure dont do that",
+    "answer": "I’m sure don’t do that",
+    "expect": "I’m sure don’t do that"
+  },
+  {
+    "name": "straightened quotes are drift",
+    "original": "il a dit “bonjour” ce matin, mais pas a moi",
+    "answer": "il a dit \"bonjour\" ce matin, mais pas à moi",
+    "expect": "il a dit “bonjour” ce matin, mais pas à moi",
+    "absorbed": 2
+  },
+  {
+    "name": "dash and ellipsis swaps are drift",
+    "original": "wait... the 2-3 tests - they fial",
+    "answer": "wait… the 2–3 tests — they fail",
+    "expect": "wait... the 2-3 tests - they fail",
+    "absorbed": 3
+  },
+  {
+    "name": "non-breaking spaces the source never used",
+    "original": "ça va ? on se voit demian",
+    "answer": "ça va ? on se voit demain",
+    "expect": "ça va ? on se voit demain"
+  },
+  {
+    "name": "decomposed accents get the source's form",
+    "original": "je vais regardé ca",
+    "answer": "je vais regarder ça",
+    "expect": "je vais regarder ça"
+  },
+  {
+    "name": "empty answer",
+    "original": "hello",
+    "validate": "",
+    "error": true
+  },
+  {
+    "name": "edges changed",
+    "original": "  hello ",
+    "validate": "hello",
+    "error": true
+  },
+  {
+    "name": "break replaced by space",
+    "original": "a\nb",
+    "validate": "a b",
+    "error": true
+  },
+  {
+    "name": "CRLF turned into LF",
+    "original": "a\r\nb",
+    "validate": "a\nb",
+    "error": true
+  },
+  {
+    "name": "prose around protected spans",
+    "original": "ths is `let x = 1` at https://example.com/a for @alice in /v1/messages",
+    "validate": "This is `let x = 1` at https://example.com/a for @alice in /v1/messages"
+  },
+  {
+    "name": "changed inline code is refused",
+    "original": "ths is `let x = 1` at https://example.com/a for @alice in /v1/messages",
+    "validate": "ths is `let x = 2` at https://example.com/a for @alice in /v1/messages",
+    "error": true
+  },
+  {
+    "name": "changed URL is refused",
+    "original": "ths is `let x = 1` at https://example.com/a for @alice in /v1/messages",
+    "validate": "ths is `let x = 1` at https://other.com/a for @alice in /v1/messages",
+    "error": true
+  },
+  {
+    "name": "changed mention is refused",
+    "original": "ths is `let x = 1` at https://example.com/a for @alice in /v1/messages",
+    "validate": "ths is `let x = 1` at https://example.com/a for @bob in /v1/messages",
+    "error": true
+  },
+  {
+    "name": "changed path is refused",
+    "original": "ths is `let x = 1` at https://example.com/a for @alice in /v1/messages",
+    "validate": "ths is `let x = 1` at https://example.com/a for @alice in /v2/messages",
+    "error": true
+  },
+  {
+    "name": "prose around a code fence",
+    "original": "pls check\n```swift\nlet café = 1\n```\nmerci 😊",
+    "validate": "Pls check\n```swift\nlet café = 1\n```\nmerci 😊"
+  },
+  {
+    "name": "changed code fence is refused",
+    "original": "pls check\n```swift\nlet café = 1\n```\nmerci 😊",
+    "validate": "pls check\n```swift\nlet café = 2\n```\nmerci 😊",
+    "error": true
+  },
+  {
+    "name": "an answer instead of a correction is refused",
+    "original": "1. clone the repo\n2. instal deps\n3. run the tets",
+    "answer": "I can't do this yet. I only have a structured-output tool here, so I can't clone repos, install dependencies, or run tests. Also, no repo URL was given. If you send the repo\n2. package deps\n3. run the test suite), I can give you the exact commands to run in your terminal, or run them if you have a tool that allows it.",
+    "error": true
+  },
+  {
+    "name": "a translation is refused",
+    "original": "je vais regarder ça demain matin avec l'équipe",
+    "answer": "I will look at this tomorrow morning with the team",
+    "error": true
+  },
+  {
+    "name": "a short draft can change every word",
+    "original": "teh smal",
+    "answer": "the small",
+    "expect": "the small"
+  },
+  {
+    "name": "many typo fixes in a sentence are kept",
+    "original": "i wil sned teh fiel tommorow",
+    "answer": "I will send the file tomorrow",
+    "expect": "I will send the file tomorrow"
+  }
+]

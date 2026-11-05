@@ -1,0 +1,65 @@
+# Commit hooks, run by prek (https://prek.j178.dev) on staged files; `just check` runs them on changed files.
+# Cheapest first, and the first failure stops the run. Tools are pinned in mise.toml.
+minimum_prek_version: "0.5.0"
+fail_fast: true
+exclude: \.svg$|\.xcassets/|\.icon/  # Exported assets are left as their tools wrote them.
+
+repos:
+  - repo: builtin
+    hooks:
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: check-executables-have-shebangs
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+
+  - repo: local
+    hooks:
+      - id: token-budget
+        name: token budget (5,000 tokens per file)
+        entry: script/token-budget
+        language: system
+        types: [text]
+
+      - id: swiftformat
+        name: swiftformat
+        entry: mise exec -- swiftformat --quiet
+        language: system
+        types: [swift]
+      - id: ruff-format
+        name: ruff format
+        entry: mise exec -- ruff format --quiet --force-exclude
+        language: system
+        types: [python]
+      - id: shfmt
+        name: shfmt
+        entry: mise exec -- shfmt -w -i 2 -ci
+        language: system
+        types_or: [sh, bash]
+      - id: rumdl
+        name: rumdl
+        entry: mise exec -- rumdl check --fix --quiet
+        language: system
+        types: [markdown]
+
+      - id: swiftlint
+        name: swiftlint
+        entry: mise exec -- swiftlint lint --quiet --strict --force-exclude
+        language: system
+        types: [swift]
+      - id: ruff-check
+        name: ruff check
+        entry: mise exec -- ruff check --quiet --fix --force-exclude
+        language: system
+        types: [python]
+      - id: shellcheck
+        name: shellcheck
+        entry: mise exec -- shellcheck -f gcc
+        language: system
+        types_or: [sh, bash]

@@ -1,0 +1,501 @@
+/* Monitor: a scrolling report under the same header. Lane colours mark API, Claude and ChatGPT throughout. */
+.monitor {
+  overflow-y: auto;
+  padding: 4px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px));
+  display: grid;
+  align-content: start;
+  gap: 28px;
+}
+
+.monitor h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.monitor h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+  text-wrap: balance;
+}
+
+.monitor section {
+  min-width: 0;
+}
+
+.m-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 0 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.stats div {
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.stats dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 2px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+@media (min-width: 560px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.lane-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lane-h i,
+.legend i,
+.who i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.lane-h span {
+  margin-left: auto;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+
+.lane-row {
+  display: grid;
+  gap: 5px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lane-name {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  align-items: baseline;
+}
+
+.lane-name b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lane-name span,
+.lane-nums {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-nums {
+  order: 3;
+}
+
+.lane-nums .warn {
+  color: var(--warn);
+}
+
+.lane-nums .bad {
+  color: var(--bad);
+}
+
+.lane-bar {
+  order: 2;
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.lane-bar .done {
+  background: var(--accent);
+}
+
+.lane-bar .err {
+  background: var(--bad);
+}
+
+.lane-bar .def {
+  background: repeating-linear-gradient(135deg, var(--warn) 0 3px, transparent 3px 6px);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scatter {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.scatter .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.scatter .tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scatter .deadline {
+  stroke: var(--bad);
+  stroke-dasharray: 4 3;
+}
+
+.scatter .front {
+  fill: none;
+  stroke: var(--muted);
+  stroke-opacity: 0.4;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+}
+
+.scatter .pt {
+  cursor: pointer;
+}
+
+.scatter .pt-label {
+  fill: var(--fg);
+  font-size: 11px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+
+.caption {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.caption b {
+  color: var(--fg);
+}
+
+.board-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pick select {
+  min-height: 36px;
+  max-width: 52vw;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.board {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.board li + li {
+  border-top: 1px solid var(--line);
+}
+
+.board .row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 10px 12px;
+  text-align: left;
+  min-height: 56px;
+}
+
+.rank {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.who {
+  min-width: 0;
+  display: grid;
+}
+
+.who b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.who span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.val {
+  display: grid;
+  justify-items: end;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.val small,
+.detail small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.track {
+  grid-column: 2 / -1;
+  position: relative;
+  height: 10px;
+}
+
+.track::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0;
+  border-radius: 1px;
+  background: var(--surface-2);
+}
+
+.track .ci {
+  position: absolute;
+  top: 2px;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+.track .dot {
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+  padding: 4px 12px 14px 42px;
+}
+
+.detail dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.detail dd {
+  margin: 0;
+  display: grid;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor .seg {
+  margin-bottom: 10px;
+}
+
+.heat-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.heat {
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 100%;
+}
+
+.heat th,
+.heat td {
+  padding: 7px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.heat thead th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.heat tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 600;
+  background: var(--surface);
+  max-width: 44vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.heat td {
+  background: color-mix(in oklab, var(--heat) var(--s), var(--surface));
+  border: 1px solid var(--surface);
+}
+
+.heat td.strong {
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.heat td.few {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.finished summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.heat tbody th small {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.caption.scale {
+  margin: 0 0 8px;
+}
+
+.legend.bars {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.sw {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.sw.done {
+  background: var(--accent);
+}
+
+.sw.err {
+  background: var(--bad);
+}
+
+.sw.def {
+  background: repeating-linear-gradient(135deg, var(--warn) 0 3px, transparent 3px 6px);
+}
+
+.sw.left {
+  background: var(--surface-2);
+}
+
+.heat thead small {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.heat td {
+  cursor: pointer;
+}
+
+.heat td.on {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
+}

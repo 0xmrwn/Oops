@@ -1,0 +1,87 @@
+[
+ {
+  "case": "en-xs-001",
+  "output": "ping @alex about the deploy",
+  "why": "calibration"
+ },
+ {
+  "case": "en-xs-002",
+  "output": "Can you check if it's merged?",
+  "why": "calibration"
+ },
+ {
+  "case": "en-xs-003",
+  "output": "Sounds good, I'll take the 3 pm slot.",
+  "why": "mismatch"
+ },
+ {
+  "case": "en-s-006",
+  "output": "Hey Sam, quick update: the migration ran fine on staging but we've seen a spike in latency around 2am. I'll dig in tomorrow and let you know if we need to roll back.",
+  "why": "mismatch"
+ },
+ {
+  "case": "en-s-007",
+  "output": "Thanks for the review! I've addressed most comments, except the one about `retryCount` — I think its fine as is since the caller already handles the timeout.",
+  "why": "calibration"
+ },
+ {
+  "case": "en-s-009",
+  "output": "I don't think we should ship this Friday, there are still two open bugs on the export path and QA hasn't signed off.",
+  "why": "calibration"
+ },
+ {
+  "case": "en-s-010",
+  "output": "- update the README - bump version to 2.4.1 - tag the release - announce in #eng",
+  "why": "calibration"
+ },
+ {
+  "case": "en-m-012",
+  "output": "Hi Priya,\n\nFollowing up on our call — I went through the contract draft and flagged a few things. The payment terms in section 3 say net 60, but we agreed on net 30. Also the liability cap seems low compared to what legal recommended last quarter.\n\nCan we get on a call this week to align before I send it back? Thursday afternoon would work best for me.\n\nThanks,\nJo",
+  "why": "mismatch"
+ },
+ {
+  "case": "en-m-014",
+  "output": "So I tried the new onboarding flow on my phone and honestly it's pretty smooth, but a couple of things felt off. The skip button on step 2 is really easy to miss, it's grey on grey. And when you go back from step 3 it loses the name you typed, which is annoying. Otherwise love it, nice work everyone 🎉",
+  "why": "mismatch"
+ },
+ {
+  "case": "en-m-015",
+  "output": "The flaky test is `test_upload_resumes` — it fails maybe 1 in 20 runs. Looking at the logs, the mock server sometimes returns 503 before the retry logic kicks in, so the client gives up early. I think we should either bump `max_retries` to 5 or make the mock deterministic. Preferring the second option, to be honest.",
+  "why": "calibration"
+ },
+ {
+  "case": "en-l-016",
+  "output": "Postmortem summary — checkout outage, 14 October\n\nWhat happened: between 09:12 and 09:47 UTC, roughly 30% of checkout requests failed with a 502. The root cause was a config change to the payments gateway that lowered the connection pool from 200 to 20. The change was meant for the staging environment but was applied to production because both shared the same config key.\n\nHow we found it: the on-call engineer was paged by the error-rate alert at 09:15, but the dashboards pointed at the database, which was under heavy load at the time. It took another 20 minutes to notice that the gateway's pool was saturated rather than the database being slow.\n\nWhat we're changing: first, staging and production will no longer share config keys; each environment gets its own namespace. Second, the gateway now exposes pool saturation as a metric, and the alert links straight to it. Third, config changes to payments require a second reviewer, the same as code changes do.\n\nWhat went well: the rollback itself took under two minutes once we knew what to roll back, and support had a status page update out within ten minutes of the first page. Customers who's payments failed were not charged, and the retry banner worked as designed.\n\nOpen questions: should we load-test the gateway with production-like pool settings before each release? Owner: Dana, due 28 October.",
+  "why": "calibration"
+ },
+ {
+  "case": "en-s-019",
+  "output": "Let's push the release to Monday; the certs expire on the 3rd anyway, so there's no rush.",
+  "why": "mismatch"
+ },
+ {
+  "case": "fr-xs-022",
+  "output": "je suis en réunion, je te rappelle après",
+  "why": "calibration"
+ },
+ {
+  "case": "fr-s-023",
+  "output": "Hello everyone, the production release is scheduled for Thursday at 2pm. Please don't merge into main until then unless it's urgent.",
+  "why": "calibration"
+ },
+ {
+  "case": "fr-s-026",
+  "output": "Est-ce que quelqu'un a accès au dashboard Grafana ? Je n'arrive pas à me connecter depuis ce matin.",
+  "why": "mismatch"
+ },
+ {
+  "case": "fr-s-027",
+  "output": "La PR est prête, il manque juste les tests sur le cas limite du timeout. Je les ajoute ce soir.",
+  "why": "calibration"
+ },
+ {
+  "case": "fr-m-029",
+  "output": "Comme convenu, voici le récapitulatif de la réunion de ce matin. Nous avons décidé de reporter la refonte du module de facturation au prochain trimestre, les équipes étant déjà très sollicitées sur la migration. En attendant, Julien s'occupe de corriger les bugs bloquants signalés par le support et Inès prépare une note sur les options d'hébergement. Le prochain point est fixé au mardi 12 à 10h.",
+  "why": "calibration"
+ }
+]

@@ -1,0 +1,27 @@
+{
+  "checked": "2026-10-28",
+  "note": "USD per million tokens at each provider's paid list price, what the free tier would cost once paid. Claude's cost is Claude Code's own total_cost_usd, so Claude needs no row. Models with no paid price (Gemma on the Gemini API) have none: their cost_usd is null.",
+  "models": {
+    "gemini/gemini-3.8-flash": {"in": 0.75, "out": 3.75, "cached_in": 0.075, "source": "https://ai.google.dev/gemini-api/docs/pricing (rates through 31 December 2026; doubled from 1 January 2027)"},
+    "gemini/gemini-3.5-flash-lite": {"in": 0.30, "out": 2.50, "cached_in": 0.03, "source": "https://ai.google.dev/gemini-api/docs/pricing"},
+    "groq/qwen/qwen3.8-27b": {"in": 0.80, "out": 4.00, "source": "aggregators citing Groq's model docs (computeprices.com, August 2026); groq.com/pricing lists no rates"},
+    "cerebras/qwen-3.8-27b": {"in": 0.99, "out": 1.49, "source": "aggregators citing Cerebras's developer tier (getmaxim.ai, October 2026)"},
+    "mistral/ministral-8b-latest": {"in": 0.15, "out": 0.15, "source": "aggregators for Ministral 8B 2512 (cloudzero.com, vantaige.io); mistral.ai/pricing lists no rates"},
+    "mistral/ministral-14b-latest": {"in": 0.20, "out": 0.20, "cached_in": 0.02, "source": "aggregators for Ministral 14B 2512 (opencode.ai, cloudzero.com)"},
+    "openrouter/thinkingmachines/inkling-small:free": {"in": 0.45, "out": 1.20, "source": "https://openrouter.ai/api/v1/models, the paid thinkingmachines/inkling-small"},
+    "openrouter/nvidia/nemotron-3.5-lightning:free": {"in": 0.07, "out": 0.20, "source": "https://openrouter.ai/api/v1/models, the paid nvidia/nemotron-3.5-lightning"},
+    "cohere/command-a-plus-05-2026": {"in": 0.30, "out": 1.50, "cached_in": 0.15, "source": "aggregators (edenai.co, pricepertoken.com); others list $2.50/$10, Command A's old rate; cohere.com/pricing lists none"},
+    "cloudflare/@cf/meta/llama-3.3-70b-instruct-fp8-fast": {"in": 0.293, "out": 2.253, "source": "https://developers.cloudflare.com/workers-ai/platform/pricing/"},
+    "cloudflare/@cf/google/gemma-4-26b-a4b-it": {"in": 0.10, "out": 0.30, "source": "https://developers.cloudflare.com/workers-ai/platform/pricing/"},
+    "cloudflare/@cf/mistralai/mistral-small-3.1-24b-instruct": {"in": 0.351, "out": 0.555, "source": "https://developers.cloudflare.com/workers-ai/platform/pricing/"},
+    "chatgpt/gpt-6-astra": {"in": 10.00, "out": 50.00, "cached_in": 1.00, "source": "https://developers.openai.com/api/docs/pricing (standard, short context)"},
+    "chatgpt/gpt-6.1-sol": {"in": 2.00, "out": 10.00, "cached_in": 0.10, "source": "https://developers.openai.com/api/docs/pricing (standard, short context)"},
+    "chatgpt/gpt-6.1-terra": {"in": 1.00, "out": 5.00, "cached_in": 0.05, "source": "https://developers.openai.com/api/docs/pricing (standard, short context)"},
+    "chatgpt/gpt-6-luna": {"in": 0.10, "out": 0.50, "cached_in": 0.01, "source": "https://developers.openai.com/api/docs/pricing (standard, short context)"},
+    "chatgpt/gpt-6-sol": {"in": 2.00, "out": 10.00, "cached_in": 0.20, "source": "https://developers.openai.com/api/docs/pricing (standard, short context)"},
+    "openai/gpt-6-luna": {"in": 0.1, "out": 0.5, "cached_in": 0.01, "source": "https://developers.openai.com/api/docs/pricing (Standard, short context; checked 2026-11-02)"},
+    "openai/gpt-6.1-terra": {"in": 1, "out": 5, "cached_in": 0.05, "source": "https://developers.openai.com/api/docs/pricing (Standard, short context; checked 2026-11-02)"},
+    "openai/gpt-6.1-sol": {"in": 2, "out": 10, "cached_in": 0.1, "source": "https://developers.openai.com/api/docs/pricing (Standard, short context; checked 2026-11-02)"},
+    "openai/gpt-6-astra": {"in": 10, "out": 50, "cached_in": 1, "source": "https://developers.openai.com/api/docs/pricing (Standard, short context; checked 2026-11-02)"}
+  }
+}

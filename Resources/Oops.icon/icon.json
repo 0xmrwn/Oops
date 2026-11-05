@@ -1,0 +1,105 @@
+{
+  "features": [
+    "refractivity"
+  ],
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.72000,0.76000,0.82000,0.16000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "fill-specializations": [
+            {
+              "appearance": "dark",
+              "value": "system-light"
+            },
+            {
+              "appearance": "tinted",
+              "value": "system-light"
+            }
+          ],
+          "image-name": "face.svg",
+          "name": "Closer, resting",
+          "glass-specializations": [
+            {
+              "value": false
+            },
+            {
+              "appearance": "tinted",
+              "value": true
+            }
+          ]
+        }
+      ],
+      "name": "Closer, resting",
+      "refractivity": {
+        "depth": 0,
+        "enabled": false,
+        "strength": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      },
+      "shadow-specializations": [
+        {
+          "value": {
+            "kind": "neutral",
+            "opacity": 0
+          }
+        },
+        {
+          "appearance": "tinted",
+          "value": {
+            "kind": "neutral",
+            "opacity": 0.65
+          }
+        }
+      ],
+      "specular-highlight-placement-specializations": [
+        {
+          "appearance": "tinted",
+          "value": "outside"
+        }
+      ]
+    },
+    {
+      "layers": [
+        {
+          "image-name": "drop.svg",
+          "name": "Drop lens",
+          "fill-specializations": [
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "extended-gray:0.25000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "name": "Drop lens",
+      "refractivity": {
+        "depth": 0.48,
+        "enabled": true,
+        "strength": 0.65
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.18
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.65
+      },
+      "specular-highlight-placement": "automatic"
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}

@@ -1,0 +1,87 @@
+<title>Oops Eval Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="monitor.css">
+
+<div class="app">
+  <header class="top">
+    <div class="seg" role="tablist" aria-label="View">
+      <button id="tab-review" role="tab" aria-selected="true" aria-controls="review" data-view="review">Review</button>
+      <button id="tab-monitor" role="tab" aria-selected="false" aria-controls="monitor" data-view="monitor">Monitor</button>
+    </div>
+    <span class="status" id="status" role="status"></span>
+  </header>
+
+  <main id="review" class="view review" role="tabpanel" aria-labelledby="tab-review">
+    <div class="queue-bar">
+      <div class="seg" role="tablist" aria-label="Queue">
+        <button id="q-expected" role="tab" aria-selected="true" data-queue="expected"><span class="qname">Set answer key</span><span class="count" id="count-expected"></span></button>
+        <button id="q-output" role="tab" aria-selected="false" data-queue="output"><span class="qname">Grade models</span><span class="count" id="count-output"></span></button>
+      </div>
+      <div class="progress">
+        <div class="meter" role="progressbar" aria-label="Reviewed" id="meter"><i id="meter-fill" style="width:0"></i></div>
+        <span id="progress-text">0 / 0</span>
+        <button class="icon-btn" id="undo" disabled aria-label="Undo last decision">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+          Undo
+        </button>
+        <button class="icon-btn help" id="help" aria-label="How this queue works">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><path d="M12 17.2h.01"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <section class="stage" id="stage" aria-live="polite"></section>
+
+    <footer class="dock" id="dock">
+      <div class="chips" role="group" aria-labelledby="why">
+        <span class="chips-label" id="why">Why</span>
+        <button class="chip" aria-pressed="false" data-reason="overcorrected">Changed too much</button>
+        <button class="chip" aria-pressed="false" data-reason="missed">Missed an error</button>
+        <button class="chip" aria-pressed="false" data-reason="changed_tone">Changed the tone</button>
+        <button class="chip" aria-pressed="false" data-reason="changed_language">Changed the language</button>
+        <button class="chip" aria-pressed="false" data-reason="unrealistic">Unrealistic draft</button>
+        <button class="chip" aria-pressed="false" id="note-toggle">Add a note</button>
+      </div>
+      <input id="note" type="text" maxlength="240" placeholder="Saved with your next decision" aria-label="Note" autocomplete="off" hidden>
+      <div class="actions">
+        <button class="act wrong" id="act-wrong" aria-keyshortcuts="ArrowLeft">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          <span class="main">Wrong</span><small></small>
+        </button>
+        <button class="act edit" id="act-edit" aria-keyshortcuts="ArrowUp">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>
+          <span class="main">Rewrite</span><small></small>
+        </button>
+        <button class="act agree" id="act-agree" aria-keyshortcuts="ArrowRight">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>
+          <span class="main">Keep</span><small></small>
+        </button>
+      </div>
+    </footer>
+  </main>
+
+  <main id="monitor" class="view monitor" role="tabpanel" aria-labelledby="tab-monitor" hidden></main>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <form class="sheet-panel" id="edit-form" aria-labelledby="edit-title">
+    <div class="sheet-head">
+      <button type="button" id="edit-cancel">Cancel</button>
+      <h2 id="edit-title">Correct the answer</h2>
+      <button type="submit" class="primary">Save</button>
+    </div>
+    <textarea id="editText" spellcheck="true" aria-labelledby="edit-title"></textarea>
+  </form>
+</div>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+
+<script src="copy.js"></script>
+<script src="diff.js"></script>
+<script src="store.js"></script>
+<script src="review.js"></script>
+<script src="monitor.js"></script>

@@ -1,0 +1,2952 @@
+[
+ {
+  "id": "s001-prosemirror-safari",
+  "family": "web",
+  "engine": "prosemirror",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s002-prosemirror-webkit",
+  "family": "web",
+  "engine": "prosemirror",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s003-prosemirror-chrome",
+  "family": "web",
+  "engine": "prosemirror",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s004-prosemirror-zen",
+  "family": "web",
+  "engine": "prosemirror",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s005-prosemirror-electron",
+  "family": "web",
+  "engine": "prosemirror",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s006-lexical-safari",
+  "family": "web",
+  "engine": "lexical",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s007-lexical-webkit",
+  "family": "web",
+  "engine": "lexical",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s008-lexical-chrome",
+  "family": "web",
+  "engine": "lexical",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s009-lexical-zen",
+  "family": "web",
+  "engine": "lexical",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s010-lexical-electron",
+  "family": "web",
+  "engine": "lexical",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s011-slate-safari",
+  "family": "web",
+  "engine": "slate",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s012-slate-webkit",
+  "family": "web",
+  "engine": "slate",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s013-slate-chrome",
+  "family": "web",
+  "engine": "slate",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s014-slate-zen",
+  "family": "web",
+  "engine": "slate",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s015-slate-electron",
+  "family": "web",
+  "engine": "slate",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s016-quill-safari",
+  "family": "web",
+  "engine": "quill",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s017-quill-webkit",
+  "family": "web",
+  "engine": "quill",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s018-quill-chrome",
+  "family": "web",
+  "engine": "quill",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s019-quill-zen",
+  "family": "web",
+  "engine": "quill",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s020-quill-electron",
+  "family": "web",
+  "engine": "quill",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s021-draftjs-safari",
+  "family": "web",
+  "engine": "draftjs",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s022-draftjs-webkit",
+  "family": "web",
+  "engine": "draftjs",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s023-draftjs-chrome",
+  "family": "web",
+  "engine": "draftjs",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s024-draftjs-zen",
+  "family": "web",
+  "engine": "draftjs",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s025-draftjs-electron",
+  "family": "web",
+  "engine": "draftjs",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s026-ckeditor-safari",
+  "family": "web",
+  "engine": "ckeditor",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s027-ckeditor-webkit",
+  "family": "web",
+  "engine": "ckeditor",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s028-ckeditor-chrome",
+  "family": "web",
+  "engine": "ckeditor",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s029-ckeditor-zen",
+  "family": "web",
+  "engine": "ckeditor",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s030-ckeditor-electron",
+  "family": "web",
+  "engine": "ckeditor",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s031-tinymce-safari",
+  "family": "web",
+  "engine": "tinymce",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s032-tinymce-webkit",
+  "family": "web",
+  "engine": "tinymce",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s033-tinymce-chrome",
+  "family": "web",
+  "engine": "tinymce",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s034-tinymce-zen",
+  "family": "web",
+  "engine": "tinymce",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s035-tinymce-electron",
+  "family": "web",
+  "engine": "tinymce",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s036-codemirror-safari",
+  "family": "web",
+  "engine": "codemirror",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s037-codemirror-webkit",
+  "family": "web",
+  "engine": "codemirror",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s038-codemirror-chrome",
+  "family": "web",
+  "engine": "codemirror",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s039-codemirror-zen",
+  "family": "web",
+  "engine": "codemirror",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s040-codemirror-electron",
+  "family": "web",
+  "engine": "codemirror",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s041-monaco-safari",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "Monaco mirrors only the selection into its hidden textarea, so Oops can correct a selection. After the paste, nothing can find the corrected span again (its selection sync is Chrome-only), so no revert or flash, as for copy-and-paste editors."
+  }
+ },
+ {
+  "id": "s042-monaco-webkit",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "Monaco mirrors only the selection into its hidden textarea, so Oops can correct a selection. After the paste, nothing can find the corrected span again (its selection sync is Chrome-only), so no revert or flash, as for copy-and-paste editors."
+  }
+ },
+ {
+  "id": "s043-monaco-chrome",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "Monaco mirrors only the selection into its hidden textarea, so Oops can correct a selection. After the paste, nothing can find the corrected span again (its selection sync is Chrome-only), so no revert or flash, as for copy-and-paste editors."
+  }
+ },
+ {
+  "id": "s044-monaco-zen",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "Monaco mirrors only the selection into its hidden textarea, so Oops can correct a selection. After the paste, nothing can find the corrected span again (its selection sync is Chrome-only), so no revert or flash, as for copy-and-paste editors."
+  }
+ },
+ {
+  "id": "s045-monaco-electron",
+  "family": "web",
+  "engine": "monaco",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "selection",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "keep thsi part as is. then fix teh second part, it is a smal change"
+     }
+    ]
+   ]
+  },
+  "text": "keep thsi part as is. then fix teh second part, it is a smal change",
+  "typos": {
+   "teh": "the",
+   "smal": "small"
+  },
+  "selection": [
+   22,
+   67
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "placement"
+   ],
+   "message": null,
+   "why": "Monaco mirrors only the selection into its hidden textarea, so Oops can correct a selection. After the paste, nothing can find the corrected span again (its selection sync is Chrome-only), so no revert or flash, as for copy-and-paste editors."
+  }
+ },
+ {
+  "id": "s046-roosterjs-safari",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s047-roosterjs-webkit",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s048-roosterjs-chrome",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s049-roosterjs-zen",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s050-roosterjs-electron",
+  "family": "web",
+  "engine": "roosterjs",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s051-trix-safari",
+  "family": "web",
+  "engine": "trix",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s052-trix-webkit",
+  "family": "web",
+  "engine": "trix",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s053-trix-chrome",
+  "family": "web",
+  "engine": "trix",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s054-trix-zen",
+  "family": "web",
+  "engine": "trix",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s055-trix-electron",
+  "family": "web",
+  "engine": "trix",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s056-blocks-safari",
+  "family": "web",
+  "engine": "blocks",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "span": [
+   0,
+   63
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s057-blocks-webkit",
+  "family": "web",
+  "engine": "blocks",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "span": [
+   0,
+   63
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s058-blocks-chrome",
+  "family": "web",
+  "engine": "blocks",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "span": [
+   0,
+   63
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s059-blocks-zen",
+  "family": "web",
+  "engine": "blocks",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "span": [
+   0,
+   63
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s060-blocks-electron",
+  "family": "web",
+  "engine": "blocks",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "span": [
+   0,
+   63
+  ],
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s061-textarea-safari",
+  "family": "web",
+  "engine": "textarea",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s062-textarea-webkit",
+  "family": "web",
+  "engine": "textarea",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s063-textarea-chrome",
+  "family": "web",
+  "engine": "textarea",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s064-textarea-zen",
+  "family": "web",
+  "engine": "textarea",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s065-textarea-electron",
+  "family": "web",
+  "engine": "textarea",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s066-input-safari",
+  "family": "web",
+  "engine": "input",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s067-input-webkit",
+  "family": "web",
+  "engine": "input",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s068-input-chrome",
+  "family": "web",
+  "engine": "input",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s069-input-zen",
+  "family": "web",
+  "engine": "input",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s070-input-electron",
+  "family": "web",
+  "engine": "input",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s071-contenteditable-safari",
+  "family": "web",
+  "engine": "contenteditable",
+  "shell": "safari",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s072-contenteditable-webkit",
+  "family": "web",
+  "engine": "contenteditable",
+  "shell": "webkit",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s073-contenteditable-chrome",
+  "family": "web",
+  "engine": "contenteditable",
+  "shell": "chrome",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s074-contenteditable-zen",
+  "family": "web",
+  "engine": "contenteditable",
+  "shell": "zen",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ },
+ {
+  "id": "s075-contenteditable-electron",
+  "family": "web",
+  "engine": "contenteditable",
+  "shell": "electron",
+  "layout": "composer",
+  "content": "plain",
+  "reaction": "none",
+  "presentation": "normal",
+  "target": "whole",
+  "embedding": "page",
+  "draft": {
+   "paragraphs": [
+    [
+     {
+      "text": "hey, i just pushed teh fix for the login bug, it shoud work now"
+     }
+    ]
+   ]
+  },
+  "text": "hey, i just pushed teh fix for the login bug, it shoud work now",
+  "typos": {
+   "teh": "the",
+   "shoud": "should"
+  },
+  "caret": 63,
+  "expect": {
+   "result": "works",
+   "stages": [
+    "capture",
+    "apply",
+    "revert",
+    "highlight",
+    "placement"
+   ],
+   "message": null,
+   "why": "The editor exposes its text (value, text markers or a selection) and takes pasted text: Oops should capture the draft, fix both typos without touching atoms or the rest, revert it, flash the fixes and anchor to the field."
+  }
+ }
+]

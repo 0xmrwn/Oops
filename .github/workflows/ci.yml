@@ -1,0 +1,29 @@
+# Every push: hooks on every file, the Swift build, unit tests (corpus included) and the packaging contracts.
+# A thin wrapper over `just ci`; Accessibility e2e stays local (hosted runners can't grant TCC permissions).
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # macOS 27 with Xcode 27.0 (27A266a), the toolchain script/release.py pins; public preview image.
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pinned tools from mise.toml: just, prek and the formatters and linters the hooks run.
+      - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+      - run: just ci

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "en-l-016",
+    "input": "Postmortem summary — checkout outage, 14 October\n\nWhat happened: between 09:12 and 09:47 UTC, roughly 30% of checkout requests failed with a 502. The root cause was a config change to the payments gateway that lowered the connection pool from 200 to 20. The change was meant for the staging enviroment but was applied to production because both shared the same config key.\n\nHow we found it: the on-call engineer was paged by the error-rate alert at 09:15, but the dashboards pointed at the database, which were under heavy load at the time. It took another 20 minutes to notice that the gateway's pool was saturated rather then the database being slow.\n\nWhat we're changing: first, staging and production will no longer share config keys; each enviroment gets its own namespace. Second, the gateway now exposes pool saturation as a metric, and the alert links straight to it. Third, config changes to payments require a second reviewer, the same as code changes do.\n\nWhat went well: the rollback itself took under two minutes once we knew what to roll back, and support had a status page update out within ten minutes of the first page. Customers who's payments failed were not charged, and the retry banner worked as designed.\n\nOpen questions: should we load test the gateway with production-like pool settings before each release? Owner: Dana, due 28 October.",
+    "expected": "Postmortem summary — checkout outage, 14 October\n\nWhat happened: between 09:12 and 09:47 UTC, roughly 30% of checkout requests failed with a 502. The root cause was a config change to the payments gateway that lowered the connection pool from 200 to 20. The change was meant for the staging environment but was applied to production because both shared the same config key.\n\nHow we found it: the on-call engineer was paged by the error-rate alert at 09:15, but the dashboards pointed at the database, which was under heavy load at the time. It took another 20 minutes to notice that the gateway's pool was saturated rather than the database being slow.\n\nWhat we're changing: first, staging and production will no longer share config keys; each environment gets its own namespace. Second, the gateway now exposes pool saturation as a metric, and the alert links straight to it. Third, config changes to payments require a second reviewer, the same as code changes do.\n\nWhat went well: the rollback itself took under two minutes once we knew what to roll back, and support had a status page update out within ten minutes of the first page. Customers whose payments failed were not charged, and the retry banner worked as designed.\n\nOpen questions: should we load test the gateway with production-like pool settings before each release? Owner: Dana, due 28 October.",
+    "lang": "en",
+    "errors": [
+      "spelling",
+      "agreement",
+      "homophone"
+    ],
+    "register": "formal",
+    "protected": [
+      "line_break"
+    ]
+  }
+]

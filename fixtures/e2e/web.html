@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>oops composer lab · web e2e</title>
+<!--
+  Web lab for end-to-end runs (fixtures/e2e/run.py serves it): the same page in WebKit, Chrome and
+  Zen, each loaded with ?host=<name>. It polls /control for its scenario, text and selection, acting
+  only on controls for its host, and posts its editor's text to /state, so the runner drives every
+  browser the same way with no driver.
+  Scenarios: web-contenteditable (a chat composer), web-textarea, web-document (an editable body,
+  like web mail) and web-design (designMode: the whole document is the editor, like Mail's body).
+  Editors from the reliability bake-off's failure classes: web-readonly (a read-only textarea),
+  web-proxy (text drawn elsewhere, keys and clipboard through a hidden 1×1 field that mirrors the
+  selection, like Google Docs or Monaco), web-own-selection (an editor that keeps a selection of its
+  own, adopted from the DOM's on a throttled selectionchange and used for paste, like Slate) and
+  web-image (an inline image between words; the text reports it as U+FFFC) and web-rtl-combobox (a
+  right-to-left textarea announced as a combobox, as Grok's and HuggingChat's composers are: Chromium
+  reads its markers and selected text in display order, and leaves its value stale after an edit).
+  `append` types at the end of the draft, as a user would.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  html, body { margin: 0; height: 100%; font: 15px/1.45 -apple-system, system-ui, sans-serif; }
+  body.document { padding: 24px 28px; box-sizing: border-box; white-space: pre-wrap; outline: none; }
+  .chat { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; padding: 16px; box-sizing: border-box; gap: 12px; }
+  .composer { border: 1px solid #8884; border-radius: 14px; padding: 10px 12px; }
+  .editor { outline: none; min-height: 22px; white-space: pre-wrap; }
+  textarea.editor { width: 100%; height: 120px; border: 0; resize: none; background: transparent; color: inherit; font: inherit; }
+</style>
+</head>
+<body>
+<script>
+  const host = new URLSearchParams(location.search).get('host');
+  let nonce = null, reported = null, editor = null;
+
+  let model = null; // An editor that keeps its own text: { text(), select(location, length) }.
+
+  function text() {
+    if (model) return model.text();
+    if (!editor) return null;
+    if (editor.querySelector?.('img')) {
+      return [...editor.childNodes].map(node => node.nodeName === 'IMG' ? '\ufffc' : node.textContent).join('');
+    }
+    return editor.tagName === 'TEXTAREA' ? editor.value : editor.innerText;
+  }
+
+  // Location and length in UTF-16 units, like the runner's selections.
+  function select(location, length) {
+    if (model) { model.select(location, length); return; }
+    if (editor.querySelector?.('img')) {
+      const end = document.createRange(); end.selectNodeContents(editor); end.collapse(false);
+      getSelection().removeAllRanges(); getSelection().addRange(end); return;
+    }
+    if (editor.setSelectionRange) { editor.setSelectionRange(location, location + length); return; }
+    const node = editor.firstChild ?? editor, range = document.createRange();
+    const at = offset => Math.min(offset, node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length);
+    range.setStart(node, at(location)); range.setEnd(node, at(location + length));
+    getSelection().removeAllRanges(); getSelection().addRange(range);
+  }
+
+  // Text drawn in a visible box; keys, copy and paste go through a hidden 1×1 field that holds only the selection.
+  function proxy(composer, draft) {
+    let value = draft, range = [draft.length, draft.length];
+    const shown = Object.assign(document.createElement('div'), { className: 'editor' });
+    shown.setAttribute('aria-hidden', 'true');
+    const field = Object.assign(document.createElement('div'), { contentEditable: 'true' });
+    Object.assign(field.style, { position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', opacity: '0' });
+    composer.style.position = 'relative';
+    composer.append(shown);
+    const mirror = () => {
+      shown.textContent = value;
+      field.textContent = value.slice(...range);
+      const all = document.createRange(); all.selectNodeContents(field);
+      getSelection().removeAllRanges(); getSelection().addRange(all);
+    };
+    const replace = insert => { value = value.slice(0, range[0]) + insert + value.slice(range[1]); range = [range[0] + insert.length, range[0] + insert.length]; mirror(); };
+    field.addEventListener('beforeinput', event => { event.preventDefault(); replace(event.inputType.startsWith('delete') ? '' : event.data ?? ''); });
+    field.addEventListener('copy', event => { event.preventDefault(); event.clipboardData.setData('text/plain', value.slice(...range)); });
+    field.addEventListener('paste', event => { event.preventDefault(); replace(event.clipboardData.getData('text/plain')); });
+    setTimeout(mirror);
+    return { field, text: () => value, select: (location, length) => { range = [location, location + length]; mirror(); } };
+  }
+
+  // An editor with a selection of its own: it adopts the DOM's on selectionchange, throttled to one call per
+  // 100 ms (leading and trailing), and pastes and copies at its own.
+  function ownSelection(draft) {
+    let value = draft, range = [draft.length, draft.length], last = 0, pending = null;
+    const field = Object.assign(document.createElement('div'), { className: 'editor', contentEditable: 'true', textContent: draft });
+    field.setAttribute('role', 'textbox');
+    const offsets = () => {
+      const selection = getSelection();
+      if (!selection.rangeCount || !field.contains(selection.anchorNode)) return null;
+      const r = selection.getRangeAt(0), at = (node, offset) => node === field ? (offset ? value.length : 0) : offset;
+      return [at(r.startContainer, r.startOffset), at(r.endContainer, r.endOffset)];
+    };
+    const adopt = () => { pending = null; last = Date.now(); range = offsets() ?? range; };
+    document.addEventListener('selectionchange', () => {
+      if (Date.now() - last >= 100) adopt(); else pending ??= setTimeout(adopt, 100 - (Date.now() - last));
+    });
+    const render = () => {
+      field.textContent = value;
+      const node = field.firstChild ?? field, r = document.createRange();
+      r.setStart(node, range[0]); r.setEnd(node, range[1]);
+      getSelection().removeAllRanges(); getSelection().addRange(r);
+    };
+    const insert = text => { value = value.slice(0, range[0]) + text + value.slice(range[1]); range = [range[0] + text.length, range[0] + text.length]; render(); };
+    field.addEventListener('paste', event => { event.preventDefault(); insert(event.clipboardData.getData('text/plain')); });
+    field.addEventListener('copy', event => { event.preventDefault(); event.clipboardData.setData('text/plain', value.slice(...range)); });
+    // Typing flushes the selection first, as such editors do on beforeinput.
+    field.addEventListener('beforeinput', event => { event.preventDefault(); adopt(); insert(event.data ?? ''); });
+    return { field, text: () => value, select: (location, length) => { range = [location, location + length]; render(); } };
+  }
+
+  // Empty blocks have no characters in Gecko's ranges, but selecting from the preceding leaf can
+  // still include them. Read the blocks themselves so losing a blank paragraph fails the scenario.
+  function paragraphs(draft, combobox) {
+    const field = Object.assign(document.createElement('div'), { className: 'editor', contentEditable: 'true' });
+    field.setAttribute('role', combobox ? 'combobox' : 'textbox');
+    field.setAttribute('aria-multiline', 'true');
+    if (combobox) { field.dir = 'rtl'; field.setAttribute('aria-autocomplete', 'list'); }
+    for (const line of draft.split('\n')) {
+      const block = document.createElement('div');
+      block.append(line || document.createElement('br')); field.append(block);
+    }
+    return {
+      field,
+      text: () => [...field.children].map(block => block.textContent).join('\n'),
+      select(location, length) {
+        const point = offset => {
+          for (const block of field.children) {
+            const size = block.textContent.length;
+            if (offset <= size) return [block.firstChild, Math.min(offset, size)];
+            offset -= size + 1;
+          }
+          const last = field.lastChild; return [last, last.childNodes.length];
+        };
+        const range = document.createRange(); range.setStart(...point(location)); range.setEnd(...point(location + length));
+        getSelection().removeAllRanges(); getSelection().addRange(range);
+      },
+    };
+  }
+
+  function show(control) {
+    model = null;
+    document.body.replaceChildren();
+    document.body.className = '';
+    // Removed, not set to false: contenteditable=false would keep the body read-only in designMode too.
+    document.body.removeAttribute('contenteditable');
+    document.designMode = 'off';
+    const draft = control.text ?? '';
+    if (control.scenario === 'web-document' || control.scenario === 'web-design') {
+      document.body.className = 'document';
+      if (control.scenario === 'web-design') document.designMode = 'on'; else document.body.contentEditable = 'true';
+      document.body.textContent = draft;
+      editor = document.body;
+    } else {
+      const chat = document.createElement('div'), composer = document.createElement('div');
+      chat.className = 'chat'; composer.className = 'composer';
+      chat.append(Object.assign(document.createElement('div'), { textContent: 'Can you send the release notes before the stand-up?' }), composer);
+      if (control.scenario === 'web-textarea' || control.scenario === 'web-readonly' || control.scenario === 'web-rtl-combobox') {
+        editor = Object.assign(document.createElement('textarea'), { className: 'editor', value: draft });
+        editor.readOnly = control.scenario === 'web-readonly';
+        if (control.scenario === 'web-rtl-combobox') {
+          editor.dir = 'rtl'; editor.setAttribute('role', 'combobox'); editor.setAttribute('aria-autocomplete', 'list');
+        }
+      } else if (control.scenario === 'web-proxy') {
+        model = proxy(composer, draft); editor = model.field;
+      } else if (control.scenario === 'web-own-selection') {
+        model = ownSelection(draft); editor = model.field;
+      } else if (control.scenario === 'web-paragraphs' || control.scenario === 'web-paragraph-combobox') {
+        model = paragraphs(draft, control.scenario === 'web-paragraph-combobox'); editor = model.field;
+      } else if (control.scenario === 'web-image') {
+        editor = Object.assign(document.createElement('div'), { className: 'editor', contentEditable: 'true' });
+        draft.split('\ufffc').forEach((part, index) => {
+          if (index) editor.append(Object.assign(document.createElement('img'), { alt: '🎉', width: 18, height: 18,
+            src: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3Crect width="1" height="1" fill="orange"/%3E%3C/svg%3E' }));
+          editor.append(part);
+        });
+        editor.setAttribute('role', 'textbox');
+      } else {
+        editor = Object.assign(document.createElement('div'), { className: 'editor', contentEditable: 'true', textContent: draft });
+        editor.setAttribute('role', 'textbox'); editor.setAttribute('aria-multiline', 'true');
+      }
+      editor.setAttribute('aria-label', 'Message');
+      composer.append(editor);
+      document.body.append(chat);
+    }
+    document.title = 'oops composer lab · web e2e · ' + control.scenario;
+    editor.focus();
+    const [location, length] = (control.selection ?? '').split(',').map(Number);
+    if (Number.isInteger(location) && Number.isInteger(length)) select(location, length);
+    else select(draft.length, 0);
+  }
+
+  // Typed at the end, through the browser's editing like a keystroke, so the editor sees an edit.
+  function append(addition) {
+    editor.focus();
+    const end = text().length;
+    if (editor.setSelectionRange) editor.setSelectionRange(end, end);
+    else { const range = document.createRange(); range.selectNodeContents(editor); range.collapse(false); getSelection().removeAllRanges(); getSelection().addRange(range); }
+    document.execCommand('insertText', false, addition);
+  }
+
+  async function report() {
+    const state = JSON.stringify({ host, nonce, text: text() });
+    if (state === reported) return;
+    reported = state;
+    try { await fetch('/state', { method: 'POST', body: state }); } catch { reported = null; }
+  }
+
+  async function poll() {
+    try {
+      const control = await (await fetch('/control', { cache: 'no-store' })).json();
+      if (control.host === host && control.nonce !== nonce) {
+        nonce = control.nonce;
+        if (control.append !== undefined && editor) append(control.append); else show(control);
+      }
+    } catch {}
+    await report();
+    setTimeout(poll, 100);
+  }
+  poll();
+</script>
+</body>
+</html>

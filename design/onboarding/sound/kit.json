@@ -1,0 +1,33 @@
+{
+  "kit": 1,
+  "name": "oops-onboarding",
+  "sr": 48000,
+  "note": "Hello's typing and pull-back: earshot's calm preset reduced to the keys, the space bar and the long air swell.",
+  "roles": {
+    "key": {
+      "sound": "typing_key/thock",
+      "takes": 12,
+      "align": "onset",
+      "level_db": -10.0,
+      "note": "a thocky mechanical key, a new take per keystroke; the light / laptop members ring (comb ring in the audit)"
+    },
+    "key.space": {
+      "sound": "fit/key.space/thock_space",
+      "takes": 4,
+      "align": "onset",
+      "level_db": -9.5,
+      "note": "a mechanical keyboard space bar, a CC0 recording fitted as code (0.39 s): matches 'a spacebar press' at z +3.22 (typing_key/deep: +2.14), realness 0.99 (0.84); its own top tags include 'a spacebar press'"
+    },
+    "whoosh.long": {
+      "sound": "whoosh_big/swell",
+      "takes": 2,
+      "align": "peak",
+      "level_db": -7.0,
+      "note": "a gentle air swell (1.36 s, peak at 0.44 s) for scene moves: air, not a sub-led designed whoosh",
+      "edits": {
+        "dur": 1.3,
+        "apex": 0.6
+      }
+    }
+  }
+}

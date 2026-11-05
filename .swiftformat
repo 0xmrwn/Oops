@@ -1,0 +1,12 @@
+# SwiftFormat (version pinned in mise.toml). Default rules, minus the ones that would reflow the
+# house style: dense one-line bodies, aligned continuation lines, and author-chosen ordering.
+--swiftversion 6.4
+--indent 4
+--maxwidth none
+--ifdef no-indent
+--exclude .build,dist,work,outputs,design
+
+--disable indent,wrapArguments,wrapMultilineStatementBraces,wrapConditionalBodies,wrapIfStatementBodies,wrapIfExpressionBodies,wrapFunctionBodies,wrapPropertyBodies,wrapLoopBodies
+--disable blankLinesBetweenScopes,redundantSelf,sortImports,sortedImports,sortedSwitchCases,spaceAroundOperators
+--disable hoistPatternLet,hoistTry,hoistAwait,conditionalAssignment,trailingCommas,numberFormatting,docComments
+--disable unusedArguments,noForceUnwrapInTests,consecutiveSpaces

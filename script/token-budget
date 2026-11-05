@@ -1,0 +1,84 @@
+#!/bin/sh
+# Token budget: no file over 5,000 tokens (bytes / 4) may be added, and a file already over it may not grow.
+# A plain git hook with no dependencies beyond git: link it as .git/hooks/pre-commit, or run it through prek.
+#   token-budget           staged files, as git will commit them
+#   token-budget FILE...   these working-tree files against $TOKEN_BUDGET_BASE (default HEAD), as prek runs it
+# Lockfiles, generated (linguist-generated), vendored (linguist-vendored) and minified files and binaries
+# are not counted: agents don't write them.
+set -eu
+
+LIMIT=5000
+base=${TOKEN_BUDGET_BASE:-HEAD}
+staged=1
+[ $# = 0 ] || staged=0
+git rev-parse --verify --quiet "$base^{commit}" >/dev/null || base=$(git hash-object -t tree /dev/null)
+
+# Renamed files are compared with their old path.
+if [ $staged = 1 ]; then
+  renames=$(git diff --cached -M --name-status --diff-filter=R "$base")
+  files=$(git diff --cached --name-only --diff-filter=ACMR "$base")
+else
+  renames=$(git diff -M --name-status --diff-filter=R "$base")
+  files=$(printf '%s\n' "$@")
+fi
+
+skipped() {
+  case "$1" in
+    *.lock | */package-lock.json | package-lock.json | *npm-shrinkwrap.json | *pnpm-lock.yaml | *Package.resolved | *go.sum) return 0 ;;
+    *.min.js | *.min.css | *.map | vendor/* | */vendor/* | third_party/* | */third_party/* | node_modules/* | */node_modules/*) return 0 ;;
+  esac
+  git check-attr linguist-generated linguist-vendored -- "$1" | grep -qE ': (set|true)$'
+}
+
+content() { # The file as it will be committed.
+  if [ $staged = 1 ]; then git cat-file blob ":$1"; else cat -- "$1"; fi
+}
+
+over=""
+old_ifs=$IFS
+IFS='
+'
+for file in $files; do
+  IFS=$old_ifs
+  [ -n "$file" ] || continue
+  [ $staged = 1 ] || [ -f "$file" ] || continue
+  if [ $staged = 1 ]; then bytes=$(git cat-file -s ":$file"); else bytes=$(wc -c <"$file" | tr -d ' '); fi
+  tokens=$((bytes / 4))
+  [ $tokens -gt $LIMIT ] || continue
+  skipped "$file" && continue
+  # Binaries: grep -I treats them as matching nothing.
+  content "$file" | LC_ALL=C grep -qI . || continue
+  old=$(printf '%s\n' "$renames" | awk -F '\t' -v new="$file" '$3 == new { print $2; exit }')
+  [ -n "$old" ] || old=$file
+  if old_bytes=$(git cat-file -s "$base:$old" 2>/dev/null); then
+    growth=$((tokens - old_bytes / 4))
+    [ $growth -gt 0 ] || continue
+  else
+    growth=new
+  fi
+  over="$over$file	$tokens	$growth
+"
+done
+IFS=$old_ifs
+
+[ -n "$over" ] || exit 0
+printf '%s' "$over" | awk -F '\t' -v limit=$LIMIT '
+  function n(x) { s = ""; while (x >= 1000) { s = sprintf(",%03d", x % 1000) s; x = int(x / 1000) } return x s }
+  { file[NR] = $1; tokens[NR] = $2; growth[NR] = $3; if (length($1) > width) width = length($1) }
+  END {
+    printf "token-budget: %d file%s over %s tokens (bytes / 4)\n", NR, (NR == 1 ? "" : "s"), n(limit)
+    for (i = 1; i <= NR; i++) {
+      grew = growth[i] == "new" ? "new file" : "+" n(growth[i])
+      parts = int((tokens[i] + limit - 1) / limit)
+      printf "  %-" width "s  %6s tokens  (%s)  split into at least %d files\n", file[i], n(tokens[i]), grew, parts
+    }
+    print ""
+    print "To split a file:"
+    print "  1. Group the code by responsibility."
+    print "  2. Move each group into its own new module, keeping each under " n(limit) " tokens."
+    print "  3. Move the code over verbatim, without changing it."
+    print "  4. Leave the original as a thin entry point that re-exports the new modules, so old imports keep"
+    print "     working (in Swift, files in one module see each other: nothing to re-export)."
+    print "  5. Run the tests."
+  }' >&2
+exit 1

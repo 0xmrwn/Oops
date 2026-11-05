@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Oops — Evaluation</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/diff.js" defer></script>
+    <script src="/review.js" defer></script>
+    <script src="/live.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to report</a>
+    <header>
+      <a class="brand" href="#main" aria-label="Oops evaluation home">oops<span>Evaluation</span></a>
+      <div class="run-control"><label for="run">Run</label><select id="run"><option value="">No runs yet</option></select><span id="connection" role="status">Connecting…</span></div>
+    </header>
+    <aside><nav aria-label="Report sections"><a href="#live">Live run</a><a href="#results">Results</a><a href="#cases">Cases &amp; review</a><a href="#methodology">Methodology</a></nav><p>Generation and judgment are measured separately.</p></aside>
+    <main id="main">
+      <div id="banner" role="status" hidden></div>
+      <h1 id="title">Corrections,<br />measured.</h1>
+      <p class="intro" id="intro">An evaluation of what gets fixed, what gets preserved, and how long it takes.</p>
+      <p class="run-status" id="runStatus">Loading local run records…</p>
+      <section id="live" aria-labelledby="liveTitle">
+        <div class="section-heading"><h2 id="liveTitle">Live run</h2><button id="refresh" type="button">Refresh</button></div>
+        <div id="empty" class="empty" hidden></div>
+        <div id="liveOverview" class="live-overview" hidden>
+          <div class="generation-overview">
+            <div class="progress-heading"><span id="generationLabel">Generation</span><span id="generationPercent"></span></div>
+            <progress id="generationBar" max="1" value="0" aria-label="Overall generation progress"></progress>
+            <p id="progressSummary" class="summary"></p>
+            <p id="generationDetail" class="muted"></p>
+          </div>
+          <div class="run-eta"><span id="etaLabel">Estimated generation remaining</span><strong id="generationEta">Estimating…</strong><span id="generationFinish"></span></div>
+          <div class="judging-overview"><div class="progress-heading"><span>Scoring</span><span id="scoringCount"></span></div><progress id="scoringBar" max="1" value="0" aria-label="Overall scoring coverage"></progress><p id="judgeProgress" class="muted"></p><p id="judgeEta" class="muted" hidden></p></div>
+        </div>
+        <div class="table-scroll live-table" role="region" aria-label="Live lane progress" tabindex="0"><table><thead><tr><th>Model / route</th><th>Generation</th><th>Scored</th><th>State</th><th>Errors / invalid</th><th>ETA / provider</th></tr></thead><tbody id="liveRows"></tbody></table></div>
+      </section>
+      <section id="results" aria-labelledby="resultsTitle">
+        <div class="section-heading"><h2 id="resultsTitle">Quality and time</h2><label class="control">Sort table<select id="sort"><option value="">Configured order</option><option value="fully_correct">Fully correct</option><option value="latency_p50_ms">Fastest median</option><option value="harm_rate">Lowest harm</option></select></label><label class="control">Metric<select id="metric"><option value="fully_correct">Fully correct drafts</option><option value="f05">Minimal-edit F0.5</option><option value="precision">Minimal-edit precision</option><option value="recall">Correction recall</option><option value="harm_rate">Harm rate</option></select></label></div>
+        <p id="comparisonNote" class="muted">Charts use the same completed, graded case-attempt pairs across every eligible lane.</p>
+        <div id="chart" class="chart"></div>
+        <div class="table-scroll" role="region" aria-label="Model results" tabindex="0"><table><thead><tr><th>Model / route</th><th>Correct / graded</th><th>F0.5</th><th>Precision / recall</th><th>Harm</th><th>p50 / p95</th><th>API list cost / success</th></tr></thead><tbody id="resultRows"></tbody></table></div>
+        <div class="section-heading small"><h3>Where results differ</h3><label class="control">Model<select id="laneFocus"></select></label></div>
+        <div id="breakdowns"></div><div id="diagnostics"></div>
+      </section>
+      <section id="cases" aria-labelledby="casesTitle">
+        <h2 id="casesTitle">The evidence</h2>
+        <p class="muted">Inspect a correction, compare the judges, or grade it yourself. Answers are blind by default.</p>
+        <div class="case-tools"><label>Find a case<input id="search" type="search" placeholder="Case ID…" /></label><label>Language<select id="language"><option value="">All languages</option><option value="en">English</option><option value="fr">French</option><option value="mixed">Mixed</option></select></label><label>Split<select id="split"><option value="">Both splits</option><option value="dev">Development</option><option value="held">Held back</option></select></label><label class="check"><input id="blind" type="checkbox" checked />Hide model names</label></div>
+        <div class="case-browser"><div id="caseList" aria-label="Cases"></div><div id="detail" class="detail"><p class="empty">Choose a case to inspect its corrections.</p></div></div>
+      </section>
+      <section id="methodology" aria-labelledby="methodTitle"><h2 id="methodTitle">How to read this report</h2>
+        <details id="review-policy"><summary>Correction policy and grading labels</summary><p id="policyText"></p><dl id="policyLabels"></dl></details>
+        <div class="method-grid"><div><h3>Quality</h3><p>Necessary valid edits earn credit. Optional edits earn no correction credit and count as excess changes in minimal-edit precision. Harm is reported separately. A valid alternative can fix an error without matching the reference.</p><p>Minimal-edit F0.5 weights precision more than recall. It is a custom policy score, not an ERRANT score. Unresolved judgments stay unresolved.</p></div><div><h3>Time and reliability</h3><p>Completion time measures a full answer on the final send. Full wait includes provider pacing, failed sends and retries. First token is diagnostic; Oops needs the complete correction.</p><p>Raw-model preservation failures and dropped edits remain visible even when reconciliation produces safe pasted text.</p></div></div>
+        <p class="muted">Confidence intervals resample case families, keeping repeated attempts together. Small samples and unfinished judging limit what can be concluded. Judge agreement is provisional until validated against human output labels.</p>
+        <details><summary>Experiment and scoring versions</summary><pre id="versions">No experiment has been started.</pre></details>
+      </section>
+      <footer>Oops Evaluation · Local records · Prompt unchanged for the baseline</footer>
+    </main>
+  </body>
+</html>

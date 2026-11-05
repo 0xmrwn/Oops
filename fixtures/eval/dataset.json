@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "version": "2026.10.1",
+  "frozen": "2026-11-02",
+  "origin": "fully synthetic bootstrap; includes seeded injected errors",
+  "dev": {
+    "cases": 150,
+    "sha256": "7847ac38a520f432a2938007c5a32b11005ad1b9e222caa303e3ea0cdfc09b15"
+  },
+  "held": {
+    "cases": 50,
+    "sha256": "957b87127240a700cb4cab116b2e256472d72dfcf8d98e84d1888b700c693f42"
+  },
+  "counts": {
+    "lang": {
+      "en": 140,
+      "mixed": 20,
+      "fr": 40
+    },
+    "length": {
+      "l": 30,
+      "m": 55,
+      "s": 70,
+      "xl": 5,
+      "xs": 40
+    },
+    "origin": {
+      "synthetic": 120,
+      "injected": 80
+    },
+    "split": {
+      "dev": 150,
+      "held": 50
+    }
+  },
+  "review": {
+    "decisions": 200,
+    "approved": 200,
+    "saved_at": "2026-10-31T16:43:14.458157+00:00",
+    "packet_sha256": "24941731138a135bfc26a6f7cf65c51060e63b0b241d2199e0b9ba22e0dc2e3f",
+    "labels_sha256": "6defac93da5d119e48f3f2d344429ee2a7124154f7fba0629ee34f2b547e36d2",
+    "authority": "Complete owner offline review; older online labels were not imported."
+  },
+  "policy": "policy-v1"
+}
