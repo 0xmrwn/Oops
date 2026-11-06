@@ -10,10 +10,12 @@ struct HelloScene: View {
     let director: HelloDirector
     /// Set up was pressed: the finale's drop has gone on to the setup steps, and its pane fades away.
     var handedOff = false
+    var visible = true
     let setUp: () -> Void
     private let canvas = HelloZoom.stage
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
+    private var blinking: Bool { visible && director.finaleReady && director.stage == .finale && !handedOff && !reduceMotion }
 
     var body: some View {
         GeometryReader { proxy in
@@ -25,6 +27,10 @@ struct HelloScene: View {
         }
         .background(.black)
         .ignoresSafeArea()
+        .task(id: blinking) {
+            guard blinking else { return }
+            try? await director.blink()
+        }
         // The desktop is a recorded illustration, not a collection of usable apps and editors.
         .accessibilityRepresentation {
             if director.stage == .finale { Button("Set up", action: setUp) }
@@ -36,10 +42,12 @@ struct HelloScene: View {
         let finale = director.stage == .finale
         return ZStack {
             // Never blurred behind the finale and the setup steps: only glass frosts.
-            ShaderGradientView().scaleEffect(director.zoomed ? 1.07 : 1)
-            world
-                .opacity(finale ? 0 : 1).blur(radius: finale ? 10 : 0)
-                .accessibilityHidden(finale)
+            ShaderGradientView(visible: visible).scaleEffect(director.zoomed ? 1.07 : 1)
+            if !director.desktopDismissed {
+                world
+                    .opacity(finale ? 0 : 1).blur(radius: finale ? 10 : 0)
+                    .accessibilityHidden(finale)
+            }
             HelloFinale(director: director, handedOff: handedOff, setUp: setUp)
                 .opacity(finale && !handedOff ? 1 : 0).scaleEffect(finale || reduceMotion ? 1 : 0.6)
                 .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.9, bounce: 0.3), value: finale)
@@ -47,10 +55,14 @@ struct HelloScene: View {
                 .allowsHitTesting(finale && !handedOff)
         }
         .overlayPreferenceValue(HelloFieldsKey.self) { fields in
-            GeometryReader { proxy in drops(fields, in: proxy) }.allowsHitTesting(false)
+            if !director.desktopDismissed {
+                GeometryReader { proxy in drops(fields, in: proxy) }.allowsHitTesting(false)
+            }
         }
         .overlayPreferenceValue(HelloWindowKey.self) { window in
-            GeometryReader { proxy in seed(window.map { proxy[$0] }) }.allowsHitTesting(false)
+            if !director.desktopDismissed {
+                GeometryReader { proxy in seed(window.map { proxy[$0] }) }.allowsHitTesting(false)
+            }
         }
         .frame(width: canvas.width, height: canvas.height)
         .clipped()
@@ -62,15 +74,15 @@ struct HelloScene: View {
             ForEach(director.waiting) { state in
                 window(state)
                     .opacity(state.shown ? 1 : 0)
-                    .scaleEffect(state.shown ? 1 : 0.94)
-                    .offset(y: state.shown ? 0 : u(14))
+                    .scaleEffect(state.shown || reduceMotion ? 1 : 0.94)
+                    .offset(y: state.shown || reduceMotion ? 0 : u(14))
                     .accessibilityHidden(!state.shown)
             }
             window(director.typed, reportsBounds: true)
                 // Resolves out of the stretched glass: a little soft and small, settling into place.
                 .opacity(director.windowShown ? 1 : 0)
                 .blur(radius: director.windowShown ? 0 : u(10))
-                .scaleEffect(director.windowShown ? 1 : 0.97)
+                .scaleEffect(director.windowShown || reduceMotion ? 1 : 0.97)
                 .accessibilityHidden(!director.windowShown)
         }
         .frame(width: canvas.width * HelloZoom.factor, height: canvas.height * HelloZoom.factor, alignment: .topLeading)
@@ -119,7 +131,7 @@ struct HelloScene: View {
     /// while the window resolves inside it.
     @ViewBuilder private func seed(_ window: CGRect?) -> some View {
         if let window {
-            let morphed = director.seedMorphed, k = dropScale
+            let morphed = director.seedMorphed && !reduceMotion, k = dropScale
             let size = morphed ? window.size : CGSize(width: 46 * k, height: 46 * k), radius = morphed ? u(14) : 23 * k
             GlassEffectContainer {
                 Color.clear
@@ -136,7 +148,7 @@ struct HelloScene: View {
                         $0.scaleEffect(morphed ? 1.5 : 1).opacity(morphed ? 0 : 1)
                     }
             }
-            .scaleEffect(director.seedShown ? 1 : 0.35)
+            .scaleEffect(director.seedShown || reduceMotion ? 1 : 0.35)
             .opacity(director.seedShown && !director.windowShown ? 1 : 0)
             .position(x: window.midX, y: window.midY)
             .accessibilityHidden(true)

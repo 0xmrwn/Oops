@@ -143,11 +143,6 @@ extension EditorAccess {
         } catch { putBack(); throw error }
         // A marker-bound native operation addresses its proved word directly, independent of an
         // editor's stale copy/paste selection. Never retry an operation whose result is unknown.
-        // Chromium can delete an Arabic word then insert Unicode input at its cached caret. Keep
-        // its native input to ASCII; other replacements use the checked clipboard path. Short native
-        // input still avoids paste handlers that keep a stale selection (RoosterJS in a shadow root).
-        let nativeInput = gecko || !Self.isChromiumHost(pid: target.pid, geometry: target.geometry)
-            || input.utf8.allSatisfy { $0 < 128 }
         if nativeReplacement {
             let range: CFTypeRef
             do {
@@ -159,7 +154,13 @@ extension EditorAccess {
             let operation: [String: Any] = ["AXTextOperationMarkerRanges": [range], "AXTextOperationType": "TextOperationReplacePreserveCase",
                                             "AXTextOperationReplacementString": edit.replacement, "AXTextOperationSmartReplace": false]
             _ = parameterized(element, "AXTextOperation", operation as CFDictionary)
-        } else if !target.webContent || !nativeInput || !KeyboardGate.postText(input) { KeyboardGate.postCommand("v") }
+        } else {
+            // Chromium can insert Unicode at a cached caret. Only probe for Chromium when the
+            // replacement is web content with non-ASCII input that needs that distinction.
+            let typed = target.webContent && (gecko || input.utf8.allSatisfy { $0 < 128 }
+                || !Self.isChromiumHost(pid: target.pid, geometry: target.geometry)) && KeyboardGate.postText(input)
+            if !typed { KeyboardGate.postCommand("v") }
+        }
         // A word that occurs once in the draft can't have been pasted over elsewhere: a reading in display
         // order then confirms the paste wherever its runs moved. An interior edit needs its own
         // uniqueness proof; the whole word being unique says nothing about one changed letter.

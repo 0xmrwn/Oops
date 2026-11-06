@@ -97,8 +97,13 @@ public extension CorrectionPolicy {
     /// back as one hunk), the characters of the words the two sides don't share, which counts a typo
     /// as its word and a rewrite as nearly everything.
     internal static func distance(_ a: String, _ b: String) -> Int {
-        let x = Array(a), y = Array(b)
-        if x.count > 2_000 || y.count > 2_000 { return unsharedWords(a, b) }
+        let limit = 2_000
+        func characters(_ text: String) -> [Character] {
+            // A short byte count proves the character count fits without scanning a prefix.
+            text.utf8.count <= limit ? Array(text) : Array(text.prefix(limit + 1))
+        }
+        let x = characters(a), y = characters(b)
+        if x.count > limit || y.count > limit { return unsharedWords(a, b) }
         guard !x.isEmpty, !y.isEmpty else { return max(x.count, y.count) }
         var previous = Array(0...y.count), current = [Int](repeating: 0, count: y.count + 1)
         for i in 1...x.count {
@@ -111,9 +116,11 @@ public extension CorrectionPolicy {
         return previous[y.count]
     }
 
+    private static let fallbackWordRegex = try? NSRegularExpression(pattern: #"[\p{L}\p{N}]+"#)
+
     private static func unsharedWords(_ a: String, _ b: String) -> Int {
         func words(_ text: String) -> [String: Int] {
-            matches(#"[\p{L}\p{N}]+"#, text).reduce(into: [:]) { $0[$1, default: 0] += 1 }
+            matches(fallbackWordRegex, text).reduce(into: [:]) { $0[$1, default: 0] += 1 }
         }
         let left = words(a), right = words(b)
         func unshared(_ one: [String: Int], _ other: [String: Int]) -> Int {

@@ -102,10 +102,7 @@ private struct Keycap: View {
         .scaleEffect(cap.down ? 0.94 : 1)
         .offset(y: cap.down ? 5 : reduceMotion ? 0 : floating ? -5 : 5)
         .animation(.spring(duration: 0.18, bounce: 0.35), value: cap.down)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 2.6).repeatForever().delay(Double(cap.id) * 0.35)) { floating = true }
-        }
+        .repeatingMotion($floating, animation: .easeInOut(duration: 2.6).repeatForever().delay(Double(cap.id) * 0.35))
     }
 }
 
@@ -115,12 +112,11 @@ private struct EmptyKeycap: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: 26)
-            .strokeBorder(.white.opacity(pulse ? 0.7 : 0.35), style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
+            .strokeBorder(.white.opacity(reduceMotion || pulse ? 0.7 : 0.35), style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
             .frame(width: 112, height: 112)
-            .onAppear {
-                guard !reduceMotion else { pulse = true; return }
-                withAnimation(.easeInOut(duration: 0.9).repeatForever()) { pulse = true }
-            }
+            // Reduced mode keeps the bright endpoint: replace the decorative shape to end its pulse.
+            .id(reduceMotion)
+            .repeatingMotion($pulse, animation: .easeInOut(duration: 0.9).repeatForever())
     }
 }
 

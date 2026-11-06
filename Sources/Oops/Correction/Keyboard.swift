@@ -160,7 +160,8 @@ struct Shortcut: Codable, Equatable {
         clearRegistrations()
         let settings = ShortcutSettings.shared
         settings.hotkeys = self
-        // Actions run on release; the press only shows the key down.
+        // Actions run on the press, so the draft is read while the keys are still down; anything that
+        // types waits for them to come up. A held chord repeats its press: one action per press.
         var specs = [kEventHotKeyPressed, kEventHotKeyReleased].map { EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32($0)) }
         let context = Unmanaged.passUnretained(self).toOpaque()
         let status = InstallEventHandler(GetEventDispatcherTarget(), { _, event, userData in
@@ -170,10 +171,13 @@ struct Shortcut: Codable, Equatable {
                               MemoryLayout<EventHotKeyID>.size, nil, &id)
             let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed)
             let owner = Unmanaged<HyperShortcuts>.fromOpaque(userData).takeUnretainedValue()
+            KeyboardGate.shortcutHeld.withLock { $0 = pressed }
             DispatchQueue.main.async {
-                ShortcutSettings.shared.down = pressed ? (id.id == 1 ? .correct : .restore) : nil
-                guard !pressed else { return }
-                if id.id == 1 { owner.invoke?() } else if id.id == 2 { owner.revert?() }
+                let action: ShortcutSettings.Action = id.id == 1 ? .correct : .restore
+                guard pressed else { ShortcutSettings.shared.down = nil; return }
+                guard ShortcutSettings.shared.down != action else { return }
+                ShortcutSettings.shared.down = action
+                if action == .correct { owner.invoke?() } else { owner.revert?() }
             }
             return noErr
         }, specs.count, &specs, context, &handler)
@@ -214,6 +218,7 @@ struct Shortcut: Codable, Equatable {
     private func clearRegistrations() {
         refs.forEach { UnregisterEventHotKey($0) }; refs = []; failed = []
         ShortcutSettings.shared.down = nil
+        KeyboardGate.shortcutHeld.withLock { $0 = false }
         if let handler { RemoveEventHandler(handler) }; handler = nil
     }
 }
@@ -224,9 +229,11 @@ struct Shortcut: Codable, Equatable {
 /// source and the watchdog are set in `init` and torn down in `release`, both on the main thread.
 final class KeyboardGate: @unchecked Sendable {
     private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Keyboard")
+    /// Between the shortcut's press and its release, as the hotkey handler reports them.
+    static let shortcutHeld = OSAllocatedUnfairLock(initialState: false)
     static func waitForModifierRelease() async throws {
         let blocking: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
-        let waits = try await ModifierRelease.wait(isReleased: {
+        let waits = try await ModifierRelease.wait(shortcutHeld: { shortcutHeld.withLock { $0 } }, isReleased: {
             CGEventSource.flagsState(.combinedSessionState).isDisjoint(with: blocking)
         }, keyboardReleased: {
             CGEventSource.flagsState(.hidSystemState).isDisjoint(with: blocking)

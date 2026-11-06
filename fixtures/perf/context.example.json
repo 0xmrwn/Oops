@@ -1,0 +1,13 @@
+{
+  "workload": "idle-after-60s-settle",
+  "condition": "warm-process",
+  "display_hz": 60,
+  "display_mode": "EXAMPLE ONLY: replace with observed display, resolution and fixed/adaptive mode",
+  "reduce_motion": false,
+  "appearance": "dark",
+  "power": "EXAMPLE ONLY: replace with AC/battery and Low Power Mode",
+  "provider": "none-in-idle-window",
+  "model": "none-in-idle-window",
+  "host_app": "none-in-idle-window",
+  "host_version": "none-in-idle-window"
+}

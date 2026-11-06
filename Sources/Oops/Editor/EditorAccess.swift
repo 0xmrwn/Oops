@@ -237,8 +237,9 @@ actor EditorAccess {
     }
 
     /// Fresh capsule geometry for a captured editor, e.g. after the replacement reflowed it.
-    func geometry(of snapshot: EditorSnapshot) -> CapsulePlacement.Geometry {
-        geometry(snapshot.element)
+    func geometry(of element: AXUIElement) -> CapsulePlacement.Geometry? {
+        guard !Task.isCancelled else { return nil }
+        return geometry(element)
     }
     /// Whether the draft's window is still the one in front: its app is frontmost and, when the app
     /// says, the window holding the draft is its focused one. Unknown counts as in front.

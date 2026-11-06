@@ -45,11 +45,11 @@ struct APIProviderSetupView: View {
             if let error {
                 AccessibilityNotification.Announcement(error).post()
                 if !setup.connected { focus.wrappedValue = error.localizedCaseInsensitiveContains("key") ? .key : .endpoint }
-                else if !setup.passed { Sounds.shared.play(.failure, after: 0) }
+                else if !setup.passed { Sounds.play(.failure, after: 0) }
             }
         }
         .onChange(of: setup.phase) { _, phase in
-            if case .passed = phase { focus.wrappedValue = nil; Sounds.shared.play(.success, after: 0) }
+            if case .passed = phase { focus.wrappedValue = nil; Sounds.play(.success, after: 0) }
         }
     }
 

@@ -204,8 +204,7 @@ struct SettingsView: View {
     }
 
     private func providerAppeared() {
-        preferences.refreshChatGPT()
-        preferences.loadModels()
+        preferences.refreshChatGPT(loadCatalog: true)
         preferences.providers.refresh()
     }
 

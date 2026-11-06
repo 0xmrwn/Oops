@@ -107,7 +107,7 @@ import SwiftUI
     func menuWillOpen(_ menu: NSMenu) {
         menuOpen = true
         // Health is otherwise refreshed only when Settings opens; each check is at most once a minute.
-        preferences.refreshChatGPT()
+        if preferences.providers.currentProvider?.kind == .chatGPT { preferences.refreshChatGPT() }
         preferences.providers.refresh()
     }
 

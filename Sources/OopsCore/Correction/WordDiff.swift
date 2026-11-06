@@ -31,16 +31,16 @@ public struct WordDiff: Sendable {
         while prefix < min(a.count, b.count), match(a[prefix], b[prefix]) { prefix += 1 }
         var suffix = 0
         while suffix < min(a.count, b.count) - prefix, match(a[a.count - 1 - suffix], b[b.count - 1 - suffix]) { suffix += 1 }
-        let midA = Array(a[prefix..<(a.count - suffix)]), midB = Array(b[prefix..<(b.count - suffix)])
+        let n = a.count - prefix - suffix, m = b.count - prefix - suffix
 
         // Token index ranges per hunk, in a and b.
         var spans: [(a: Range<Int>, b: Range<Int>)] = []
-        if midA.isEmpty && midB.isEmpty {
+        if n == 0 && m == 0 {
             spans = []
-        } else if midA.count * midB.count > 1_500_000 || midA.isEmpty || midB.isEmpty {
-            spans = [(prefix..<(prefix + midA.count), prefix..<(prefix + midB.count))]
+        } else if n * m > 1_500_000 || n == 0 || m == 0 {
+            spans = [(prefix..<(prefix + n), prefix..<(prefix + m))]
         } else {
-            let n = midA.count, m = midB.count
+            let midA = Array(a[prefix..<(a.count - suffix)]), midB = Array(b[prefix..<(b.count - suffix)])
             var table = [Int32](repeating: 0, count: (n + 1) * (m + 1))
             for i in stride(from: n - 1, through: 0, by: -1) {
                 for j in stride(from: m - 1, through: 0, by: -1) {

@@ -34,12 +34,13 @@ struct ChatGPTProviderSection: View {
     @ObservedObject var preferences: Preferences
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private enum Phase: Hashable { case signedOut, reauth, signedIn }
+    private enum Phase: Hashable { case checking, signedOut, reauth, signedIn }
     private var phase: Phase {
         switch preferences.chatGPTStatus {
         case .signedIn: .signedIn
         case .reauthRequired: .reauth
         case .signedOut: .signedOut
+        case nil: .checking
         }
     }
 
@@ -55,6 +56,13 @@ struct ChatGPTProviderSection: View {
             case .signedOut:
                 ChatGPTSignInCard(preferences: preferences, reauth: false)
                     .transition(SettleTransition(reduceMotion: reduceMotion))
+            case nil:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking ChatGPT sign-in…").secondaryText()
+                }
+                .settingsSurface()
+                .transition(SettleTransition(reduceMotion: reduceMotion))
             }
         }
         .animation(SettingsMotion.swap(reduceMotion), value: phase)

@@ -21,6 +21,13 @@ import AppKit
         }
     }
 
+    static func releaseWhenAccessory() {
+        guard NSApp.activationPolicy() == .accessory, !cache.isEmpty else { return }
+        // AppKit keeps the current override even after the Dock tile disappears.
+        NSApp.applicationIconImage = nil
+        cache.removeAll()
+    }
+
     private static func update() {
         guard NSApp.activationPolicy() == .regular else { return }
         // Clear and tinted icon styles are the system's to render from the asset catalog.
@@ -33,19 +40,30 @@ import AppKit
     /// The full-bleed mark inset to the icon grid, with a shadow like the system's.
     static func image(dark: Bool) -> NSImage? {
         if let image = cache[dark] { return image }
+        // The mark ships at 1024 pixels. A 1024-point drawing handler can rasterize it
+        // at 2048 pixels on Retina and keep those larger representations cached.
+        let pixels = 1024
         guard let url = Bundle.main.url(forResource: dark ? "OopsIcon-dark" : "OopsIcon", withExtension: "png"),
-              let mark = NSImage(contentsOf: url) else { return nil }
-        let size = NSSize(width: 1024, height: 1024)
-        let image = NSImage(size: size, flipped: false) { rect in
-            let side = rect.width * body
-            let shadow = NSShadow()
-            shadow.shadowColor = .black.withAlphaComponent(0.3)
-            shadow.shadowBlurRadius = rect.width * 0.02
-            shadow.shadowOffset = NSSize(width: 0, height: -rect.width * 0.01)
-            shadow.set()
-            mark.draw(in: NSRect(x: rect.midX - side / 2, y: rect.midY - side / 2, width: side, height: side))
-            return true
-        }
+              let mark = NSImage(contentsOf: url),
+              let colorSpace = CGColorSpace(name: CGColorSpace.displayP3),
+              let context = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        mark.cacheMode = .never
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let edge = CGFloat(pixels)
+        let side = edge * body
+        let inset = (edge - side) / 2
+        let shadow = NSShadow()
+        shadow.shadowColor = .black.withAlphaComponent(0.3)
+        shadow.shadowBlurRadius = edge * 0.02
+        shadow.shadowOffset = NSSize(width: 0, height: -edge * 0.01)
+        shadow.set()
+        mark.draw(in: NSRect(x: inset, y: inset, width: side, height: side))
+        guard let bitmap = context.makeImage() else { return nil }
+        let image = NSImage(cgImage: bitmap, size: NSSize(width: edge / 2, height: edge / 2))
+        image.cacheMode = .never
         cache[dark] = image
         return image
     }

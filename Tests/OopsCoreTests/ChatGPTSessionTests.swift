@@ -3,6 +3,28 @@ import XCTest
 
 /// Session upkeep after sign-in: refresh outcomes, sign-out, error codes and the stored shape.
 final class ChatGPTSessionTests: XCTestCase {
+    func testStatusReadsCredentialsOnlyForConnectedProfiles() {
+        let connected = ChatGPTProfile.fakeConnected
+        var reauth = connected; reauth.state = .reauthRequired
+        var anonymous = connected; anonymous.identity = nil
+        let credentials = ChatGPTCredentials.fake()
+        let cases: [(String, MemoryChatGPTStore, ChatGPTStatus, Int)] = [
+            ("missing profile", .init(credentials: credentials), .signedOut, 0),
+            ("unreadable profile", .init(profile: connected, credentials: credentials, failProfileRead: true), .signedOut, 0),
+            ("disconnected", .init(profile: .newHost(), credentials: credentials), .signedOut, 0),
+            ("reauth required", .init(profile: reauth, credentials: credentials), .reauthRequired, 0),
+            ("connected", .init(profile: connected, credentials: credentials), .signedIn(connected.identity ?? .init()), 1),
+            ("connected without identity", .init(profile: anonymous, credentials: credentials), .signedIn(.init()), 1),
+            ("missing credentials", .init(profile: connected), .signedOut, 1),
+            ("unreadable credentials", .init(profile: connected, credentials: credentials, failCredentialRead: true), .signedOut, 1)
+        ]
+        for (name, store, status, reads) in cases {
+            let auth = ChatGPTAuth(store: store, session: ChatGPTStub.session, openBrowser: { _ in XCTFail("Status should not open a browser") })
+            XCTAssertEqual(auth.status, status, name)
+            XCTAssertEqual(store.credentialReads, reads, name)
+        }
+    }
+
     private func auth(_ store: MemoryChatGPTStore, token: @escaping ([String: String]) -> StubResponse,
                       revoke: StubResponse = StubResponse(body: Data())) -> ChatGPTAuth {
         ChatGPTStub.install { request, body in

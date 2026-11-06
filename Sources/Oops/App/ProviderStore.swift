@@ -26,22 +26,33 @@ import OopsCore
     var wantsProvidersPage = false
 
     @ObservationIgnored let preview: Bool
-    @ObservationIgnored private let chatGPT: ChatGPTAuth
+    @ObservationIgnored let chatGPT: ChatGPTAuth
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let writeKey: (String, String) throws -> Void
-    @ObservationIgnored private var claudeRuntime: ClaudeCodeRuntime?
+    @ObservationIgnored let readKey: (String) -> String
+    @ObservationIgnored let makeBackend: ((Provider, ModelSelection.Choice, ModelSelection.Settings) throws -> any CorrectionBackend)?
+    @ObservationIgnored var lastClear: String?
+    @ObservationIgnored var activeCorrection: ProviderCorrection?
+    @ObservationIgnored var correctionChanged: () -> Void = {}
+    @ObservationIgnored private(set) var correctionRevision = 0
+    @ObservationIgnored private var savedCorrectionIdentity: ProviderCorrection.Identity?
+    @ObservationIgnored private var correctionKeyRevisions: [String: Int] = [:]
+    @ObservationIgnored var claudeRuntime: ClaudeCodeRuntime?
     @ObservationIgnored private var claudeCheckedAt: Date?
     @ObservationIgnored private var loading: Set<String> = []
     @ObservationIgnored private var apiCheckedAt: [String: Date] = [:]
-    @ObservationIgnored private var cached: (identity: String, backend: any CorrectionBackend)?
+    @ObservationIgnored var cached: (identity: ProviderCorrection.Identity, backend: any CorrectionBackend)?
     @ObservationIgnored private var keyRevision = 0
 
     static let claudeDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("oops/ClaudeCode", isDirectory: true)
 
     init(chatGPT: ChatGPTAuth, preview: Bool, defaults: UserDefaults = .standard,
-         writeKey: @escaping (String, String) throws -> Void = { try KeyStore.write($0, account: $1) }) {
-        self.defaults = defaults; self.writeKey = writeKey
+         writeKey: @escaping (String, String) throws -> Void = { try KeyStore.write($0, account: $1) },
+         readKey: @escaping (String) -> String = { KeyStore.read(account: $0) },
+         makeBackend: ((Provider, ModelSelection.Choice, ModelSelection.Settings) throws -> any CorrectionBackend)? = nil) {
+        self.defaults = defaults; self.writeKey = writeKey; self.readKey = readKey
+        self.makeBackend = makeBackend
         self.chatGPT = chatGPT
         self.preview = preview
         if preview { loadPreview(); return }
@@ -60,11 +71,25 @@ import OopsCore
     }
 
     private func save() {
+        let identity = correctionIdentity
+        if savedCorrectionIdentity != identity {
+            savedCorrectionIdentity = identity; correctionRevision += 1; cached = nil
+            let active = activeCorrection
+            active?.cancel()
+            if active != nil { correctionChanged() }
+        }
         guard !preview else { return }
         let encoder = JSONEncoder()
         defaults.set(try? encoder.encode(providers), forKey: "providers")
         defaults.set(try? encoder.encode(selection), forKey: "modelSelection")
         defaults.set(try? encoder.encode(catalogs), forKey: "providerCatalogs")
+    }
+
+    var correctionIdentity: ProviderCorrection.Identity {
+        let settings = currentSettings
+        return .init(choice: selection.choice, kind: currentProvider?.kind, endpoint: currentProvider?.baseURL,
+                     settings: settings, tier: settings.fast ? currentModel?.fast?.id : nil,
+                     keyRevision: currentProvider.map { correctionKeyRevisions[$0.id, default: 0] } ?? 0)
     }
 
     // MARK: Reading
@@ -105,8 +130,8 @@ import OopsCore
 
     var claudeExecutable: URL? { claudeRuntime?.executable }
 
-    func hasKey(_ id: String) -> Bool { _ = keyRevision; return !preview && !KeyStore.read(account: id).isEmpty }
-    func savedKey(_ id: String) -> String { preview ? "" : KeyStore.read(account: id) }
+    func hasKey(_ id: String) -> Bool { _ = keyRevision; return !preview && !readKey(id).isEmpty }
+    func savedKey(_ id: String) -> String { preview ? "" : readKey(id) }
 
     /// Back from a detail page, or Cancel on a draft.
     func closeDetail() { openProvider = nil; draft = nil }
@@ -168,7 +193,9 @@ import OopsCore
     /// another) saves nothing.
     func addDraft(id: String, name: String, endpoint: String, key: String, models: [CatalogModel]) throws {
         guard var provider = draft, provider.id == id else { return }
-        if !key.isEmpty, !preview { try writeKey(key, provider.id); keyRevision += 1 }
+        if !key.isEmpty, !preview {
+            try writeKey(key, provider.id); keyRevision += 1; correctionKeyRevisions[provider.id, default: 0] += 1
+        }
         provider.name = name; provider.baseURL = endpoint
         providers.append(provider)
         catalogs[provider.id] = models
@@ -183,9 +210,10 @@ import OopsCore
     /// is written if the provider was removed while its check ran.
     func updateAPI(_ id: String, name: String, endpoint: String, key: String?, models: [CatalogModel]) throws {
         guard provider(id) != nil else { return }
-        if let key, !preview {
+        if let key, !preview, key != readKey(id) {
             if key.isEmpty { KeyStore.remove(account: id) } else { try writeKey(key, id) }
             keyRevision += 1
+            correctionKeyRevisions[id, default: 0] += 1
         }
         edit(id) { $0.name = name; $0.baseURL = endpoint; $0.shownModels.removeAll { model in !models.contains { $0.id == model } } }
         catalogs[id] = models
@@ -280,7 +308,7 @@ import OopsCore
         if !force, let checked = apiCheckedAt[id], Date().timeIntervalSince(checked) < 60 { return }
         loading.insert(id)
         if health[id] != .ready { health[id] = .checking }
-        let endpoint = provider.baseURL ?? "", key = KeyStore.read(account: id), revision = keyRevision
+        let endpoint = provider.baseURL ?? "", key = readKey(id), revision = keyRevision
         Task {
             defer { loading.remove(id); apiCheckedAt[id] = Date() }
             let result: Result<[CatalogModel], Error>
@@ -292,48 +320,6 @@ import OopsCore
             case .failure(let error): health[id] = .unreachable(error.localizedDescription)
             }
         }
-    }
-
-    // MARK: Correcting
-
-    /// The backend for the chosen model, kept while nothing it depends on changes.
-    func backend() throws -> any CorrectionBackend {
-        #if DEBUG
-        if let control = DebugFlags.stubProvider { return StubBackend(control: control) }
-        #endif
-        guard let choice = selection.choice, let provider = currentProvider else {
-            throw CorrectionError.failure(.setup, "Choose a model in Settings.")
-        }
-        let settings = selection.settings(for: choice)
-        let identity = [provider.id, provider.baseURL ?? "", choice.modelID, settings.effort ?? "", "\(settings.fast)", "\(keyRevision)"].joined(separator: "|")
-        if let cached, cached.identity == identity { return cached.backend }
-        let backend: any CorrectionBackend
-        switch provider.kind {
-        case .chatGPT:
-            let tier = settings.fast ? currentModel?.fast?.id : nil
-            backend = ChatGPTBackend(auth: chatGPT, model: choice.modelID, effort: settings.effort ?? ModelSelection.defaultEffort, serviceTier: tier)
-        case .claudeCode:
-            guard let runtime = claudeRuntime ?? ClaudeCodeRuntime.locate(directory: Self.claudeDirectory, askShell: false) else {
-                throw CorrectionError.failure(.setup, "Install Claude Code to correct with Claude.")
-            }
-            claudeRuntime = runtime
-            backend = ClaudeCodeBackend(runtime: runtime, model: choice.modelID, effort: settings.effort)
-        case .api:
-            backend = try provider.apiBackend(model: choice.modelID, apiKey: KeyStore.read(account: provider.id), effort: settings.effort)
-        }
-        cached = (identity, backend)
-        return backend
-    }
-
-    /// The chosen model as the debug log records it.
-    var debugModel: DebugAttempt.Model? {
-        #if DEBUG
-        if DebugFlags.stubProvider != nil { return .init(provider: "stub", providerName: "Stub", id: "stub", effort: nil, fast: false) }
-        #endif
-        guard let choice = selection.choice, let provider = currentProvider else { return nil }
-        let settings = selection.settings(for: choice)
-        let kind = switch provider.kind { case .chatGPT: "chatgpt"; case .claudeCode: "claude-code"; case .api: "api" }
-        return .init(provider: kind, providerName: provider.name, id: choice.modelID, effort: settings.effort, fast: settings.fast)
     }
 
     // MARK: Preview

@@ -21,6 +21,7 @@ import OopsCore
     var activeTry: () -> TestEditorModel? = { nil }
 
     var task: Task<Void, Never>? { didSet { testEditor.busy = task != nil } }
+    private var activeAttempt: Attempt?
     var generation = UUID()
     var committing = false { didSet { testEditor.canCancel = !committing } }
     /// The last correction: the editor that holds it, the attempt it logged, and which text is in the field.
@@ -30,8 +31,6 @@ import OopsCore
     private var recoveryExpiry: Task<Void, Never>?
     private(set) var originalForRecovery: String?
     var pendingCorrection: String?
-    /// The last draft found clear, with the app, model and prompt that judged it.
-    var lastClear: String?
 
     var isBusy: Bool { task != nil }
 
@@ -44,14 +43,16 @@ import OopsCore
         capsule.model.dismiss = { [weak self] in self?.capsule.hide() }
         // The flash never outlives the drop it belongs to.
         capsule.onHide = { [weak self] in self?.highlight.clear() }
+        preferences.providers.correctionChanged = { [weak self] in self?.cancel() }
     }
 
     enum Stage { case capture, provider, apply }
 
     /// What one correction has learned so far, for its outcome, Stats and the debug log.
-    final class Attempt {
+    @MainActor final class Attempt {
         let id = UUID()
         let inTryOnly: Bool
+        let provider: ProviderCorrection
         /// The Try page, while it is the draft being corrected.
         var fixture: TestEditorModel?
         var stage = Stage.capture
@@ -64,8 +65,18 @@ import OopsCore
         /// nothing is asked or logged for it.
         var press = CorrectionToggle.Press.correct
         var seconds = 0.0
-        init(inTryOnly: Bool, fixture: TestEditorModel?) {
-            self.inTryOnly = inTryOnly; self.fixture = fixture; trace = DebugAttempt(id: id)
+        func checkCurrent(generation: UUID) throws {
+            guard generation == id else { throw CancellationError() }
+            try provider.checkCurrent()
+        }
+
+        func cancelFixture(generation: UUID) {
+            guard generation == id else { return }
+            fixture?.cancelled()
+        }
+
+        init(inTryOnly: Bool, fixture: TestEditorModel?, provider: ProviderCorrection) {
+            self.inTryOnly = inTryOnly; self.fixture = fixture; self.provider = provider; trace = DebugAttempt(id: id)
         }
     }
 
@@ -79,11 +90,11 @@ import OopsCore
         capsule.cancelTimedHide(); pendingCorrection = nil
         // A new correction makes the last one's flash stale.
         highlight.clear()
-        Sounds.shared.warm()
+        Sounds.warm()
         // Claude Code starts its process now, while the draft is read.
-        if let backend = try? preferences.providers.backend() { Task { await backend.prepare() } }
-        let attempt = Attempt(inTryOnly: inTryOnly, fixture: activeTry())
+        let attempt = Attempt(inTryOnly: inTryOnly, fixture: activeTry(), provider: ProviderCorrection(store: preferences.providers))
         let id = attempt.id; generation = id
+        activeAttempt = attempt
         attempt.fixture?.began()
         capsule.model.canRevert = false
         capsule.model.canCancel = true
@@ -92,7 +103,12 @@ import OopsCore
             // Nothing is shown until the editor is read, so the capsule appears where it belongs;
             // only a slow capture (a dormant Teams tree) falls back to the window or screen spot.
             var reveal = self.reveal(after: .milliseconds(400), id) { !$0.capsule.isShown }
-            defer { reveal.cancel(); if self.generation == id { self.task = nil } }
+            defer {
+                reveal.cancel()
+                if self.generation == id { self.task = nil }
+                if self.activeAttempt === attempt { self.activeAttempt = nil }
+            }
+            defer { attempt.provider.finish() }
             defer { if attempt.press == .correct { DebugLog.record(attempt.trace) } }
             do {
                 let snapshot = try await self.capture(attempt)
@@ -102,20 +118,24 @@ import OopsCore
                     if attempt.press == .restore { self.revert() } else { self.reapply() }
                     return
                 }
-                if let skip = self.skip(snapshot) {
+                if let skip = try self.skip(snapshot, provider: attempt.provider) {
                     reveal.cancel()
                     // Capture may have woken a Chromium editor to read it: nothing else will turn that off.
                     await self.editor.disableFullAccessibility(for: snapshot)
+                    try attempt.provider.checkCurrent()
                     self.finishSkipped(attempt, geometry: snapshot.geometry, label: skip)
                     return
                 }
                 // Only for the flash, which a pasted selection never gets.
                 let fullAccessibility = snapshot.strategy != .copy ? await self.editor.enableFullAccessibility(for: snapshot) : false
                 defer { if fullAccessibility { Task { await self.editor.disableFullAccessibility(for: snapshot) } } }
+                try attempt.checkCurrent(generation: self.generation)
                 reveal.cancel()
                 if self.capsule.isShown { self.capsule.show(.working, label: "Fixing…", geometry: snapshot.geometry) }
                 else { self.capsule.show(.invoked, label: "", geometry: snapshot.geometry) }
-                self.capsule.follow(snapshot.element) { [weak self] in await self?.editor.geometry(of: snapshot) ?? snapshot.geometry }
+                self.capsule.follow(snapshot.element) { [weak self, fallback = snapshot.geometry] element in
+                    await self?.editor.geometry(of: element) ?? fallback
+                }
                 reveal = self.reveal(after: .milliseconds(150), id) { $0.capsule.model.phase == .invoked }
                 let corrected = try await self.ask(attempt, snapshot)
                 guard self.generation == id else { return }
@@ -123,14 +143,14 @@ import OopsCore
                 _ = try snapshot.transaction.validatedReplacement(corrected)
                 if sameText(corrected, snapshot.transaction.source) {
                     reveal.cancel()
-                    self.finishClear(attempt)
+                    try self.finishClear(attempt)
                     return
                 }
                 self.pendingCorrection = corrected
                 self.preferences.status = "Correction ready. Checking the draft…"
                 // The editor the swap ended on: the app may have remounted it after an edit.
                 var applied = snapshot, final = corrected
-                guard let ms = try await self.swap(id, { clipboard, protected in
+                guard let ms = try await self.swap(id, validate: { try attempt.provider.checkCurrent() }, { clipboard, protected in
                     switch snapshot.strategy {
                     case .value, .atoms, .markers:
                         (applied, final) = try await self.editor.apply(corrected, to: snapshot, clipboard: clipboard, protected: protected)
@@ -141,7 +161,7 @@ import OopsCore
                 guard self.generation == id else { return }
                 await self.finishFixed(attempt, applied, final)
             } catch is CancellationError {
-                attempt.fixture?.cancelled()
+                attempt.cancelFixture(generation: self.generation)
                 if self.generation == id { self.capsule.hide() }
             } catch let empty as EmptyDraft {
                 reveal.cancel()
@@ -155,10 +175,10 @@ import OopsCore
                     self.capsule.model.canRevert = true
                     attempt.trace.applied = partial.applied
                 }
-                guard self.generation == id else { attempt.fixture?.cancelled(); return }
+                guard self.generation == id else { return }
                 await self.fail(attempt, partial)
             } catch {
-                guard self.generation == id else { attempt.fixture?.cancelled(); return }
+                guard self.generation == id else { return }
                 await self.fail(attempt, error)
             }
         }
@@ -174,10 +194,14 @@ import OopsCore
     }
 
     private func capture(_ attempt: Attempt) async throws -> EditorSnapshot {
+        try attempt.checkCurrent(generation: generation)
         let started = ContinuousClock.now
         let snapshot: EditorSnapshot
         do { snapshot = try await editor.capture() }
-        catch let opaque as OpaqueEditor { snapshot = try await editor.captureByCopy(opaque) }
+        catch let opaque as OpaqueEditor {
+            try attempt.checkCurrent(generation: generation)
+            snapshot = try await editor.captureByCopy(opaque)
+        }
         attempt.snapshot = snapshot
         do {
             try afterCapture(attempt, snapshot, started: started)
@@ -203,7 +227,7 @@ import OopsCore
         if snapshot.pid != getpid() {
             if attempt.inTryOnly { throw CorrectionError.message("Click into the draft, then press Correct.") }
             attempt.fixture?.cancelled(); attempt.fixture = nil
-            attempt.counted = (Stats.words(in: snapshot.transaction.source), snapshot.appName, preferences.providers.currentModel?.name)
+            attempt.counted = (Stats.words(in: snapshot.transaction.source), snapshot.appName, attempt.provider.modelName)
         }
         attempt.stage = .provider
         // Test runs (a stub provider) leave the real list alone.
@@ -225,12 +249,11 @@ import OopsCore
     /// The provider's answer, decoded and cut down to its safe changes; the raw answer goes to the
     /// debug log first.
     private func ask(_ attempt: Attempt, _ snapshot: EditorSnapshot) async throws -> String {
-        let backend = try preferences.providers.backend()
-        attempt.trace.model = preferences.providers.debugModel
-        attempt.trace.promptVersion = CorrectionPolicy.promptVersion
-        attempt.trace.instructions = CorrectionPolicy.instructions
+        attempt.trace.model = attempt.provider.model
+        attempt.trace.promptVersion = attempt.provider.promptVersion
+        attempt.trace.instructions = attempt.provider.instructions
         let started = ContinuousClock.now
-        let raw = try await backend.complete(snapshot.transaction.source)
+        let raw = try await attempt.provider.complete(snapshot.transaction.source)
         let elapsed = started.duration(to: .now)
         attempt.seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
         attempt.trace.timings.provider = DebugLog.milliseconds(since: started)
@@ -246,23 +269,17 @@ import OopsCore
 
     /// Why no model needs asking, as the drop says it: nothing but code, links, mentions, paths or
     /// emoji; or the same draft found clear last time, by the same model and prompt.
-    private func skip(_ snapshot: EditorSnapshot) -> String? {
+    private func skip(_ snapshot: EditorSnapshot, provider: ProviderCorrection) throws -> String? {
+        try provider.checkCurrent()
         if !CorrectionPolicy.hasProse(snapshot.transaction.source) { return "Nothing to fix" }
-        return lastClear == clearKey(snapshot) ? "Already clear" : nil
-    }
-
-    /// What made a draft "clear": the app, the provider and its endpoint, the model with its effort and
-    /// speed, the prompt, and the draft. Any of them changing asks again.
-    func clearKey(_ snapshot: EditorSnapshot) -> String {
-        let store = preferences.providers, model = store.debugModel
-        return [snapshot.bundleID ?? "", store.currentProvider?.id ?? "", store.currentProvider?.baseURL ?? "", model?.provider ?? "",
-                model?.id ?? "", model?.effort ?? "", model.map { "\($0.fast)" } ?? "", CorrectionPolicy.promptVersion,
-                snapshot.transaction.source].joined(separator: "\u{0}")
+        return try provider.isClear(app: snapshot.bundleID, source: snapshot.transaction.source) ? "Already clear" : nil
     }
 
     func cancel() {
         guard !committing else { return }
-        generation = UUID(); task?.cancel(); task = nil; testEditor.cancelled()
+        activeAttempt?.cancelFixture(generation: generation)
+        preferences.providers.activeCorrection?.cancel()
+        generation = UUID(); task?.cancel(); task = nil; activeAttempt = nil; testEditor.cancelled()
         capsule.hide()
     }
 
@@ -291,7 +308,7 @@ import OopsCore
 
     /// Debug tools → Capsule → Play: the busy and done animation, without sending any text.
     func preview(geometry: CapsulePlacement.Geometry? = nil) {
-        Sounds.shared.warm()
+        Sounds.warm()
         capsule.show(.invoked, label: "", geometry: geometry)
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))

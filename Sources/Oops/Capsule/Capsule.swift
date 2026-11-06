@@ -87,7 +87,7 @@ private final class PassivePanel: NSPanel {
         model.phase = phase; model.label = label; model.detail = detail; model.remedy = remedy
         // An entering drop presents one frame later (below), so its cue waits that frame too.
         if let played = SoundCues.cue(from: previous, to: DropState(phase), reduceMotion: Self.reduceMotion) {
-            Sounds.shared.play(played.cue, after: played.delay + (entering ? 0.016 : 0))
+            Sounds.play(played.cue, after: played.delay + (entering ? 0.016 : 0))
         }
         if phase != .copied { model.copied = false }
         position(); panel.orderFrontRegardless(); trackPointer()
@@ -99,17 +99,29 @@ private final class PassivePanel: NSPanel {
         }
     }
     /// Re-anchors while visible when the editor's window moves or resizes; drags are coalesced.
-    func follow(_ element: AXUIElement, sample: @escaping @MainActor () async -> CapsulePlacement.Geometry) {
+    /// A pending drop can outlive draft recovery, so its sampler only needs the element.
+    func follow(_ element: AXUIElement, sample: @escaping @MainActor (AXUIElement) async -> CapsulePlacement.Geometry) {
+        cancelResample()
         tracker.track(element) { [weak self] in
-            guard let self, self.resample == nil else { return }
+            guard let self, self.isShown, self.resample == nil else { return }
             self.resample = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .milliseconds(60))
-                let geometry = await sample()
-                guard let self, !Task.isCancelled, self.panel.isVisible else { self?.resample = nil; return }
-                self.geometry = geometry; self.position(); self.resample = nil
+                do { try await Task.sleep(for: .milliseconds(60)) } catch { return }
+                guard !Task.isCancelled else { return }
+                // Cancellation already cleared this slot; a newer sample may now own it.
+                defer { if !Task.isCancelled { self?.resample = nil } }
+                guard self?.isShown == true else { return }
+                let geometry = await sample(element)
+                guard !Task.isCancelled, let self, self.isShown else { return }
+                self.geometry = geometry; self.position()
             }
         }
     }
+
+    private func cancelResample() {
+        resample?.cancel()
+        resample = nil
+    }
+
     var isShown: Bool { panel.isVisible && hiding == nil }
     /// The drop's motions become fades, so the cues' leads shrink with them.
     private static var reduceMotion: Bool {
@@ -121,7 +133,7 @@ private final class PassivePanel: NSPanel {
     /// leaves it for the neutral spot, low and centred on the screen the draft was on, fading across.
     func unanchor() {
         guard !neutral else { return }
-        tracker.stop(); resample?.cancel(); resample = nil; neutral = true
+        tracker.stop(); cancelResample(); neutral = true
         guard panel.isVisible else { return }
         NSAnimationContext.runAnimationGroup({ $0.duration = 0.12; panel.animator().alphaValue = 0 }) { [weak self] in
             MainActor.assumeIsolated {
@@ -196,7 +208,7 @@ private final class PassivePanel: NSPanel {
 
     func hide() {
         onHide?()
-        tracker.stop(); resample?.cancel(); resample = nil; lingering?.cancel(); lingering = nil
+        tracker.stop(); cancelResample(); lingering?.cancel(); lingering = nil
         guard panel.isVisible, hiding == nil else { return }
         model.presented = false
         let removal = DispatchWorkItem { [weak self] in

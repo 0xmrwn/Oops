@@ -265,7 +265,8 @@ private struct FeatheredCapsule: View {
                 Capsule().inset(by: inset).fill(.white.opacity(1 - center))
                     .blur(radius: inset * 0.8).blendMode(.destinationOut)
             }
-            .compositingGroup()
+            // Rasterized once: as a live filter chain, the blur re-ran on every frame of a moving backdrop.
+            .drawingGroup()
             .clipShape(Capsule())
         }
     }
@@ -310,6 +311,8 @@ private struct GlassLight: View {
                 }
             }
             .clipShape(Capsule())
+            // One cached bitmap rather than blurred strokes re-filtered on each composite over a moving backdrop.
+            .drawingGroup()
         }
         .allowsHitTesting(false)
     }

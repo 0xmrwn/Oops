@@ -71,9 +71,11 @@ public enum CorrectionPolicy {
         return String(leading) + restoringBreaks(String(text[first...last]), from: body) + String(trailing)
     }
 
+    private static let lineBreakRegex = try? NSRegularExpression(pattern: #"\r\n|\r|\n"#)
+
     static func restoringBreaks(_ text: String, from original: String) -> String {
         let wanted = breaks(original)
-        guard let regex = try? NSRegularExpression(pattern: #"\r\n|\r|\n"#) else { return text }
+        guard let regex = lineBreakRegex else { return text }
         let found = regex.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length))
         guard found.count == wanted.count else { return text }
         let result = NSMutableString(string: text)
@@ -115,14 +117,14 @@ public enum CorrectionPolicy {
     /// Whether there is anything a model could fix: some letters outside code, links, mentions and paths.
     public static func hasProse(_ text: String) -> Bool {
         let value = NSMutableString(string: text)
-        if let regex = try? NSRegularExpression(pattern: protectedPattern) {
+        if let regex = protectedRegex {
             regex.replaceMatches(in: value, range: NSRange(location: 0, length: value.length), withTemplate: " ")
         }
         return (value as String).unicodeScalars.contains { CharacterSet.letters.contains($0) }
     }
 
     public static func breaks(_ text: String) -> [String] {
-        matches(#"\r\n|\r|\n"#, text)
+        matches(lineBreakRegex, text)
     }
     public static func edges(_ text: String) -> [String] {
         let ns = text as NSString
@@ -131,10 +133,12 @@ public enum CorrectionPolicy {
         return [String(first), String(last), ns.length == 0 ? "empty" : ""]
     }
     /// Code, links, mentions, paths and attachments (an image or chip read as U+FFFC).
-    static let protectedPattern = #"(?s)```.*?```|`[^`\r\n]+`|https?://[^\s<>]+|(?<!\w)@[\p{L}\p{N}_-]+|(?<!\w)(?:~?/|\./|\.\./)[\w./-]+|\x{FFFC}"#
-    public static func protectedSpans(_ text: String) -> [String] { matches(protectedPattern, text) }
-    static func matches(_ pattern: String, _ text: String) -> [String] {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+    private static let protectedRegex = try? NSRegularExpression(
+        pattern: #"(?s)```.*?```|`[^`\r\n]+`|https?://[^\s<>]+|(?<!\w)@[\p{L}\p{N}_-]+|(?<!\w)(?:~?/|\./|\.\./)[\w./-]+|\x{FFFC}"#
+    )
+    public static func protectedSpans(_ text: String) -> [String] { matches(protectedRegex, text) }
+    static func matches(_ regex: NSRegularExpression?, _ text: String) -> [String] {
+        guard let regex else { return [] }
         let value = text as NSString
         return regex.matches(in: text, range: NSRange(location: 0, length: value.length)).map { value.substring(with: $0.range) }
     }

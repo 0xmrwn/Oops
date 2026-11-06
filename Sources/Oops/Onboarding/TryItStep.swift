@@ -142,7 +142,7 @@ import SwiftUI
         default: return
         }
         withAnimation(.spring(duration: 0.4)) { phase = .working }
-        Sounds.shared.play(.start, after: 0)
+        Sounds.play(.start, after: 0)
         replaying = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.1))
             guard let self, !Task.isCancelled else { return }
@@ -150,7 +150,7 @@ import SwiftUI
             let diff = WordDiff(before: Self.replay.draft, after: after)
             withAnimation(.easeOut(duration: 0.25)) { replayText = after; replayFlash = diff.afterRanges }
             withAnimation(.spring(duration: 0.45, bounce: 0.2)) { phase = .fixed(changes: diff.changes, seconds: nil) }
-            Sounds.shared.play(.success, after: 0)
+            Sounds.play(.success, after: 0)
             NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
                                  userInfo: [.announcement: TestEditorModel.fixesLabel(diff.changes), .priority: NSAccessibilityPriorityLevel.medium.rawValue])
         }
@@ -161,7 +161,7 @@ import SwiftUI
         let restoring = next == .restored
         withAnimation(.easeOut(duration: 0.25)) { replayText = text; replayFlash = WordDiff(before: previous, after: text).afterRanges }
         withAnimation(.spring(duration: 0.45, bounce: 0.2)) { phase = next }
-        if !restoring { Sounds.shared.play(.success, after: 0) }
+        if !restoring { Sounds.play(.success, after: 0) }
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: restoring ? "Original restored" : "Fix put back",
                                         .priority: NSAccessibilityPriorityLevel.medium.rawValue])

@@ -13,8 +13,8 @@ extension CorrectionSession {
         capsule.hide(after: 1.1)
     }
 
-    func finishClear(_ attempt: Attempt) {
-        if let snapshot = attempt.snapshot { lastClear = clearKey(snapshot) }
+    func finishClear(_ attempt: Attempt) throws {
+        if let snapshot = attempt.snapshot { try attempt.provider.rememberClear(app: snapshot.bundleID, source: snapshot.transaction.source) }
         if let counted = attempt.counted {
             Stats.shared.record(.init(date: .now, outcome: .clear, words: counted.words, seconds: attempt.seconds,
                                       model: counted.model, app: counted.app))
@@ -31,7 +31,8 @@ extension CorrectionSession {
         pendingCorrection = nil
         let appliedAt = Date()
         let diff = WordDiff(before: snapshot.transaction.source, after: corrected)
-        attempt.trace.applied = snapshot.transaction.replacement(corrected)
+        let applied = snapshot.transaction.replacement(corrected)
+        attempt.trace.applied = applied
         attempt.trace.fixes = diff.changes
         attempt.trace.outcome = .fixed
         if let counted = attempt.counted {
@@ -41,23 +42,23 @@ extension CorrectionSession {
         // A pasted selection can't be confirmed or found again: no revert, no flash.
         let revertible = snapshot.strategy != .copy
         remember(revertible ? .init(snapshot: snapshot, attempt: id, toggle: .init(original: snapshot.transaction.before,
-                                                                                  applied: snapshot.transaction.replacement(corrected), date: appliedAt)) : nil)
+                                                                                  applied: applied, date: appliedAt)) : nil)
         if let fixture = attempt.fixture {
-            fixture.corrected(before: snapshot.transaction.before, expected: snapshot.transaction.replacement(corrected), seconds: seconds)
+            fixture.corrected(before: snapshot.transaction.before, expected: applied, seconds: seconds)
         } else { testEditor.restoreUnavailable() }
         capsule.model.canRevert = revertible
         if revertible {
             let highlightStart = ContinuousClock.now
-            await flashHighlights(diff.afterRanges, in: snapshot, holding: snapshot.transaction.replacement(corrected),
+            await flashHighlights(diff.afterRanges, in: snapshot, holding: applied,
                                   offset: snapshot.transaction.range.location, style: .correction,
                                   remounted: attempt.snapshot.map { !CFEqual($0.element, snapshot.element) } ?? false)
             attempt.trace.timings.highlight = DebugLog.milliseconds(since: highlightStart)
         }
         // The replacement can reflow the composer (its height follows the text), and the app may have remounted it:
         // the capsule tracks the editor that holds the draft now.
-        let current = await editor.following(snapshot, holding: snapshot.transaction.replacement(corrected))
-        let geometry = await editor.geometry(of: current)
-        if generation == id { capsule.follow(current.element) { [weak self] in await self?.editor.geometry(of: current) ?? geometry } }
+        let current = await editor.following(snapshot, holding: applied)
+        let geometry = await editor.geometry(of: current.element) ?? current.geometry
+        if generation == id { capsule.follow(current.element) { [weak self] element in await self?.editor.geometry(of: element) ?? geometry } }
         guard generation == id else { return }
         let undo = Shortcut.undoHint(ShortcutSettings.shared.shortcut(.correct))
         capsule.show(.fixed, label: TestEditorModel.fixesLabel(diff.changes) + " · " + TestEditorModel.seconds(seconds),
@@ -96,6 +97,7 @@ extension CorrectionSession {
             capsule.show(.failed, label: failure.label, detail: message, remedy: failure.remedy)
         }
         if let snapshot = attempt.snapshot, await !editor.isInFront(snapshot), generation == attempt.id { capsule.unanchor() }
+        guard generation == attempt.id, !Task.isCancelled else { return }
         preferences.status = message
         if pendingCorrection == nil { capsule.hide(after: 8) }
     }

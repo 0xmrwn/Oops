@@ -17,14 +17,15 @@ final class GradientRenderer: @unchecked Sendable {
     private let sphere: MTLRenderPipelineState
     private let depth: MTLDepthStencilState
     private let vertices: MTLBuffer
-    private let vertexCount: Int
+    private let indices: MTLBuffer
+    private let indexCount: Int
     private let environment: MTLTexture
     private var targets: (color: MTLTexture, depth: MTLTexture)?
 
     static let outputFormat = MTLPixelFormat.bgra8Unorm
     private static let samples = 4
 
-    /// Slow (shader compilation, 250,000 vertices): build it off the main thread.
+    /// Shader compilation and mesh generation run off the main thread.
     init(device: MTLDevice) throws {
         self.device = device
         guard let queue = device.makeCommandQueue() else { throw GradientError.metal }
@@ -47,9 +48,12 @@ final class GradientRenderer: @unchecked Sendable {
         self.depth = depth
 
         let geometry = GradientScene.sphere()
-        guard let buffer = device.makeBuffer(bytes: geometry, length: geometry.count * MemoryLayout<Float>.stride) else { throw GradientError.metal }
-        vertices = buffer
-        vertexCount = geometry.count / 8
+        guard let vertices = device.makeBuffer(bytes: geometry.vertices, length: geometry.vertices.count * MemoryLayout<Float>.stride),
+              let indices = device.makeBuffer(bytes: geometry.indices, length: geometry.indices.count * MemoryLayout<UInt16>.stride)
+        else { throw GradientError.metal }
+        self.vertices = vertices
+        self.indices = indices
+        indexCount = geometry.indices.count
 
         // three's PMREM of the "city" HDR, the rows this material reads (see ShaderGradient.metal).
         guard let url = Bundle.main.url(forResource: "city-pmrem", withExtension: "bin", subdirectory: "Gradient") else { throw GradientError.missing("city-pmrem") }
@@ -94,7 +98,7 @@ final class GradientRenderer: @unchecked Sendable {
             encoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 1)
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: 1)
             encoder.setFragmentTexture(environment, index: 0)
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertexCount)
+            encoder.drawIndexedPrimitives(type: .triangle, indexCount: indexCount, indexType: .uint16, indexBuffer: indices, indexBufferOffset: 0)
             encoder.endEncoding()
         }
     }

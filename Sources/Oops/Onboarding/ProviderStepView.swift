@@ -11,7 +11,10 @@ struct ProviderStepView: View {
     /// The step's height, which the list's fit is worked out in.
     @State private var room: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.appearsActive) private var active
+    @Environment(\.onboardingEffectsVisible) private var visible
     var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
+    private var scanActivity: ProviderStep.ScanActivity { step.scanActivity(visible: active && visible, reduceMotion: reduceMotion) }
     private var ready: Bool { if case .passed = step.proof { true } else { false } }
 
     var body: some View {
@@ -25,6 +28,7 @@ struct ProviderStepView: View {
                 step.reduceMotion = reduceMotion
                 step.start()
             }
+            .task(id: scanActivity) { await step.scan(scanActivity) }
     }
 
     /// Worked out for every row detection found, not the ones landed so far, so the list settles once

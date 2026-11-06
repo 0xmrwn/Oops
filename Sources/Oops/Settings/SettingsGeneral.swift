@@ -76,7 +76,7 @@ struct GeneralPage: View {
                     Text("Play audio cues").fontWeight(.semibold)
                     Spacer()
                     Toggle("Play audio cues", isOn: $sounds).settingsSwitch().labelsHidden()
-                        .onChange(of: sounds) { _, on in if on { Sounds.shared.preview() } }
+                        .onChange(of: sounds) { _, on in if on { Sounds.preview() } }
                 }
                 .padding(.vertical, 12)
                 Divider()

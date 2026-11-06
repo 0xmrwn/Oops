@@ -4,17 +4,20 @@ import OopsCore
 
 /// Plays the drop's three cues, each scheduled on the audio clock to land
 /// on the drop's motion, so a busy main thread (a paste, an Accessibility call) can't push it late.
-/// The engine runs only around a correction: warmed on the shortcut, stopped a few seconds after
+/// The engine exists only around a correction: built on the shortcut, released a few seconds after
 /// the last cue.
 @MainActor final class Sounds {
-    static let shared = Sounds()
+    private static let shared = Sounds()
     /// On unless turned off; `bool(forKey:)` also reads a `-SoundsEnabled NO` launch argument.
     static var enabled: Bool { UserDefaults.standard.object(forKey: "SoundsEnabled") == nil || UserDefaults.standard.bool(forKey: "SoundsEnabled") }
     /// The delays count from the frame that draws the state change, one display frame after it.
     private static let displayLag = 1.0 / 60
-    private let engine = AVAudioEngine()
+    /// Built on demand and released when idle: a stopped engine still keeps the output device's
+    /// client, which wakes Oops several times a second for as long as it lives.
+    private var engine: AVAudioEngine?
     /// Two voices, so a cue can ring while the next one starts.
-    private let voices = [AVAudioPlayerNode(), AVAudioPlayerNode()]
+    private var voices: [AVAudioPlayerNode] = []
+    private var configurationChange: NSObjectProtocol?
     private var voice = 0
     private var buffers: [String: AVAudioPCMBuffer] = [:]
     private var cycle = TakeCycle()
@@ -32,24 +35,44 @@ import OopsCore
                 buffers[name] = buffer
             }
         }
-        guard let format = buffers.values.first?.format else { return }
+    }
+
+    private func makeEngine() -> AVAudioEngine? {
+        if let engine { return engine }
+        guard let format = buffers.values.first?.format else { return nil }
+        let engine = AVAudioEngine(), voices = [AVAudioPlayerNode(), AVAudioPlayerNode()]
         for node in voices { engine.attach(node); engine.connect(node, to: engine.mainMixerNode, format: format) }
         probe?.listen(to: engine)
         // A new output device (or another app taking this one) stops the engine; the next cue restarts it.
-        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+        configurationChange = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.voices.forEach { $0.stop() } }
         }
+        self.engine = engine; self.voices = voices
+        return engine
     }
 
     /// Wakes the output ahead of a correction, so the start cue's lead isn't spent starting the engine.
-    func warm() {
-        guard Self.enabled, start() else { return }
+    static func warm() {
+        guard enabled else { return }
+        shared.warmOutput()
+    }
+
+    static func play(_ cue: SoundCue, after delay: Double) {
+        guard enabled else { return }
+        shared.schedule(cue, after: delay)
+    }
+
+    /// Settings → Play audio cues: what turning it on sounds like.
+    static func preview() { play(.success, after: 0.05) }
+
+    private func warmOutput() {
+        guard start() else { return }
         idle(after: 3)
     }
 
     /// Plays `cue` `delay` seconds after the frame that draws the change it answers.
-    func play(_ cue: SoundCue, after delay: Double) {
-        guard Self.enabled, start() else { return }
+    private func schedule(_ cue: SoundCue, after delay: Double) {
+        guard start(), let engine else { return }
         let take = cycle.next(cue)
         guard let buffer = buffers[cue.file(take: take)] else { return }
         let node = voices[voice]; voice = (voice + 1) % voices.count
@@ -62,11 +85,8 @@ import OopsCore
         idle(after: Self.displayLag + delay + Double(buffer.frameLength) / buffer.format.sampleRate + 2)
     }
 
-    /// Settings → Play audio cues: what turning it on sounds like.
-    func preview() { play(.success, after: 0.05) }
-
     private func start() -> Bool {
-        guard !buffers.isEmpty else { return false }
+        guard let engine = makeEngine() else { return false }
         if engine.isRunning { return true }
         engine.prepare()
         do { try engine.start() } catch { return false }
@@ -78,7 +98,9 @@ import OopsCore
             try? await Task.sleep(for: .seconds(seconds))
             guard !Task.isCancelled, let self else { return }
             self.voices.forEach { $0.stop() }
-            self.engine.stop()
+            self.engine?.stop()
+            if let configurationChange = self.configurationChange { NotificationCenter.default.removeObserver(configurationChange) }
+            self.configurationChange = nil; self.engine = nil; self.voices = []
         }
     }
 }

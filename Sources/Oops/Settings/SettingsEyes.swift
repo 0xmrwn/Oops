@@ -26,7 +26,7 @@ struct HeaderEyes: View {
 
     var body: some View {
         let shown = !model.fitBelow && !suppressed
-        WatchingEyes(model: model, height: 34)
+        WatchingEyes(model: model, height: 34, visible: shown)
             .opacity(shown ? 1 : 0)
             .scaleEffect(shown ? 1 : 0.6, anchor: .trailing)
             .allowsHitTesting(shown)
@@ -55,7 +55,7 @@ struct SpareSpace: View {
             // Only the eyes take clicks (they blink); the empty room around them passes them on.
             .allowsHitTesting(false)
             .overlay {
-                WatchingEyes(model: model, height: height)
+                WatchingEyes(model: model, height: height, visible: visibility > 0)
                     .opacity(visibility)
                     .scaleEffect(0.9 + 0.1 * visibility)
                     .allowsHitTesting(visibility > 0)
@@ -73,44 +73,34 @@ struct SpareSpace: View {
 private struct WatchingEyes: View {
     let model: SpareSpaceModel
     let height: CGFloat
+    let visible: Bool
     @State private var center = CGPoint.zero
-    /// 0 open, 1 shut.
-    @State private var lid: CGFloat = 0
-    @State private var blinking = false
+    @State private var blink = SettingsBlink()
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
     @Environment(\.appearsActive) private var active
+    private var canBlink: Bool { visible && active && !reduceMotion }
 
     var body: some View {
-        CompanionDrop(look: look, lid: max(Double(lid), model.pointer == nil ? DashEyes.restingLid : 0), ink: .primary.opacity(0.8))
+        CompanionDrop(look: look, lid: max(Double(blink.lid), model.pointer == nil ? DashEyes.restingLid : 0), ink: .primary.opacity(0.8))
             .frame(width: height, height: height)
             .animation(reduceMotion ? nil : .interactiveSpring(response: 0.3, dampingFraction: 0.78), value: look)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { center = CGPoint(x: $0.midX, y: $0.midY) }
             .contentShape(Rectangle())
-            .onTapGesture { Task { await blink(times: 1) } }
-            .task(id: active && !reduceMotion) {
-                guard active, !reduceMotion else { return }
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(Double.random(in: 3...7)))
-                    guard !Task.isCancelled else { return }
-                    // Now and then a double blink, as people do.
-                    await blink(times: Double.random(in: 0...1) < 0.2 ? 2 : 1)
-                }
+            .onTapGesture { Task { await blink.play(times: 1) } }
+            .onChange(of: canBlink, initial: true) { _, allowed in blink.setActive(allowed) }
+            .onDisappear { blink.setActive(false) }
+            .task(id: canBlink) {
+                guard canBlink else { return }
+                do {
+                    while !Task.isCancelled {
+                        try await Task.sleep(for: .seconds(Double.random(in: 3...7)))
+                        try Task.checkCancellation()
+                        // Now and then a double blink, as people do.
+                        await blink.play(times: Double.random(in: 0...1) < 0.2 ? 2 : 1)
+                    }
+                } catch {}
             }
-    }
-
-    /// A real blink: the lids drop fast, rest shut for a moment, then lift more slowly.
-    /// None with Reduce Motion.
-    private func blink(times: Int) async {
-        guard !blinking, !reduceMotion else { return }
-        blinking = true
-        defer { blinking = false }
-        for blink in 0..<times {
-            withAnimation(.timingCurve(0.55, 0, 0.9, 0.5, duration: 0.07)) { lid = 1 }
-            try? await Task.sleep(for: .milliseconds(100))
-            withAnimation(.timingCurve(0.15, 0.6, 0.35, 1, duration: 0.18)) { lid = 0 }
-            if blink < times - 1 { try? await Task.sleep(for: .milliseconds(260)) }
-        }
     }
 
     /// The same bounded gaze as onboarding, in DashEyes' units.

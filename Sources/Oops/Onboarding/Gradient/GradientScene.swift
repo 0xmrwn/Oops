@@ -54,61 +54,46 @@ enum GradientScene {
                                      SIMD4(0, 0, -far / (far - near), -far * near / (far - near)), SIMD4(0, 0, -1, 0)])
     }
 
-    /// `IcosahedronGeometry(1, 64)`, vertex for vertex: non-indexed triangles, each vertex its position,
-    /// normal and uv (8 floats), with three's seam and pole corrections to the uvs.
-    static func sphere(detail: Int = 64) -> [Float] {
+    /// three's `IcosahedronGeometry(1, 64)` with the original triangle order. Each face keeps its
+    /// own grid so its interpolated positions retain the same rounding at face edges.
+    static func sphere() -> (vertices: [Float], indices: [UInt16]) {
+        let columns = 65, floatsPerVertex = 8
         let t = (1 + 5.0.squareRoot()) / 2
         let corners: [SIMD3<Double>] = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t],
                                         [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]]
-        let indices = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
-                       3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1]
+        let faces = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+                     3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1]
         func lerp(_ a: SIMD3<Double>, _ b: SIMD3<Double>, _ alpha: Double) -> SIMD3<Double> { a + (b - a) * alpha }
 
-        var positions: [SIMD3<Double>] = []
-        positions.reserveCapacity(indices.count / 3 * (detail + 1) * (detail + 1) * 3)
-        for face in stride(from: 0, to: indices.count, by: 3) {
-            let a = corners[indices[face]], b = corners[indices[face + 1]], c = corners[indices[face + 2]]
-            let cols = detail + 1
-            var v: [[SIMD3<Double>]] = []
-            for i in 0...cols {
-                let aj = lerp(a, c, Double(i) / Double(cols)), bj = lerp(b, c, Double(i) / Double(cols)), rows = cols - i
-                v.append((0...rows).map { j in j == 0 && i == cols ? aj : lerp(aj, bj, Double(j) / Double(rows)) })
-            }
-            for i in 0..<cols {
-                for j in 0..<(2 * (cols - i) - 1) {
-                    let k = j / 2
-                    if j.isMultiple(of: 2) { positions += [v[i][k + 1], v[i + 1][k], v[i][k]] }
-                    else { positions += [v[i][k + 1], v[i + 1][k + 1], v[i + 1][k]] }
+        var vertices: [Float] = []
+        var indices: [UInt16] = []
+        // There are 44,220 vertices across the 20 face grids, within the 16-bit index range.
+        vertices.reserveCapacity(faces.count / 3 * (columns + 1) * (columns + 2) / 2 * floatsPerVertex)
+        indices.reserveCapacity(faces.count * columns * columns)
+        for face in stride(from: 0, to: faces.count, by: 3) {
+            let a = corners[faces[face]], b = corners[faces[face + 1]], c = corners[faces[face + 2]]
+            for i in 0...columns {
+                let start = UInt16(vertices.count / floatsPerVertex)
+                let left = lerp(a, c, Double(i) / Double(columns)), right = lerp(b, c, Double(i) / Double(columns))
+                let segments = columns - i
+                for j in 0...segments {
+                    let raw = i == columns ? left : lerp(left, right, Double(j) / Double(segments))
+                    let position = raw * (1 / length(raw))
+                    let stored = SIMD3<Float>(position)
+                    // `normalizeNormals` runs on the stored single-precision positions.
+                    let normal = SIMD3<Float>(SIMD3<Double>(stored) * (1 / length(SIMD3<Double>(stored))))
+                    let inclination = atan2(-position.y, (position.x * position.x + position.z * position.z).squareRoot())
+                    // Keep the shader's vertex layout. It reads UV y, so UV x needs no seam correction.
+                    let latitude = Float(1 - (inclination / .pi + 0.5))
+                    vertices += [stored.x, stored.y, stored.z, normal.x, normal.y, normal.z, 0, latitude]
+                }
+                let segmentCount = UInt16(segments), next = start + segmentCount + 1
+                for j in 0..<segmentCount {
+                    indices += [start + j + 1, next + j, start + j]
+                    if j + 1 < segmentCount { indices += [start + j + 1, next + j + 1, next + j] }
                 }
             }
         }
-        positions = positions.map { $0 * (1 / length($0)) } // Radius 1.
-
-        func azimuth(_ v: SIMD3<Double>) -> Double { atan2(v.z, -v.x) }
-        func inclination(_ v: SIMD3<Double>) -> Double { atan2(-v.y, (v.x * v.x + v.z * v.z).squareRoot()) }
-        var uvs = positions.map { SIMD2(azimuth($0) / 2 / .pi + 0.5, 1 - (inclination($0) / .pi + 0.5)) }
-        for triangle in stride(from: 0, to: positions.count, by: 3) {
-            let centroid = (positions[triangle] + positions[triangle + 1] + positions[triangle + 2]) * (1.0 / 3)
-            let azi = azimuth(centroid)
-            for index in triangle..<triangle + 3 {
-                let uv = uvs[index], vector = positions[index]
-                if azi < 0, uv.x == 1 { uvs[index].x = uv.x - 1 }
-                if vector.x == 0, vector.z == 0 { uvs[index].x = azi / 2 / .pi + 0.5 }
-            }
-            let xs = [uvs[triangle].x, uvs[triangle + 1].x, uvs[triangle + 2].x]
-            if xs.max()! > 0.9, xs.min()! < 0.1 {
-                for index in triangle..<triangle + 3 where uvs[index].x < 0.2 { uvs[index].x += 1 }
-            }
-        }
-
-        var vertices: [Float] = []
-        vertices.reserveCapacity(positions.count * 8)
-        for (position, uv) in zip(positions, uvs) {
-            let stored = SIMD3<Float>(position)
-            // `normalizeNormals` on the stored (single-precision) copy of the positions.
-            let normal = SIMD3<Float>(SIMD3<Double>(stored) * (1 / length(SIMD3<Double>(stored))))
-            vertices += [stored.x, stored.y, stored.z, normal.x, normal.y, normal.z, Float(uv.x), Float(uv.y)]
-        }
-        return vertices
+        return (vertices, indices)
     }
 }

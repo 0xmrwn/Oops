@@ -5,12 +5,21 @@ public enum ModifierRelease {
     /// `isReleased` reads every event source; `keyboardReleased` only the hardware. Another app's
     /// virtual keyboard can leave a modifier set in the first for minutes: once the wait is up, a
     /// modifier no key is holding doesn't block the swap.
+    /// A correction starts on the shortcut's press, so its keys may still be down when the edit is
+    /// ready: `shortcutHeld` is waited out first, for up to `holdLimit`, before the one-second window.
     @discardableResult public static func wait(
+        shortcutHeld: () -> Bool = { false },
+        holdLimit: TimeInterval = 10,
         isReleased: () -> Bool,
         keyboardReleased: () -> Bool = { false },
         now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         pause: (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
     ) async throws -> Int {
+        let holdDeadline = now() + holdLimit
+        while shortcutHeld(), now() < holdDeadline {
+            try Task.checkCancellation()
+            try await pause(0.01)
+        }
         let deadline = now() + 1
         var waits = 0
         var observedRelease = false

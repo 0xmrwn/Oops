@@ -11,6 +11,12 @@ import SwiftUI
 @MainActor @Observable final class ProviderStep {
     typealias Row = ProviderFindings.Row
     enum Proof: Equatable { case idle, running, passed(String, seconds: Double), failed(String) }
+    struct ScanActivity: Equatable {
+        let pending: Bool
+        let showingAPI: Bool
+        let visible: Bool
+        let reduceMotion: Bool
+    }
 
     /// The sentence every provider proves itself on, and what a dry run answers.
     static let sample = "Tshi app is vry handy!"
@@ -20,6 +26,7 @@ import SwiftUI
     /// The rows on screen: they land one by one once detection is done.
     private(set) var shown: [Row] = []
     private(set) var looking = true
+    private var running = false
     private(set) var selected: Row?
     private(set) var proof = Proof.idle
     private(set) var signingIn = false
@@ -38,11 +45,17 @@ import SwiftUI
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var proofTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [AnyCancellable] = []
+    @ObservationIgnored private let detection: (() async -> ProviderFindings)?
+    @ObservationIgnored private let pause: (Duration) async throws -> Void
+    @ObservationIgnored private let now: () -> ContinuousClock.Instant
     /// This step started the ChatGPT sign-in, so a failure message is its to show.
     @ObservationIgnored private var signingInHere = false
 
-    init(preferences: Preferences?) {
+    init(preferences: Preferences?, detection: (() async -> ProviderFindings)? = nil,
+         pause: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+         now: @escaping () -> ContinuousClock.Instant = { .now }) {
         self.preferences = preferences
+        self.detection = detection; self.pause = pause; self.now = now
         api = APIProviderSetup(discover: { endpoint, key in
             if let preferences { return try await preferences.providers.check(endpoint: endpoint, key: key) }
             try await Task.sleep(for: .seconds(0.8))
@@ -78,14 +91,14 @@ import SwiftUI
     var saves: Bool { preferences != nil }
 
     func start() {
-        guard task == nil else { return }
+        guard !running, task == nil else { return }
         #if DEBUG
         // Offscreen snapshots seed their own moment.
         if DebugFlags.setupSnapshots != nil { return }
         #endif
-        task = Task { [weak self] in await self?.reveal() }
-        preferences?.$chatGPTStatus.dropFirst().sink { [weak self] status in
-            if case .signedIn = status { self?.signedInToChatGPT() }
+        running = true
+        preferences?.chatGPTSignInCompleted.sink { [weak self] in
+            self?.signedInToChatGPT()
         }.store(in: &observers)
         preferences?.$signingIn.sink { [weak self] in self?.signingIn = $0 }.store(in: &observers)
         // A sign-in that failed (the browser didn't open, OAuth refused) says why, where proofs do.
@@ -97,9 +110,24 @@ import SwiftUI
         // Back from Terminal or the install page: whatever changed shows up without asking.
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in self?.recheck() }.store(in: &observers)
+        if let preferences, preferences.chatGPTStatus == nil {
+            // An existing account belongs in the initial discovery order, not the sign-in event.
+            preferences.$chatGPTStatus.compactMap(\.self).first().sink { [weak self] _ in
+                self?.beginDiscovery()
+            }.store(in: &observers)
+            preferences.refreshChatGPT()
+        } else {
+            beginDiscovery()
+        }
+    }
+
+    private func beginDiscovery() {
+        guard running, task == nil else { return }
+        task = Task { [weak self] in await self?.reveal() }
     }
 
     func stop() {
+        running = false
         api.clear()
         task?.cancel(); proofTask?.cancel(); observers = []
         if preferences?.signingIn == true { preferences?.cancelSignIn() }
@@ -110,18 +138,16 @@ import SwiftUI
 
     /// The drop scans for a beat however fast detection is, then the rows land under its gaze.
     private func reveal() async {
-        let scan = Task { await scanning() }
-        let started = ContinuousClock.now
+        let started = now()
         let found = await detect()
-        try? await Task.sleep(until: started + .seconds(1.2))
-        scan.cancel()
+        try? await pause(max(.zero, .milliseconds(1200) - started.duration(to: now())))
         guard !Task.isCancelled else { return }
         findings = found
         looking = false
         for (index, row) in found.rows.enumerated() {
             guard !Task.isCancelled else { return }
             withAnimation(reduceMotion ? nil : .spring(duration: 0.55, bounce: 0.28)) { shown.append(row); look = Self.look(at: index) }
-            try? await Task.sleep(for: .seconds(0.17))
+            try? await pause(.seconds(0.17))
         }
         guard !Task.isCancelled, !showingAPI else { return }
         #if DEBUG
@@ -131,14 +157,28 @@ import SwiftUI
         else { withAnimation(reduceMotion ? nil : .spring(duration: 0.4)) { look = Self.look(at: 0) } }
     }
 
-    private func scanning() async {
-        guard !reduceMotion else { return }
-        var side = 1.0
-        while !Task.isCancelled {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) { look = CGSize(width: 0.85 * side, height: 0.25) }
-            side = -side
-            try? await Task.sleep(for: .seconds(0.55))
+    func scanActivity(visible: Bool, reduceMotion: Bool) -> ScanActivity {
+        ScanActivity(pending: running && looking, showingAPI: showingAPI, visible: visible, reduceMotion: reduceMotion)
+    }
+
+    /// The view owns decoration separately from detection: toggles can cancel and restart only this task.
+    func scan(_ activity: ScanActivity) async {
+        guard !Task.isCancelled else { return }
+        reduceMotion = activity.reduceMotion
+        guard activity.pending, running, looking, !activity.showingAPI, !showingAPI else { return }
+        guard activity.visible, !reduceMotion else {
+            withAnimation(nil) { look = CGSize(width: 0, height: 0.3) }
+            return
         }
+        var side = 1.0
+        do {
+            while running, looking, !showingAPI, !reduceMotion {
+                try Task.checkCancellation()
+                withAnimation(.easeInOut(duration: 0.45)) { look = CGSize(width: 0.85 * side, height: 0.25) }
+                side = -side
+                try await pause(.seconds(0.55))
+            }
+        } catch {}
     }
 
     private func recheck() {
@@ -152,6 +192,7 @@ import SwiftUI
     }
 
     private func detect() async -> ProviderFindings {
+        if let detection { return await detection() }
         #if DEBUG
         if DebugFlags.brandReview {
             return ProviderFindings(claude: .notInstalled, chatGPTSignedIn: true,
@@ -187,8 +228,12 @@ import SwiftUI
     }
 
     private var chatGPTSignedIn: Bool {
-        // A dry run reads the same profile Settings shows; it never touches the Keychain.
-        let status = preferences?.chatGPTStatus ?? ChatGPTAuth(store: ChatGPTKeychainStore(), openBrowser: { _ in }).status
+        let status: ChatGPTStatus?
+        if let preferences {
+            status = preferences.chatGPTStatus
+        } else {
+            status = ChatGPTAuth(store: ChatGPTKeychainStore(), openBrowser: { _ in }).status
+        }
         if case .signedIn = status { return true } else { return false }
     }
 
@@ -269,12 +314,12 @@ import SwiftUI
 
     private func pass(_ answer: String, seconds: Double) {
         withAnimation(reduceMotion ? nil : .spring(duration: 0.55, bounce: 0.3)) { proof = .passed(answer, seconds: seconds); check = 1; look = .zero }
-        Sounds.shared.play(.success, after: 0)
+        Sounds.play(.success, after: 0)
     }
 
     private func fail(_ message: String) {
         withAnimation(reduceMotion ? nil : .spring(duration: 0.4)) { proof = .failed(message); lid = 0.55 }
-        Sounds.shared.play(.failure, after: 0)
+        Sounds.play(.failure, after: 0)
     }
 
     /// The first model a server lists that can write: embedding models can't.

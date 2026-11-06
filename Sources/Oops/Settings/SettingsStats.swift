@@ -45,21 +45,22 @@ struct StatsPage: View {
     @State private var confirmingReset = false
     @State private var resetError: String?
 
-    private var counted: [Stats.Event] { stats.events.filter { $0.outcome == .fixed || $0.outcome == .clear } }
-
     var body: some View {
+        let events = stats.events
+        let counted = events.filter { $0.outcome == .fixed || $0.outcome == .clear }
         if counted.isEmpty {
             Text("No corrections yet").secondaryText().frame(maxWidth: .infinity).settingsSurface()
         } else {
+            let fixed = counted.filter { $0.outcome == .fixed }
             VStack(alignment: .leading, spacing: 20) {
-                activity
+                ActivityChart(days: days(counted), reverted: stats.reverted, selectedDay: $selectedDay)
                 HStack(alignment: .top, spacing: 20) {
-                    histogram("Mistakes per correction", average: average(counted.filter { $0.outcome == .fixed }.map(\.fixes)),
-                              unit: "", buckets: mistakeBuckets)
-                    histogram("Draft length", average: average(counted.map(\.words)), unit: " words", buckets: lengthBuckets)
+                    histogram("Mistakes per correction", average: average(fixed, by: \.fixes),
+                              unit: "", buckets: mistakeBuckets(fixed))
+                    histogram("Draft length", average: average(counted, by: \.words), unit: " words", buckets: lengthBuckets(counted))
                 }
-                ranking("Response time", rows: speeds, format: { $0.formatted(.number.precision(.fractionLength(1))) + " s" })
-                ranking("Apps", rows: apps, format: { Int($0).formatted() })
+                ranking("Response time", rows: speeds(events), format: { $0.formatted(.number.precision(.fractionLength(1))) + " s" })
+                ranking("Apps", rows: apps(counted), format: { Int($0).formatted() })
                 HStack {
                     if let resetError {
                         Label(resetError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
@@ -84,7 +85,7 @@ struct StatsPage: View {
 
     private struct Day: Identifiable { let date: Date; let outcome: String; let count: Int; var id: String { "\(date)\(outcome)" } }
 
-    private var days: [Day] {
+    private func days(_ counted: [Stats.Event]) -> [Day] {
         let calendar = Calendar.current
         let start = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: .now))!
         let recent = counted.filter { $0.date >= start }
@@ -95,63 +96,67 @@ struct StatsPage: View {
         }
     }
 
-    private var activity: some View {
-        let days = days
-        let selected = selectedDay.map { Calendar.current.startOfDay(for: $0) }
-        let selectedTotal = days.filter { $0.date == selected }.reduce(0) { $0 + $1.count }
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Last 30 days").font(.headline)
-                Spacer()
-                Group {
-                    if let selected, selectedTotal > 0 {
-                        Text("\(selected.formatted(.dateTime.day().month())) · \(selectedTotal) corrections")
-                    } else {
-                        Text("\(days.reduce(0) { $0 + $1.count }) corrections · \(stats.reverted) reverted")
+    private struct ActivityChart: View {
+        let days: [Day]
+        let reverted: Int
+        @Binding var selectedDay: Date?
+
+        var body: some View {
+            let selected = selectedDay.map { Calendar.current.startOfDay(for: $0) }
+            let selectedTotal = days.filter { $0.date == selected }.reduce(0) { $0 + $1.count }
+            return VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Last 30 days").font(.headline)
+                    Spacer()
+                    Group {
+                        if let selected, selectedTotal > 0 {
+                            Text("\(selected.formatted(.dateTime.day().month())) · \(selectedTotal) corrections")
+                        } else {
+                            Text("\(days.reduce(0) { $0 + $1.count }) corrections · \(reverted) reverted")
+                        }
+                    }
+                    .font(.callout).secondaryText().monospacedDigit()
+                }
+                Chart(days) { day in
+                    BarMark(x: .value("Day", day.date, unit: .day), y: .value("Corrections", day.count))
+                        .foregroundStyle(by: .value("Outcome", day.outcome))
+                        .cornerRadius(3)
+                        .opacity(selected == nil || selected == day.date ? 1 : 0.35)
+                }
+                .chartForegroundStyleScale(["Fixed": Color.primary.opacity(0.85), "Already clear": Color.primary.opacity(0.28)])
+                .chartLegend(position: .bottom, alignment: .leading, spacing: 10)
+                .chartXSelection(value: $selectedDay)
+                // Room for the last date's label, which is wider than its bar.
+                .chartXScale(range: .plotDimension(startPadding: 2, endPadding: 22))
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                        AxisValueLabel(format: .dateTime.day().month(), centered: false)
                     }
                 }
-                .font(.callout).secondaryText().monospacedDigit()
-            }
-            Chart(days) { day in
-                BarMark(x: .value("Day", day.date, unit: .day), y: .value("Corrections", day.count))
-                    .foregroundStyle(by: .value("Outcome", day.outcome))
-                    .cornerRadius(3)
-                    .opacity(selected == nil || selected == day.date ? 1 : 0.35)
-            }
-            .chartForegroundStyleScale(["Fixed": Color.primary.opacity(0.85), "Already clear": Color.primary.opacity(0.28)])
-            .chartLegend(position: .bottom, alignment: .leading, spacing: 10)
-            .chartXSelection(value: $selectedDay)
-            // Room for the last date's label, which is wider than its bar.
-            .chartXScale(range: .plotDimension(startPadding: 2, endPadding: 22))
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(), centered: false)
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3])).foregroundStyle(.primary.opacity(0.2))
+                        AxisValueLabel()
+                    }
                 }
+                .frame(height: 170)
+                .animation(.easeOut(duration: 0.15), value: selectedDay)
             }
-            .chartYAxis {
-                AxisMarks(position: .leading) { _ in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3])).foregroundStyle(.primary.opacity(0.2))
-                    AxisValueLabel()
-                }
-            }
-            .frame(height: 170)
-            .animation(.easeOut(duration: 0.15), value: selectedDay)
+            .settingsSurface()
         }
-        .settingsSurface()
     }
 
     // MARK: Distributions
 
     private struct Bucket: Identifiable { let label: String; let count: Int; var id: String { label } }
 
-    private var mistakeBuckets: [Bucket] {
-        let fixed = counted.filter { $0.outcome == .fixed }
-        return (1...5).map { n in
+    private func mistakeBuckets(_ fixed: [Stats.Event]) -> [Bucket] {
+        (1...5).map { n in
             Bucket(label: n == 5 ? "5+" : "\(n)", count: fixed.count { n == 5 ? $0.fixes >= 5 : $0.fixes == n })
         }
     }
 
-    private var lengthBuckets: [Bucket] {
+    private func lengthBuckets(_ counted: [Stats.Event]) -> [Bucket] {
         let edges = [(1, 10, "≤10"), (11, 25, "25"), (26, 50, "50"), (51, 100, "100"), (101, .max, "100+")]
         return edges.map { low, high, label in Bucket(label: label, count: counted.count { $0.words >= low && $0.words <= high }) }
     }
@@ -177,14 +182,14 @@ struct StatsPage: View {
 
     private struct Row: Identifiable { let name: String; let value: Double; var id: String { name } }
 
-    private var speeds: [Row] {
-        let timed = stats.events.filter { $0.seconds != nil && $0.model != nil }
+    private func speeds(_ events: [Stats.Event]) -> [Row] {
+        let timed = events.filter { $0.seconds != nil && $0.model != nil }
         return Dictionary(grouping: timed, by: { $0.model! })
             .map { Row(name: $0.key, value: $0.value.compactMap(\.seconds).reduce(0, +) / Double($0.value.count)) }
             .sorted { $0.value < $1.value }.prefix(5).map(\.self)
     }
 
-    private var apps: [Row] {
+    private func apps(_ counted: [Stats.Event]) -> [Row] {
         Dictionary(grouping: counted.filter { $0.app != nil }, by: { $0.app! })
             .map { Row(name: $0.key, value: Double($0.value.count)) }
             .sorted { $0.value > $1.value }.prefix(5).map(\.self)
@@ -214,7 +219,7 @@ struct StatsPage: View {
         .settingsSurface()
     }
 
-    private func average(_ values: [Int]) -> Double {
-        values.isEmpty ? 0 : Double(values.reduce(0, +)) / Double(values.count)
+    private func average(_ events: [Stats.Event], by value: KeyPath<Stats.Event, Int>) -> Double {
+        events.isEmpty ? 0 : Double(events.reduce(0) { $0 + $1[keyPath: value] }) / Double(events.count)
     }
 }

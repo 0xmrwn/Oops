@@ -102,7 +102,8 @@ private struct TryItKeys: View {
 
     var body: some View {
         // A held key stops the breathing: the keys answer the hand instead.
-        let breathing = beat && pulsing && caps.allSatisfy { $0.lit == 0 && $0.parts.allSatisfy { $0.lit == 0 } }
+        let canBreathe = pulsing && caps.allSatisfy { $0.lit == 0 && $0.parts.allSatisfy { $0.lit == 0 } }
+        let breathing = !reduceMotion && beat && canBreathe
         let side = Self.side(caps)
         HStack(spacing: 6) {
             if caps.isEmpty {
@@ -134,10 +135,7 @@ private struct TryItKeys: View {
         }
         .scaleEffect(breathing ? 1.04 : 1)
         .animation(.spring(duration: 0.25), value: caps.map(\.label))
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever()) { beat = true }
-        }
+        .repeatingMotion($beat, animation: .easeInOut(duration: 0.9).repeatForever(), enabled: canBreathe)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spoken)
     }

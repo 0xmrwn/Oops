@@ -5,7 +5,8 @@ import Observation
 /// text. Settings → About shows the totals and charts; the header shows the mistakes fixed.
 /// `-SettingsPreviewStats YES` (launch-only) shows a generated month instead and writes nothing.
 @MainActor @Observable final class Stats {
-    static let shared = Stats()
+    static let shared = Stats(file: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("oops/Stats/corrections.jsonl"), preview: DebugFlags.sampleStats)
 
     struct Event: Codable, Identifiable {
         /// `reapplied`: a reverted fix put back (Fix text pressed again), so that revert no longer counts.
@@ -24,13 +25,25 @@ import Observation
         var app: String?
     }
 
-    private(set) var events: [Event]
-    private let file = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("oops/Stats/corrections.jsonl")
-    private let preview = DebugFlags.sampleStats
+    private let file: URL
+    private let preview: Bool
+    @ObservationIgnored private var loadedEvents: [Event]?
+    @ObservationIgnored private var deferredFile: Data?
+    @ObservationIgnored private var deferredEvents: [Event] = []
 
-    private init() {
-        events = preview ? Self.sample() : Self.load(file)
+    init(file: URL, preview: Bool = false) {
+        self.file = file; self.preview = preview
+    }
+
+    var events: [Event] {
+        access(keyPath: \.events)
+        if let loadedEvents { return loadedEvents }
+        var events = preview ? Self.sample() : deferredFile.map(Self.decode) ?? Self.load(file)
+        events.append(contentsOf: deferredEvents)
+        loadedEvents = events
+        deferredFile = nil
+        deferredEvents = []
+        return events
     }
 
     var corrections: Int { events.count { $0.outcome == .fixed || $0.outcome == .clear } }
@@ -41,7 +54,14 @@ import Observation
     func record(_ event: Event) {
         // End-to-end runs with the stub provider never count.
         guard !preview, DebugFlags.stubProvider == nil else { return }
-        events.append(event)
+        if loadedEvents == nil {
+            // Keep the pre-write history without decoding it on the correction path. Session rows
+            // are kept separately so a failed write still counts and a successful one counts once.
+            if deferredFile == nil { deferredFile = (try? Data(contentsOf: file)) ?? Data() }
+            deferredEvents.append(event)
+        } else {
+            withMutation(keyPath: \.events) { loadedEvents?.append(event) }
+        }
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         guard var line = try? encoder.encode(event) else { return }
         line.append(0x0A)
@@ -58,17 +78,39 @@ import Observation
     /// nothing and says so.
     func reset() throws {
         if !preview, FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
-        events = []
+        withMutation(keyPath: \.events) {
+            loadedEvents = []
+            deferredFile = nil
+            deferredEvents = []
+        }
     }
 
     static func words(in text: String) -> Int {
-        text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        var count = 0, previousWasSeparator = true
+        for character in text {
+            let isSeparator = character.isWhitespace || character.isNewline
+            if previousWasSeparator, !isSeparator { count += 1 }
+            previousWasSeparator = isSeparator
+        }
+        return count
     }
 
-    private static func load(_ file: URL) -> [Event] {
-        guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+    static func load(_ file: URL) -> [Event] {
+        guard let data = try? Data(contentsOf: file) else { return [] }
+        return decode(data)
+    }
+
+    private static func decode(_ data: Data) -> [Event] {
+        guard String(data: data, encoding: .utf8) != nil else { return [] }
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
-        return text.split(separator: "\n").compactMap { try? decoder.decode(Event.self, from: Data($0.utf8)) }
+        // Character splitting keeps CRLF together. Preserve imported logs' existing handling.
+        if data.contains(13) {
+            return String(decoding: data, as: UTF8.self).split(separator: "\n").compactMap {
+                try? decoder.decode(Event.self, from: Data($0.utf8))
+            }
+        }
+        // Recorded JSONL uses LF; byte splitting avoids walking every extended grapheme cluster.
+        return data.split(separator: 10).compactMap { try? decoder.decode(Event.self, from: $0) }
     }
 
     /// A plausible month of use, the same on every launch.

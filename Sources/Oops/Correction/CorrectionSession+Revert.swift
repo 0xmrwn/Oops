@@ -78,7 +78,7 @@ extension CorrectionSession {
                 if restoring { fixture?.restored(corrected: from, original: to) } else { fixture?.corrected(before: from, expected: to, seconds: nil) }
                 await flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0, style: restoring ? .restore : .correction,
                                       remounted: !CFEqual(snapshot.element, record.snapshot.element))
-                let geometry = await editor.geometry(of: snapshot)
+                let geometry = await editor.geometry(of: snapshot.element) ?? snapshot.geometry
                 guard generation == id else { return }
                 if restoring { capsule.show(.reverted, label: "Reverted", geometry: geometry) } else {
                     let fixes = TestEditorModel.fixesLabel(diff.changes)
@@ -86,7 +86,7 @@ extension CorrectionSession {
                                  spoken: fixes + " put back", geometry: geometry)
                 }
                 capsule.hide(after: ResultTiming.seconds)
-                capsule.follow(snapshot.element) { await self.editor.geometry(of: snapshot) }
+                capsule.follow(snapshot.element) { [editor = self.editor] element in await editor.geometry(of: element) ?? geometry }
             } catch is CancellationError {
                 if generation == id { capsule.hide() }
             } catch {
@@ -95,6 +95,7 @@ extension CorrectionSession {
                 fixture?.failed(error.localizedDescription, remedy: nil)
                 capsule.show(.failed, label: restoring ? "Couldn’t revert" : "Couldn’t re-apply", detail: error.localizedDescription)
                 if await !editor.isInFront(snapshot), generation == id { capsule.unanchor() }
+                guard generation == id, !Task.isCancelled else { return }
                 capsule.hide(after: 8)
             }
         }

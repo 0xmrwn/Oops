@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import Synchronization
 
 /// Sign in with ChatGPT, as OpenAI documents it for open-source apps (developers.openai.com/siwc/
 /// token-sharing-open-source): a browser sign-in that registers Oops for the user's ChatGPT plan, then
@@ -16,6 +17,10 @@ public final class ChatGPTAuth: @unchecked Sendable {
     private var keys: [String: SecKey] = [:]
     private var attempt: LoopbackCallback?
 
+    #if DEBUG
+    func queuedRefreshes() async -> Int { await gate.waiterCount }
+    #endif
+
     /// No cookies or cache: nothing about the sign-in outlives the request that needed it.
     public static let defaultSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
@@ -27,18 +32,12 @@ public final class ChatGPTAuth: @unchecked Sendable {
         self.store = store; self.session = session; self.openBrowser = openBrowser
     }
 
-    public var status: ChatGPTStatus {
-        let profile = try? store.readProfile()
-        let credentials = (try? store.readCredentials()) ?? nil
-        if credentials != nil, profile?.state == .connected { return .signedIn(profile?.identity ?? ChatGPTIdentity()) }
-        return profile?.state == .reauthRequired ? .reauthRequired : .signedOut
-    }
-
     // MARK: Sign-in
 
     /// Runs one browser sign-in to completion. A returning account reuses its issued client ID, and new
     /// credentials replace the old ones only once their identity and plan permission check out.
-    public func signIn() async throws {
+    /// Returns the verified identity after the profile and credentials are saved.
+    @discardableResult public func signIn() async throws -> ChatGPTIdentity {
         var profile = try store.readProfile() ?? .newHost()
         try store.writeProfile(profile)
         let discovery = try await discover()
@@ -110,6 +109,7 @@ public final class ChatGPTAuth: @unchecked Sendable {
         if let old = saved?.pending?.tokens.refreshToken ?? saved?.tokens.refreshToken, old != tokens.refreshToken, let saved {
             _ = await revoke(old, clientID: saved.clientID, retries: 0)
         }
+        return identity
     }
 
     /// Fails once `callback`'s attempt was cancelled or replaced, so it never writes over what came after it.
@@ -154,37 +154,50 @@ public final class ChatGPTAuth: @unchecked Sendable {
     /// refreshed and `body` runs once more, never more.
     public func withAccessToken<T>(_ body: (String) async throws -> T) async throws -> T {
         let token = try await validAccessToken()
+        // Finish saving a rotation, but never start a request for its cancelled caller.
+        try Task.checkCancellation()
         do { return try await body(token) } catch let error as ChatGPTError where error.status == 401 {
-            return try await body(try await self.token(rejecting: token))
+            let renewed = try await self.token(rejecting: token)
+            try Task.checkCancellation()
+            return try await body(renewed)
         }
     }
 
     private func token(rejecting rejected: String?) async throws -> String {
-        // An unstructured task, so the caller's cancellation can't reach it: once a refresh is sent the
-        // server has spent the old refresh token, and only saving the answer keeps the session alive.
-        try await Task {
-            try await self.serialized {
-                guard var credentials = try self.store.readCredentials() else { throw ChatGPTError.signInRequired }
-                if let pending = credentials.pending { credentials = try await self.adopt(pending, into: credentials) }
-                let tokens = credentials.tokens, left = tokens.expiresAt.timeIntervalSinceNow
-                let usable = tokens.accessToken != rejected && left > 5
-                if usable, left > 120 { return tokens.accessToken }
-                // Never refresh before the server's `earliest_refresh_at`: a valid token serves until then.
-                if let earliest = tokens.earliestRefreshAt, earliest > Date() {
-                    if usable { return tokens.accessToken }
-                    throw ChatGPTError.named("refresh_deferred")
+        try Task.checkCancellation()
+        let cancelled = Mutex(false)
+        let check: @Sendable () throws -> Void = {
+            if cancelled.withLock({ $0 }) { throw CancellationError() }
+        }
+        return try await withTaskCancellationHandler {
+            try await Task {
+                try await self.serialized(check: check) {
+                    guard var credentials = try self.store.readCredentials() else { throw ChatGPTError.signInRequired }
+                    if let pending = credentials.pending { credentials = try await self.adopt(pending, into: credentials) }
+                    let tokens = credentials.tokens, left = tokens.expiresAt.timeIntervalSinceNow
+                    let usable = tokens.accessToken != rejected && left > 5
+                    if usable, left > 120 { return tokens.accessToken }
+                    // Never refresh before the server's `earliest_refresh_at`: a valid token serves until then.
+                    if let earliest = tokens.earliestRefreshAt, earliest > Date() {
+                        if usable { return tokens.accessToken }
+                        throw ChatGPTError.named("refresh_deferred")
+                    }
+                    return try await self.refresh(credentials, check: check)
                 }
-                return try await self.refresh(credentials)
-            }
-        }.value
+            }.value
+        } onCancel: { cancelled.withLock { $0 = true } }
     }
 
     /// One refresh at a time, in this process and across processes sharing the store: the refresh
     /// token rotates, and the second of two racing refreshes would spend a dead one.
-    private func serialized<T: Sendable>(_ body: () async throws -> T) async throws -> T {
+    private func serialized<T: Sendable>(check: () throws -> Void = {}, _ body: () async throws -> T) async throws -> T {
         await gate.enter()
         do {
-            let value = try await store.exclusively(body)
+            try check()
+            let value = try await store.exclusively {
+                try check()
+                return try await body()
+            }
             await gate.leave()
             return value
         } catch {
@@ -193,12 +206,15 @@ public final class ChatGPTAuth: @unchecked Sendable {
         }
     }
 
-    private func refresh(_ credentials: ChatGPTCredentials) async throws -> String {
+    private func refresh(_ credentials: ChatGPTCredentials, check: () throws -> Void) async throws -> String {
+        try check()
         guard let refreshToken = credentials.tokens.refreshToken else {
             try endSession()
             throw ChatGPTError.named("invalid_grant")
         }
         let discovery = try await discover()
+        // Commit here, before transport. Finish and save the rotation even if cancelled later.
+        try check()
         // `scope` is left out so the grant stays as it was (profiles-and-sessions: refreshing tokens).
         let (status, body) = try await post(discovery.token, [
             ("grant_type", "refresh_token"), ("client_id", credentials.clientID), ("refresh_token", refreshToken), ("resource", Self.resource),
@@ -335,19 +351,5 @@ public final class ChatGPTAuth: @unchecked Sendable {
         } catch { throw ChatGPTError.network }
         guard let http = response as? HTTPURLResponse else { throw ChatGPTError.network }
         return (http.statusCode, try? JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
-}
-
-/// An async mutex: waiters run one after another, in arrival order.
-private actor SerialGate {
-    private var busy = false
-    private var waiting: [CheckedContinuation<Void, Never>] = []
-    func enter() async {
-        guard busy else { busy = true; return }
-        await withCheckedContinuation { waiting.append($0) }
-    }
-
-    func leave() {
-        if waiting.isEmpty { busy = false } else { waiting.removeFirst().resume() }
     }
 }

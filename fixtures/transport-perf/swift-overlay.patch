@@ -1,0 +1,255 @@
+diff --git a/Sources/OopsCore/Providers/OpenAICompatible.swift b/Sources/OopsCore/Providers/OpenAICompatible.swift
+index 72473aa..67cf483 100644
+--- a/Sources/OopsCore/Providers/OpenAICompatible.swift
++++ b/Sources/OopsCore/Providers/OpenAICompatible.swift
+@@ -53,11 +53,18 @@ public struct OpenAICompatibleBackend: CorrectionBackend {
+         self.configuration = configuration; self.session = session
+     }
+     public func complete(_ text: String) async throws -> String {
++        try await complete(text, taskDelegate: nil)
++    }
++
++    func complete(_ text: String, taskDelegate: any URLSessionTaskDelegate?) async throws -> String {
+         let data: Data, response: URLResponse
+         let request = try configuration.request(for: text), session = session
+         // The request timeout only bounds silence between bytes; the deadline bounds the whole answer.
+-        do { (data, response) = try await withDeadline(.seconds(40), orThrow: URLError(.timedOut)) { try await session.data(for: request) } }
+-        catch let error as URLError where error.code == .cancelled { throw CancellationError() }
++        do {
++            (data, response) = try await withDeadline(.seconds(40), orThrow: URLError(.timedOut)) {
++                try await session.data(for: request, delegate: taskDelegate)
++            }
++        } catch let error as URLError where error.code == .cancelled { throw CancellationError() }
+         catch let error as URLError where error.code == .timedOut { throw CorrectionError.failure(.slow, "The API took too long to correct this text. Try again.") }
+         catch is URLError { throw CorrectionError.failure(.offline, "Couldn't reach the API. Check your connection and try again.") }
+         try Task.checkCancellation()
+diff --git a/Tests/OopsCoreTests/TransportPerfProbe.swift b/Tests/OopsCoreTests/TransportPerfProbe.swift
+new file mode 100644
+index 0000000..b9adacd
+--- /dev/null
++++ b/Tests/OopsCoreTests/TransportPerfProbe.swift
+@@ -0,0 +1,224 @@
++import Foundation
++import Security
++import XCTest
++@testable import OopsCore
++
++/// Opt-in XCTest executable entry point for the transport fixture's Release run.
++final class TransportPerfProbe: XCTestCase {
++    #if DEBUG
++    private static let releaseBuild = false
++    #else
++    private static let releaseBuild = true
++    #endif
++
++    func testLoopbackPairs() async throws {
++        guard let path = ProcessInfo.processInfo.environment["OOPS_TRANSPORT_PERF_CONFIG"] else {
++            throw XCTSkip("Set by the transport fixture runner for a Release probe.")
++        }
++        guard Self.releaseBuild else { XCTFail("Build the probe in Release configuration."); return }
++        let configFile = URL(fileURLWithPath: path)
++        guard path.hasPrefix("/"), configFile.lastPathComponent == "probe.json" else {
++            XCTFail("Use the fixture runner's absolute probe.json path."); return
++        }
++        let config = try JSONDecoder().decode(ProbeConfiguration.self, from: Data(contentsOf: configFile))
++        guard (1 ... 100).contains(config.pairs), (1 ... 65535).contains(config.port) else {
++            XCTFail("Invalid loopback probe configuration."); return
++        }
++        let directory = configFile.deletingLastPathComponent()
++        let anchor = try fixtureAnchor(config.scheme, in: directory)
++        let output = directory.appendingPathComponent("samples.jsonl")
++        let file = try FileHandle(forWritingTo: output)
++        defer { try? file.close() }
++
++        // The probe process supplies built-in rules even if a custom rule exists elsewhere in defaults.
++        let defaults = UserDefaults.standard
++        let arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
++        var probeArguments = arguments
++        probeArguments[CorrectionPolicy.customRulesKey] = CorrectionPolicy.defaultRules
++        defaults.setVolatileDomain(probeArguments, forName: UserDefaults.argumentDomain)
++        defer { defaults.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain) }
++        guard CorrectionPolicy.rules == CorrectionPolicy.defaultRules else {
++            XCTFail("Unable to isolate the synthetic probe rules."); return
++        }
++
++        for pair in 1 ... config.pairs {
++            let base = try XCTUnwrap(URL(string: "\(config.scheme.rawValue)://127.0.0.1:\(config.port)/\(config.id.uuidString.lowercased())/\(pair)/v1"))
++            guard try await measurePair(pair, base: base, mode: config.session, anchor: anchor, file: file) else { return }
++        }
++    }
++
++    private func fixtureAnchor(_ scheme: ProbeConfiguration.Scheme, in directory: URL) throws -> SecCertificate? {
++        guard scheme == .https else { return nil }
++        let data = try Data(contentsOf: directory.appendingPathComponent("probe-anchor.der"))
++        return try XCTUnwrap(SecCertificateCreateWithData(nil, data as CFData))
++    }
++
++    private func measurePair(_ pair: Int, base: URL, mode: ProbeConfiguration.Session, anchor: SecCertificate?, file: FileHandle) async throws -> Bool {
++        let delegate = MetricsDelegate(port: try XCTUnwrap(base.port), anchor: anchor)
++        let session = mode == .ephemeral ? URLSession(configuration: sessionConfiguration()) : nil
++        defer { session?.invalidateAndCancel(); delegate.finish() }
++        let configuration = APIConfiguration(baseURL: base, model: "synthetic")
++        let backend = session.map { OpenAICompatibleBackend(configuration: configuration, session: $0) }
++            ?? OpenAICompatibleBackend(configuration: configuration)
++        var previousFinish: ContinuousClock.Instant?
++        let encoder = JSONEncoder()
++        encoder.outputFormatting = [.sortedKeys]
++        // Retain invalid observations in the raw sample so the report can reject the run.
++        encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "Infinity", negativeInfinity: "-Infinity", nan: "NaN")
++        for position in 1 ... 2 {
++            let started = ContinuousClock.now
++            let outcome = await request(using: backend, delegate: delegate)
++            let finished = ContinuousClock.now
++            let task = await delegate.next()
++            let row = ProbeSample(pair: pair, position: position, outcome: outcome,
++                                  backendMs: started.duration(to: finished) / .milliseconds(1),
++                                  gapMs: previousFinish.map { $0.duration(to: started) / .milliseconds(1) }, task: task)
++            try file.write(contentsOf: encoder.encode(row) + Data([0x0A]))
++            guard outcome == .ok, let task, task.redirectCount == 0, task.transactions.count == 1,
++                  let transaction = task.transactions.first, transaction.fetch == "network",
++                  transaction.status == 200, !transaction.proxy else {
++                XCTFail("Probe pair \(pair), request \(position) failed. See the scalar sample.")
++                return false
++            }
++            previousFinish = finished
++        }
++        return true
++    }
++
++    private func sessionConfiguration() -> URLSessionConfiguration {
++        let configuration = URLSessionConfiguration.ephemeral
++        configuration.urlCache = nil
++        configuration.httpCookieStorage = nil
++        configuration.httpShouldSetCookies = false
++        configuration.urlCredentialStorage = nil
++        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
++        configuration.connectionProxyDictionary = [
++            "HTTPEnable": 0, "HTTPSEnable": 0, "SOCKSEnable": 0, "ProxyAutoConfigEnable": 0, "ProxyAutoDiscoveryEnable": 0,
++        ]
++        configuration.waitsForConnectivity = false
++        configuration.timeoutIntervalForResource = 5
++        return configuration
++    }
++
++    private func request(using backend: OpenAICompatibleBackend, delegate: MetricsDelegate) async -> ProbeSample.Outcome {
++        do {
++            let answer = try await backend.complete("ths is a test.", taskDelegate: delegate)
++            return answer == #"{"text":"This is a test."}"# ? .ok : .unexpectedResponse
++        } catch is CancellationError { return .cancelled }
++        catch { return .requestFailed }
++    }
++}
++
++private struct ProbeConfiguration: Decodable {
++    enum Scheme: String, Decodable { case http, https }
++    enum Session: String, Decodable { case ephemeral, shared }
++    let id: UUID
++    let port: Int
++    let pairs: Int
++    let scheme: Scheme
++    let session: Session
++}
++
++private struct ProbeSample: Encodable {
++    enum Outcome: String, Encodable { case ok, unexpectedResponse, cancelled, requestFailed }
++    let pair: Int
++    let position: Int
++    let outcome: Outcome
++    let backendMs: Double
++    let gapMs: Double?
++    let task: TaskSample?
++}
++
++private final class MetricsDelegate: NSObject, URLSessionTaskDelegate, Sendable {
++    private struct MetricsTimeout: Error {}
++    private let stream: AsyncStream<TaskSample>
++    private let writer: AsyncStream<TaskSample>.Continuation
++    private let port: Int
++    private let anchor: SecCertificate?
++
++    init(port: Int, anchor: SecCertificate?) {
++        self.port = port
++        self.anchor = anchor
++        (stream, writer) = AsyncStream.makeStream(bufferingPolicy: .bufferingOldest(2))
++        super.init()
++    }
++
++    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
++        writer.yield(TaskSample(task, metrics))
++    }
++
++    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
++                    newRequest request: URLRequest) async -> URLRequest? { nil }
++
++    func urlSession(_ session: URLSession, task: URLSessionTask,
++                    didReceive challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
++        let space = challenge.protectionSpace
++        guard space.authenticationMethod == NSURLAuthenticationMethodServerTrust, space.host == "127.0.0.1",
++              space.port == port, let anchor, let trust = space.serverTrust,
++              SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, "127.0.0.1" as CFString)) == errSecSuccess,
++              SecTrustSetAnchorCertificates(trust, [anchor] as CFArray) == errSecSuccess,
++              SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess,
++              SecTrustSetNetworkFetchAllowed(trust, false) == errSecSuccess,
++              SecTrustEvaluateWithError(trust, nil) else { return (.cancelAuthenticationChallenge, nil) }
++        return (.useCredential, URLCredential(trust: trust))
++    }
++
++    func next() async -> TaskSample? {
++        try? await withDeadline(.seconds(2), orThrow: MetricsTimeout()) { [stream] in
++            for await record in stream { return record }
++            return nil
++        }
++    }
++
++    func finish() { writer.finish() }
++}
++
++private struct TaskSample: Encodable, Sendable {
++    let identifier: Int
++    let taskMs: Double
++    let redirectCount: Int
++    let transactions: [TransactionSample]
++
++    init(_ task: URLSessionTask, _ metrics: URLSessionTaskMetrics) {
++        identifier = task.taskIdentifier
++        taskMs = metrics.taskInterval.duration * 1000
++        redirectCount = metrics.redirectCount
++        transactions = metrics.transactionMetrics.map(TransactionSample.init)
++    }
++}
++
++private struct TransactionSample: Encodable, Sendable {
++    let dnsMs: Double?, connectMs: Double?, tlsMs: Double?
++    let requestMs: Double?, waitMs: Double?, responseMs: Double?
++    let reused: Bool
++    let proxy: Bool
++    let networkProtocol: String?
++    let tlsProtocolCode: Int?
++    let fetch: String
++    let status: Int?
++
++    init(_ metrics: URLSessionTaskTransactionMetrics) {
++        dnsMs = Self.interval(metrics.domainLookupStartDate, metrics.domainLookupEndDate)
++        connectMs = Self.interval(metrics.connectStartDate, metrics.connectEndDate)
++        tlsMs = Self.interval(metrics.secureConnectionStartDate, metrics.secureConnectionEndDate)
++        requestMs = Self.interval(metrics.requestStartDate, metrics.requestEndDate)
++        waitMs = Self.interval(metrics.requestEndDate, metrics.responseStartDate)
++        responseMs = Self.interval(metrics.responseStartDate, metrics.responseEndDate)
++        reused = metrics.isReusedConnection
++        proxy = metrics.isProxyConnection
++        networkProtocol = metrics.networkProtocolName
++        tlsProtocolCode = metrics.negotiatedTLSProtocolVersion.map { Int($0.rawValue) }
++        fetch = switch metrics.resourceFetchType {
++        case .networkLoad: "network"
++        case .localCache: "cache"
++        case .serverPush: "push"
++        default: "unknown"
++        }
++        status = (metrics.response as? HTTPURLResponse)?.statusCode
++    }
++
++    private static func interval(_ start: Date?, _ end: Date?) -> Double? {
++        guard let start, let end else { return nil }
++        return end.timeIntervalSince(start) * 1000
++    }
++}

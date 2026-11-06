@@ -38,7 +38,7 @@ import SwiftUI
     private(set) var check = 0.0
 
     @ObservationIgnored let saves: Bool
-    @ObservationIgnored private let sounds = HelloSounds()
+    @ObservationIgnored private var sounds: HelloSounds?
     @ObservationIgnored private var monitor: Any?
     /// Try it's listening: the keys light, nothing is accepted, and `heard` gets the shortcut.
     @ObservationIgnored private var mirroring = false
@@ -121,7 +121,10 @@ import SwiftUI
         if monitor != nil, self.mirroring == mirroring { return }
         stop()
         self.mirroring = mirroring
-        if !mirroring { ShortcutSettings.shared.pause() }
+        if !mirroring {
+            prepareSounds()
+            ShortcutSettings.shared.pause()
+        }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] event in
             guard let self, event.window?.identifier == Self.window else { return event }
             return handle(event) ? nil : event
@@ -134,13 +137,27 @@ import SwiftUI
             center.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.letGo()
-                    if self?.mirroring == false { ShortcutSettings.shared.resume() }
+                    if self?.mirroring == false {
+                        self?.sounds?.finish()
+                        ShortcutSettings.shared.resume()
+                    }
                 }
             },
             center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { if self?.mirroring == false { ShortcutSettings.shared.pause() } }
+                MainActor.assumeIsolated {
+                    if self?.mirroring == false {
+                        self?.prepareSounds()
+                        ShortcutSettings.shared.pause()
+                    }
+                }
             },
         ]
+    }
+
+    @discardableResult private func prepareSounds() -> HelloSounds? {
+        guard Sounds.enabled else { return nil }
+        if sounds == nil { sounds = HelloSounds(onlyKeyClicks: true) }
+        return sounds
     }
 
     func stop() {
@@ -149,7 +166,10 @@ import SwiftUI
         observers.forEach(NotificationCenter.default.removeObserver); observers = []
         heard = nil
         letGo()
-        if !mirroring { ShortcutSettings.shared.resume() }
+        if !mirroring {
+            sounds?.finish()
+            ShortcutSettings.shared.resume()
+        }
     }
 
     private func letGo() {
@@ -159,7 +179,7 @@ import SwiftUI
 
     private func press(_ keyCode: UInt16) {
         withAnimation(.spring(duration: 0.18, bounce: 0.35)) { key = keyCode }
-        if !mirroring { sounds.play(.key, gain: 0.6) }
+        if !mirroring { prepareSounds()?.play(.key, gain: 0.6) }
     }
 
     /// True when the step used the key; Return and Escape go on to the window's buttons unless recording.
@@ -172,7 +192,7 @@ import SwiftUI
                 // A keyUp can go missing (⌘ or a hotkey takes it): the key goes once it is really up.
                 if let key, !CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(key)) { self.key = nil }
             }
-            if !pressed.isEmpty, !mirroring { sounds.play(.key, gain: 0.6) }
+            if !pressed.isEmpty, !mirroring { prepareSounds()?.play(.key, gain: 0.6) }
             return false
         case .keyUp:
             if key == event.keyCode { withAnimation(.spring(duration: 0.18)) { key = nil } }
@@ -221,7 +241,7 @@ import SwiftUI
     private func record(_ recorded: Shortcut) {
         do { try save(recorded) } catch {
             withAnimation(.spring(duration: 0.4)) { self.error = error.localizedDescription; lid = 0.55 }
-            Sounds.shared.play(.failure, after: 0)
+            Sounds.play(.failure, after: 0)
             return
         }
         error = nil
@@ -244,7 +264,7 @@ import SwiftUI
         withAnimation(.spring(duration: 0.5, bounce: 0.3)) { phase = .accepted; check = 1; lid = 0; look = .zero }
         glow = 1
         withAnimation(.easeOut(duration: 1.2).delay(0.25)) { glow = 0.3 }
-        if first { Sounds.shared.play(.success, after: 0) }
+        if first { Sounds.play(.success, after: 0) }
         announce(spoken)
     }
 

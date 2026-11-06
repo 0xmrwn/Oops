@@ -160,5 +160,6 @@ extension NSApplication {
     func leaveDockUnlessOtherWindows(than closing: NSWindow) {
         guard !windows.contains(where: { $0 !== closing && $0.isVisible && $0.styleMask.contains(.titled) }) else { return }
         setActivationPolicy(.accessory)
+        DockIcon.releaseWhenAccessory()
     }
 }

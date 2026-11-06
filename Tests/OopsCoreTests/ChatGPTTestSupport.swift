@@ -7,14 +7,36 @@ final class MemoryChatGPTStore: ChatGPTStore, @unchecked Sendable {
     private let lock = NSLock()
     private var profile: ChatGPTProfile?
     private var credentials: ChatGPTCredentials?
-    init(profile: ChatGPTProfile? = nil, credentials: ChatGPTCredentials? = nil) { self.profile = profile; self.credentials = credentials }
+    private var reads = 0
+    private let failProfileRead: Bool
+    private let failCredentialRead: Bool
+    private let beforeExclusive: @Sendable () async -> Void
+    init(profile: ChatGPTProfile? = nil, credentials: ChatGPTCredentials? = nil,
+         failProfileRead: Bool = false, failCredentialRead: Bool = false, beforeExclusive: @escaping @Sendable () async -> Void = {}) {
+        self.profile = profile; self.credentials = credentials; self.beforeExclusive = beforeExclusive
+        self.failProfileRead = failProfileRead; self.failCredentialRead = failCredentialRead
+    }
     var savedProfile: ChatGPTProfile? { lock.withLock { profile } }
     var savedCredentials: ChatGPTCredentials? { lock.withLock { credentials } }
-    func readProfile() throws -> ChatGPTProfile? { lock.withLock { profile } }
+    var credentialReads: Int { lock.withLock { reads } }
+    func readProfile() throws -> ChatGPTProfile? {
+        if failProfileRead { throw CocoaError(.fileReadNoPermission) }
+        return lock.withLock { profile }
+    }
     func writeProfile(_ profile: ChatGPTProfile) throws { lock.withLock { self.profile = profile } }
-    func readCredentials() throws -> ChatGPTCredentials? { lock.withLock { credentials } }
+    func readCredentials() throws -> ChatGPTCredentials? {
+        try lock.withLock {
+            reads += 1
+            if failCredentialRead { throw CocoaError(.fileReadNoPermission) }
+            return credentials
+        }
+    }
     func writeCredentials(_ credentials: ChatGPTCredentials) throws { lock.withLock { self.credentials = credentials } }
     func deleteCredentials() throws { lock.withLock { credentials = nil } }
+    func exclusively<T: Sendable>(_ body: () async throws -> T) async throws -> T {
+        await beforeExclusive()
+        return try await body()
+    }
 }
 
 struct StubResponse {
@@ -75,7 +97,17 @@ struct TestSigner: @unchecked Sendable {
     let privateKey: SecKey
     init(kid: String) {
         self.kid = kid
-        privateKey = SecKeyCreateRandomKey([kSecAttrKeyType: kSecAttrKeyTypeRSA, kSecAttrKeySizeInBits: 2048] as CFDictionary, nil)!
+        privateKey = Self.makeKey()
+    }
+    /// Generation has returned nil now and then (about one suite run in seven): retry, then say why.
+    private static func makeKey() -> SecKey {
+        var error: Unmanaged<CFError>?
+        for _ in 0..<3 {
+            if let key = SecKeyCreateRandomKey([kSecAttrKeyType: kSecAttrKeyTypeRSA, kSecAttrKeySizeInBits: 2048] as CFDictionary, &error) {
+                return key
+            }
+        }
+        fatalError("Could not generate the test RSA key: \(error.map { String(describing: $0.takeRetainedValue()) } ?? "no error")")
     }
     var publicKey: SecKey { SecKeyCopyPublicKey(privateKey)! }
     var jwks: [String: Any] {

@@ -144,7 +144,7 @@ import SwiftUI
         withAnimation(.spring(duration: 0.55, bounce: 0.3)) { phase = .granted; check = 1; lid = 0; look = .zero }
         helper.hide()
         timer?.invalidate(); timer = nil
-        Sounds.shared.play(.success, after: 0)
+        Sounds.play(.success, after: 0)
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: "Oops is allowed", .priority: NSAccessibilityPriorityLevel.high.rawValue])
         // Back to onboarding, where Continue now waits.
@@ -190,11 +190,18 @@ import SwiftUI
     func hide() {
         guard shown else { return }
         shown = false
+        let panel = self.panel
+        let content = panel.contentView
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             panel.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
-            MainActor.assumeIsolated { if self?.shown == false { self?.panel.orderOut(nil) } }
+        } completionHandler: { [weak self, weak panel, weak content] in
+            MainActor.assumeIsolated {
+                // A later show installs a different host, even if its fade has already started.
+                guard let panel, let content, self?.shown != true, panel.contentView === content else { return }
+                panel.orderOut(nil)
+                panel.contentView = nil
+            }
         }
     }
 
@@ -265,14 +272,13 @@ struct AccessibilityHelperView: View {
         // Behind the content rather than around it: offscreen snapshots drop whatever glass wraps.
         .background { Color.clear.glassEffect(.regular.tint(.accentColor.opacity(0.8)), in: .capsule) }
         .shadow(color: .black.opacity(0.35), radius: 14, y: 6)
-        .scaleEffect(arrived ? 1 : 0.7)
-        .offset(y: arrived ? 0 : 24)
+        .scaleEffect(arrived || reduceMotion ? 1 : 0.7)
+        .offset(y: arrived || reduceMotion ? 0 : 24)
         .opacity(arrived ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(duration: 0.55, bounce: 0.4)) { arrived = true }
-            guard !reduceMotion else { return }
-            withAnimation(.easeOut(duration: 1.3).repeatForever(autoreverses: false).delay(0.5)) { pulse = true }
         }
+        .repeatingMotion($pulse, animation: .easeOut(duration: 1.3).repeatForever(autoreverses: false).delay(0.5))
     }
 }

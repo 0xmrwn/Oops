@@ -126,7 +126,8 @@ final class ChatGPTAuthTests: XCTestCase {
             let target = callback.url!
             Task.detached { _ = try? await URLSession(configuration: .ephemeral).data(from: target) }
         }
-        try await auth.signIn()
+        let identity = try await auth.signIn()
+        XCTAssertEqual(identity, try XCTUnwrap(store.savedProfile?.identity))
         return opened.value!
     }
 

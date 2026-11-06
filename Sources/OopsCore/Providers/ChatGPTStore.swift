@@ -14,6 +14,15 @@ public enum ChatGPTStatus: Equatable, Sendable {
     case signedOut, signedIn(ChatGPTIdentity), reauthRequired
 }
 
+public extension ChatGPTAuth {
+    var status: ChatGPTStatus {
+        let profile = try? store.readProfile()
+        if profile?.state == .reauthRequired { return .reauthRequired }
+        guard let profile, profile.state == .connected, (try? store.readCredentials()) != nil else { return .signedOut }
+        return .signedIn(profile.identity ?? .init())
+    }
+}
+
 /// This Mac's registration: not secret, so it lives in a file. OpenAI's docs ask for the host ID to be
 /// chosen before the first sign-in and kept for the host's lifetime, so it survives signing out and
 /// forgetting the account; the issued client ID and subject survive signing out, so signing in again

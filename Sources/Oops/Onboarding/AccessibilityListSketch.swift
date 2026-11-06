@@ -8,6 +8,7 @@ struct AccessibilityListSketch: View {
     let granted: Bool
     let demo: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.onboardingEffectsVisible) private var visible
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,7 +54,7 @@ struct AccessibilityListSketch: View {
             }
             .frame(width: 28, height: 28)
             .opacity(granted ? 1 : 0.5)
-            .overlay(alignment: .bottom) { if demo, !reduceMotion { GhostDrop() } }
+            .overlay(alignment: .bottom) { if demo, visible, !reduceMotion { GhostDrop() } }
             Text(verbatim: "Oops").font(.system(size: 15, weight: .semibold)).opacity(granted ? 1 : 0.5)
             Spacer()
             SketchSwitch(on: granted)

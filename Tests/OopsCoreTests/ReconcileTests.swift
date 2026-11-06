@@ -154,6 +154,35 @@ final class ReconcileTests: XCTestCase {
         XCTAssertEqual(diff.changes, 1)
     }
 
+    func testDiffRangesKeepUTF16OffsetsAndTypographyMatchesInsideTrimmedContext() {
+        let diff = WordDiff(before: "🙂 it's teh - smal end", after: "🙂 it’s the – small end", key: CorrectionPolicy.fold)
+        XCTAssertEqual(diff.hunks, [
+            WordDiff.Hunk(before: NSRange(location: 8, length: 3), after: NSRange(location: 8, length: 3)),
+            WordDiff.Hunk(before: NSRange(location: 14, length: 4), after: NSRange(location: 14, length: 5))
+        ])
+        XCTAssertEqual(diff.afterRanges, [NSRange(location: 8, length: 3), NSRange(location: 14, length: 5)])
+        XCTAssertEqual(diff.equivalent, 2)
+    }
+
+    func testDiffTiesKeepInsertionBeforeDeletionInsideUnchangedEdges() {
+        let diff = WordDiff(before: "keep a b end", after: "keep b a end")
+        XCTAssertEqual(diff.hunks, [
+            WordDiff.Hunk(before: NSRange(location: 5, length: 0), after: NSRange(location: 5, length: 2)),
+            WordDiff.Hunk(before: NSRange(location: 6, length: 2), after: NSRange(location: 8, length: 0))
+        ])
+        XCTAssertEqual(diff.afterRanges, [NSRange(location: 5, length: 1), NSRange(location: 8, length: 0)])
+        XCTAssertEqual(diff.equivalent, 0)
+    }
+
+    func testLongDiffFallbackKeepsOneMiddleHunkAndItsUTF16Offsets() {
+        let before = "🙂 keep " + String(repeating: "a ", count: 650) + "left tail"
+        let after = "🙂 keep " + String(repeating: "b ", count: 650) + "right tail"
+        let diff = WordDiff(before: before, after: after)
+        XCTAssertEqual(diff.hunks, [WordDiff.Hunk(before: NSRange(location: 8, length: 1304), after: NSRange(location: 8, length: 1305))])
+        XCTAssertEqual(diff.afterRanges, [NSRange(location: 8, length: 1305)])
+        XCTAssertEqual(diff.equivalent, 0)
+    }
+
     func testProseIsWhatAModelCanFix() {
         XCTAssertFalse(CorrectionPolicy.hasProse("@alice https://example.com/a 👍 `x` ~/notes"))
         XCTAssertFalse(CorrectionPolicy.hasProse("123 !! 🎉"))
@@ -184,5 +213,18 @@ final class ReconcileTests: XCTestCase {
         let words = String(repeating: "word ", count: 700)
         XCTAssertFalse(CorrectionPolicy.isRewrite("the " + words + "small", of: "teh " + words + "smal"))
         XCTAssertTrue(CorrectionPolicy.isRewrite(String(repeating: "mot ", count: 700), of: words))
+    }
+
+    func testDistanceSwitchesToWholeWordFallbackAfterTwoThousandCharacters() {
+        let exact = String(repeating: " ", count: 1_999) + "a"
+        XCTAssertEqual(CorrectionPolicy.distance(exact, ""), 2_000)
+        XCTAssertEqual(CorrectionPolicy.distance("", exact + "b"), 2)
+        XCTAssertEqual(CorrectionPolicy.distance(exact + "bc", ""), 3)
+    }
+
+    func testDistanceLimitCountsExtendedGraphemeClusters() {
+        let exact = String(repeating: "👩🏽‍💻", count: 1_999) + "a"
+        XCTAssertEqual(CorrectionPolicy.distance("", exact), 2_000)
+        XCTAssertEqual(CorrectionPolicy.distance(exact + "b", ""), 2)
     }
 }

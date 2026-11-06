@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import Security
 import CryptoKit
@@ -8,9 +9,11 @@ import OopsCore
     @Published var status = ""
 
     // Sign in with ChatGPT
-    @Published private(set) var chatGPTStatus: ChatGPTStatus = .signedOut {
-        didSet { if case .signedIn = chatGPTStatus { providers.setChatGPT(signedIn: true) } else { providers.setChatGPT(signedIn: false) } }
+    /// Nil until a surface asks for the current account.
+    @Published private(set) var chatGPTStatus: ChatGPTStatus? {
+        didSet { updateChatGPTHealth() }
     }
+    let chatGPTSignInCompleted = PassthroughSubject<Void, Never>()
     @Published private(set) var signingIn = false
     @Published private(set) var disconnecting = false
     @Published var chatGPTMessage: String?
@@ -26,54 +29,94 @@ import OopsCore
     let providers: ProviderStore
     /// Debug-only fake sign-in for screenshots (`SettingsPreviewChatGPT`); inert unless set.
     let preview: ChatGPTPreview?
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private var signInTask: Task<Void, Never>?
     private var modelsTask: Task<Void, Never>?
     private var modelsFetchedAt: Date?
+    private var accountRevision = 0
+    private var readingStatusAt: Int?
+    private var statusRequested = false
+    private var modelsRequested = false
 
-    init() {
+    init(auth: ChatGPTAuth? = nil, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         // A providers preview shows a fixed provider list and implies a signed-in ChatGPT preview.
-        let preview = ChatGPTPreview(DebugFlags.chatGPT ?? (DebugFlags.providers ? "signedIn" : nil))
+        let preview = auth == nil ? ChatGPTPreview(DebugFlags.chatGPT ?? (DebugFlags.providers ? "signedIn" : nil)) : nil
         self.preview = preview
         if let preview {
             chatGPT = ChatGPTAuth(store: InertChatGPTStore(), openBrowser: { _ in throw ChatGPTError("preview", "Preview only.") })
-            providers = ProviderStore(chatGPT: chatGPT, preview: DebugFlags.providers)
+            providers = ProviderStore(chatGPT: chatGPT, preview: DebugFlags.providers, defaults: defaults)
             chatGPTStatus = preview.status
             models = preview.models
         } else {
-            chatGPT = ChatGPTAuth(store: ChatGPTKeychainStore(), openBrowser: { url in
+            chatGPT = auth ?? ChatGPTAuth(store: ChatGPTKeychainStore(), openBrowser: { url in
                 let opened = await MainActor.run { NSWorkspace.shared.open(url) }
                 if !opened { throw ChatGPTError("browser_unavailable", "Oops couldn’t open your browser. Check your default browser, then try again.") }
             })
-            providers = ProviderStore(chatGPT: chatGPT, preview: false)
-            chatGPTStatus = chatGPT.status
-            if let data = UserDefaults.standard.data(forKey: "chatgptModelCache") { models = (try? ChatGPTModels.decode(data)) ?? [] }
+            providers = ProviderStore(chatGPT: chatGPT, preview: false, defaults: defaults)
+            if let data = defaults.data(forKey: "chatgptModelCache") { models = (try? ChatGPTModels.decode(data)) ?? [] }
         }
         // didSet does not run during init.
         providers.setChatGPT(models: models)
-        if case .signedIn = chatGPTStatus { providers.setChatGPT(signedIn: true) } else { providers.setChatGPT(signedIn: false) }
+        updateChatGPTHealth()
         providers.refreshClaude()
     }
 
     // MARK: Connection
 
-    func refreshChatGPT() {
+    private func updateChatGPTHealth() {
+        guard let chatGPTStatus else { return }
+        if case .signedIn = chatGPTStatus { providers.setChatGPT(signedIn: true) } else { providers.setChatGPT(signedIn: false) }
+    }
+
+    func refreshChatGPT(loadCatalog: Bool = false) {
         guard preview == nil else { return }
-        let current = chatGPT.status
-        if current != chatGPTStatus { chatGPTStatus = current }
+        modelsRequested = modelsRequested || loadCatalog
+        if readingStatusAt == accountRevision { return }
+        statusRequested = true
+        readChatGPTStatusIfNeeded()
+    }
+
+    private func readChatGPTStatusIfNeeded() {
+        guard statusRequested, readingStatusAt == nil, !signingIn, !disconnecting else { return }
+        let revision = accountRevision, auth = chatGPT
+        statusRequested = false
+        readingStatusAt = revision
+        // Security may wait on the system. Keep one read in flight without retaining this window's owner.
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let status = auth.status
+            Task { @MainActor [weak self] in self?.finishChatGPTStatus(status, revision: revision) }
+        }
+    }
+
+    private func finishChatGPTStatus(_ status: ChatGPTStatus, revision: Int) {
+        readingStatusAt = nil
+        guard revision == accountRevision else { readChatGPTStatusIfNeeded(); return }
+        if chatGPTStatus != status { chatGPTStatus = status }
+        if modelsRequested { modelsRequested = false; loadModels() }
+    }
+
+    private func invalidateChatGPTReads() {
+        accountRevision += 1
+        modelsTask?.cancel(); modelsTask = nil
+        modelsLoading = false
     }
 
     func signInWithChatGPT() {
-        guard !signingIn else { return }
+        guard !signingIn, !disconnecting else { return }
+        invalidateChatGPTReads()
+        let revision = accountRevision
         chatGPTMessage = nil
         signingIn = true
         if let preview {
             // Simulated: no browser, no network, nothing stored.
             signInTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(2.5))
-                guard let self, !Task.isCancelled else { return }
+                guard let self, self.accountRevision == revision, !Task.isCancelled else { return }
+                self.signInTask = nil
                 self.signingIn = false
                 self.chatGPTStatus = .signedIn(preview.identity)
+                self.chatGPTSignInCompleted.send(())
                 self.showWelcome = true
             }
             return
@@ -81,18 +124,24 @@ import OopsCore
         let auth = chatGPT
         signInTask = Task { [weak self] in
             do {
-                try await auth.signIn()
-                guard let self else { return }
+                try Task.checkCancellation()
+                let identity = try await auth.signIn()
+                guard let self, self.accountRevision == revision else { return }
+                self.signInTask = nil
                 self.signingIn = false
-                self.refreshChatGPT()
+                self.chatGPTStatus = .signedIn(identity)
+                self.chatGPTSignInCompleted.send(())
                 if !self.defaults.bool(forKey: "chatgptWelcomeShown") {
                     self.defaults.set(true, forKey: "chatgptWelcomeShown")
                     self.showWelcome = true
                 }
+                self.statusRequested = false
+                self.modelsRequested = false
                 self.modelsFetchedAt = nil
                 self.loadModels()
             } catch {
-                guard let self else { return }
+                guard let self, self.accountRevision == revision else { return }
+                self.signInTask = nil
                 self.signingIn = false
                 self.refreshChatGPT()
                 if !Self.isCancellation(error) { self.chatGPTMessage = Self.friendly(error) }
@@ -101,22 +150,39 @@ import OopsCore
     }
 
     func cancelSignIn() {
+        guard signingIn else { return }
+        stopSignIn()
+        invalidateChatGPTReads()
+        refreshChatGPT()
+    }
+
+    private func stopSignIn() {
         chatGPT.cancelSignIn()
         signInTask?.cancel(); signInTask = nil
         signingIn = false
     }
 
     func signOut(forgetAccount: Bool = false) {
-        cancelSignIn()
+        guard !disconnecting else { return }
+        stopSignIn()
+        invalidateChatGPTReads()
         chatGPTMessage = nil
         if preview != nil { chatGPTStatus = .signedOut; return }
         disconnecting = true
-        let auth = chatGPT
+        let auth = chatGPT, revision = accountRevision
         Task { [weak self] in
             var failure: String?
-            do { try await auth.signOut(forgetAccount: forgetAccount) } catch { failure = Self.friendly(error) }
-            guard let self else { return }
+            let signedOut: Bool
+            do {
+                try await auth.signOut(forgetAccount: forgetAccount)
+                signedOut = true
+            } catch {
+                failure = Self.friendly(error)
+                signedOut = (error as? ChatGPTError)?.code == "revocation_unconfirmed"
+            }
+            guard let self, self.accountRevision == revision else { return }
             self.disconnecting = false
+            if signedOut, self.chatGPTStatus != .signedOut { self.chatGPTStatus = .signedOut }
             self.refreshChatGPT()
             self.chatGPTMessage = failure
         }
@@ -128,22 +194,22 @@ import OopsCore
 
     /// Refreshes the visible model list while signed in; the cached list shows meanwhile.
     func loadModels(force: Bool = false) {
-        guard preview == nil, case .signedIn = chatGPTStatus, modelsTask == nil else { return }
+        guard preview == nil, !signingIn, !disconnecting, case .signedIn = chatGPTStatus, modelsTask == nil else { return }
         if !force, let fetched = modelsFetchedAt, Date().timeIntervalSince(fetched) < 300, !models.isEmpty { return }
         modelsLoading = true
         modelsError = nil
-        let auth = chatGPT
+        let auth = chatGPT, revision = accountRevision
         modelsTask = Task { [weak self] in
             do {
                 let list = try await ChatGPTModels.list(using: auth)
-                guard let self else { return }
+                guard let self, self.accountRevision == revision else { return }
                 self.modelsFetchedAt = Date()
                 if !list.isEmpty {
                     self.models = list
                     if let data = try? ChatGPTModels.encode(list) { self.defaults.set(data, forKey: "chatgptModelCache") }
                 }
             } catch {
-                guard let self else { return }
+                guard let self, self.accountRevision == revision else { return }
                 if !Self.isCancellation(error) { self.modelsError = Self.friendly(error) }
                 self.refreshChatGPT()
             }

@@ -8,12 +8,14 @@ extension CorrectionSession {
     /// The guarded swap correct and revert share: wait for Hyper to be let go, lease the clipboard,
     /// hold input for the paste, then give both back. Returns the swap's milliseconds, or nil when a
     /// newer request took over before it began.
-    func swap(_ id: UUID, _ replace: (ClipboardLease, @escaping @Sendable () -> Bool) async throws -> Void) async throws -> Int? {
+    func swap(_ id: UUID, validate: () throws -> Void = {},
+              _ replace: (ClipboardLease, @escaping @Sendable () -> Bool) async throws -> Void) async throws -> Int? {
         try await KeyboardGate.waitForModifierRelease()
         let started = ContinuousClock.now
         let clipboard = try await editor.prepareClipboard()
         try Task.checkCancellation()
         guard generation == id else { return nil }
+        try validate()
         let gate = try KeyboardGate()
         committing = true; capsule.model.canCancel = false
         defer { gate.release(); committing = false; capsule.model.canCancel = true; clipboard.restoreIfOwned() }

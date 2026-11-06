@@ -53,7 +53,6 @@ struct HomeStepView: View {
 /// A stretch of the menu bar, right end: a few of the system's items and Oops's eyes, picked out
 /// and breathing, so the real ones above are easy to find.
 private struct MenuBarStrip: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var beat = false
 
     var body: some View {
@@ -71,9 +70,6 @@ private struct MenuBarStrip: View {
         .background { Color.clear.glassEffect(.clear, in: .capsule) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Oops's eyes, in the menu bar")
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 1).repeatForever()) { beat = true }
-        }
+        .repeatingMotion($beat, animation: .easeInOut(duration: 1).repeatForever())
     }
 }

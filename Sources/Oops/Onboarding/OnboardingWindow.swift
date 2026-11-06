@@ -19,12 +19,14 @@ import SwiftUI
         return tryIt.fixture
     }
     private var window: NSWindow?
+    private var presentation = WelcomePresentation()
 
     func show() {
         let window = window ?? makeWindow()
         NSApp.enterDock()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+        presentation.visible = window.occlusionState.contains(.visible)
     }
 
     private func makeWindow() -> NSWindow {
@@ -36,7 +38,8 @@ import SwiftUI
         if DebugFlags.onboardingWindowWidth > 0 { width = DebugFlags.onboardingWindowWidth }
         #endif
         HelloZoom.window = width / HelloDraft.canvas.width
-        let controller = NSHostingController(rootView: OnboardingView(preferences: preferences,
+        presentation = WelcomePresentation()
+        let controller = NSHostingController(rootView: OnboardingView(preferences: preferences, presentation: presentation,
                                                                       close: { [weak self] in self?.window?.close() })
             .focusRingsFromKeyboard())
         controller.sizingOptions = []
@@ -59,17 +62,29 @@ import SwiftUI
     func fold(drop: CGRect, look: CGSize) {
         guard let window else { return }
         OnboardingFold.run(window: window, drop: drop, look: look, eyes: menuBar?.eyesFrame,
-                           greet: { [weak self] in self?.menuBar?.greet() }) { [weak self] in self?.window?.close() }
+                           greet: { [weak self] in self?.menuBar?.greet() }) { [weak window] in window?.close() }
     }
 
     /// Closing ends Hello (its sounds included) and releases the window, as Settings does.
     func windowWillClose(_ notification: Notification) {
-        if let window { NSApp.leaveDockUnlessOtherWindows(than: window) }
+        guard let closing = notification.object as? NSWindow, closing === window else { return }
+        presentation.visible = false
+        window = nil
+        NSApp.leaveDockUnlessOtherWindows(than: closing)
         DispatchQueue.main.async { [weak self] in
-            self?.window?.contentViewController = nil; self?.window = nil
-            self?.onClose()
+            closing.contentViewController = nil
+            if self?.window == nil { self?.onClose() }
         }
     }
+
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard let changed = notification.object as? NSWindow, changed === window else { return }
+        presentation.visible = changed.occlusionState.contains(.visible)
+    }
+}
+
+@MainActor @Observable private final class WelcomePresentation {
+    var visible = false
 }
 
 private struct OnboardingView: View {
@@ -79,6 +94,7 @@ private struct OnboardingView: View {
         static let setup: [Step] = [.provider, .shortcut, .accessibility, .tryIt, .home]
     }
     let close: () -> Void
+    let presentation: WelcomePresentation
     @State private var director = HelloDirector()
     @State private var providers: ProviderStep
     @State private var shortcut: ShortcutStep
@@ -91,7 +107,8 @@ private struct OnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
 
-    init(preferences: Preferences?, close: @escaping () -> Void) {
+    init(preferences: Preferences?, presentation: WelcomePresentation, close: @escaping () -> Void) {
+        self.presentation = presentation
         _providers = State(initialValue: ProviderStep(preferences: preferences))
         let shortcut = ShortcutStep(saves: preferences != nil)
         _shortcut = State(initialValue: shortcut)
@@ -103,7 +120,7 @@ private struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            HelloScene(director: director, handedOff: step != .hello) { begin() }
+            HelloScene(director: director, handedOff: step != .hello, visible: presentation.visible) { begin() }
                 .disabled(step != .hello)
                 // Behind a setup step Hello is wallpaper: VoiceOver reads the step, not Hello's drops.
                 .accessibilityHidden(step != .hello)
@@ -158,6 +175,7 @@ private struct OnboardingView: View {
             #endif
             director.play()
         }
+        .environment(\.onboardingEffectsVisible, presentation.visible)
         .onDisappear { director.stop(); providers.stop(); shortcut.stop(); accessibility.stop(); tryIt.stop() }
     }
 
@@ -208,6 +226,8 @@ private struct OnboardingView: View {
 struct OnboardingProgress: View {
     let steps: Int
     let current: Int
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
 
     var body: some View {
         HStack(spacing: 7) {
@@ -217,8 +237,12 @@ struct OnboardingProgress: View {
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 3)
-        .animation(.spring(duration: 0.45, bounce: 0.2), value: current)
+        .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.2), value: current)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Step \(current + 1) of \(steps)")
     }
+}
+
+extension EnvironmentValues {
+    @Entry var onboardingEffectsVisible = true
 }

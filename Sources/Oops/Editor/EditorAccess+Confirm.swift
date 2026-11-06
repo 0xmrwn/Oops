@@ -31,28 +31,30 @@ extension EditorAccess {
     /// cache catches up with a new selection (Chromium's lags the range by a frame or two). Nil when
     /// it reports no selected text, as some toolkits don't.
     nonisolated func selectedTextMatches(_ element: AXUIElement, _ expected: String, at location: Int = 0) -> Bool? {
-        var length = 0, differs = -1, landed = "none"
+        let visibleExpected = Self.visible(expected)
+        var selected = ""
         for read in 1...8 {
-            guard let selected = attribute(element, kAXSelectedTextAttribute) as? String, !selected.isEmpty else { return nil }
-            // Where the selection really landed in the value, against the invisible characters before it.
-            if let value = attribute(element, kAXValueAttribute) as? String {
-                let ns = value as NSString, near = ns.range(of: selected, options: [], range: NSRange(location: 0, length: ns.length))
-                let before = (value.utf16.prefix(max(0, min(location, ns.length))).map(\.self)).filter { [0xFEFF, 0x200B, 0x2060].contains($0) }.count
-                landed = near.location == NSNotFound ? "none invisible_before=\(before)" : "delta=\(near.location - location) invisible_before=\(before)"
-                if let marked = markerText(element) {
-                    let found = (marked as NSString).range(of: selected)
-                    landed += found.location == NSNotFound ? " markers=none" : " markers_delta=\(found.location - location)"
-                }
-            }
-            length = selected.utf16.count
-            differs = zip(Self.visible(selected).unicodeScalars, Self.visible(expected).unicodeScalars).prefix { $0 == $1 }.count
-            if sameText(Self.visible(selected), Self.visible(expected)) {
+            guard let current = attribute(element, kAXSelectedTextAttribute) as? String, !current.isEmpty else { return nil }
+            selected = current
+            if sameText(selected, expected) || sameText(Self.visible(selected), visibleExpected) {
                 if read > 1 { Self.selectionLog.info("selected_text_confirmed_after_wait reads=\(read, privacy: .public)") }
                 return true
             }
             if read < 8 { Thread.sleep(forTimeInterval: 0.025) }
         }
-        Self.selectionLog.notice("selected_text_mismatch expected_len=\(expected.utf16.count, privacy: .public) selected_len=\(length, privacy: .public) same_scalars=\(differs, privacy: .public) \(landed, privacy: .public)")
+        // The whole value and markers are only needed to diagnose a selection that never matched.
+        var landed = "none"
+        if let value = attribute(element, kAXValueAttribute) as? String {
+            let ns = value as NSString, near = ns.range(of: selected, options: [], range: NSRange(location: 0, length: ns.length))
+            let before = value.utf16.prefix(max(0, min(location, ns.length))).lazy.filter { [0xFEFF, 0x200B, 0x2060].contains($0) }.count
+            landed = near.location == NSNotFound ? "none invisible_before=\(before)" : "delta=\(near.location - location) invisible_before=\(before)"
+            if let marked = markerText(element) {
+                let found = (marked as NSString).range(of: selected)
+                landed += found.location == NSNotFound ? " markers=none" : " markers_delta=\(found.location - location)"
+            }
+        }
+        let differs = zip(Self.visible(selected).unicodeScalars, visibleExpected.unicodeScalars).prefix { $0 == $1 }.count
+        Self.selectionLog.notice("selected_text_mismatch expected_len=\(expected.utf16.count, privacy: .public) selected_len=\(selected.utf16.count, privacy: .public) same_scalars=\(differs, privacy: .public) \(landed, privacy: .public)")
         return false
     }
 
@@ -152,25 +154,27 @@ extension EditorAccess {
         let gecko = web && Self.isGecko(snapshot)
         var known: Bool?, weak = false
         defer { weakly = weakly || weak }
-        let shows = { (text: String) -> Bool in
-            if sameDraft(text, next) || web && DisplayOrder.reordered(text, of: next, awayFrom: pasted) { return true }
+        enum Reading { case draft, displayOrder }
+        func match(_ text: String) -> Reading? {
+            if sameDraft(text, next) { return .draft }
+            if web, DisplayOrder.reordered(text, of: next, awayFrom: pasted) { return .displayOrder }
             guard web, DisplayOrder.confirms(text, next: next, draft: draft, pasted: pasted, distinct: {
                 if known == nil { known = distinct() }
                 return known!
-            }()) else { return false }
+            }()) else { return nil }
             weak = true
-            return true
+            return .displayOrder
         }
         repeat {
-            if let current = text(snapshot.element, snapshot.strategy), shows(current) {
-                if !sameDraft(current, next) { Self.selectionLog.notice("paste_confirmed_display_order") }
+            if let current = text(snapshot.element, snapshot.strategy), let reading = match(current) {
+                if reading == .displayOrder { Self.selectionLog.notice("paste_confirmed_display_order") }
                 return true
             }
-            if let moved = remounted(snapshot, holding: next, accepting: shows) { snapshot.element = moved; return true }
+            if let moved = remounted(snapshot, holding: next, accepting: { match($0) != nil }) { snapshot.element = moved; return true }
             // Chromium can leave the value stale indefinitely. Gecko's value instead catches up;
             // keep its character-coordinate reading through that lag rather than switching mid-swap.
-            if !gecko, snapshot.strategy == .value, let marked = markerText(snapshot.element), shows(marked) {
-                let role = snapshot.role, ordered = !sameDraft(marked, next)
+            if !gecko, snapshot.strategy == .value, let marked = markerText(snapshot.element), let reading = match(marked) {
+                let role = snapshot.role, ordered = reading == .displayOrder
                 Self.selectionLog.notice("value_stale_markers_current role=\(role, privacy: .public) display_order=\(ordered, privacy: .public)")
                 snapshot.strategy = .atoms
                 return true

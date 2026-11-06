@@ -41,6 +41,33 @@ final class ModifierReleaseTests: XCTestCase {
             XCTFail("Cancelled wait must stop")
         } catch { XCTAssertTrue(error is CancellationError) }
     }
+    func testShortcutStillHeldAfterTheEditIsReadyIsWaitedOut() async throws {
+        var clock = 0.0
+        let waits = try await ModifierRelease.wait(shortcutHeld: { clock < 2 }, isReleased: { clock >= 2 },
+                                                   now: { clock }, pause: { clock += $0 })
+        XCTAssertEqual(waits, 0)
+        XCTAssertGreaterThanOrEqual(clock, 2)
+    }
+    func testShortcutHeldPastItsLimitStillNeedsTheModifiersUp() async {
+        var clock = 0.0
+        do {
+            _ = try await ModifierRelease.wait(shortcutHeld: { true }, holdLimit: 3, isReleased: { false },
+                                               now: { clock }, pause: { clock += $0 })
+            XCTFail("A chord that never comes up must not authorize a paste")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("Release the shortcut’s keys"))
+            // The three-second hold, then the one-second window, each overshooting by at most a 10 ms pause.
+            XCTAssertLessThanOrEqual(clock, 4.02)
+        }
+    }
+    func testCancellationWhileTheShortcutIsHeldStops() async {
+        var clock = 0.0
+        do {
+            _ = try await ModifierRelease.wait(shortcutHeld: { true }, isReleased: { true }, now: { clock },
+                                               pause: { clock += $0; if clock > 0.05 { throw CancellationError() } })
+            XCTFail("Cancelled wait must stop")
+        } catch { XCTAssertTrue(error is CancellationError) }
+    }
     func testLateReleaseDoesNotAuthorizeSwap() async {
         var clock = 0.0
         do {

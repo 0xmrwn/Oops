@@ -232,11 +232,13 @@ struct OopsEyes: View {
     var check = 0.0
     var ink: Color = .primary
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.appearsActive) private var active
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
     @State private var start = Date()
 
     var body: some View {
-        TimelineView(.animation(paused: !working || reduceMotion)) { context in
+        TimelineView(.animation(paused: !working || reduceMotion || !enabled || !active)) { context in
             let t = context.date.timeIntervalSince(start)
             let pose = working ? (reduceMotion ? (look: CGSize.zero, lid: 0.4) : DashEyes.readingPose(t, toward: .zero))
                 : (look: look, lid: lid)
