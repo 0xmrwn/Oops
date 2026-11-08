@@ -89,11 +89,14 @@ extension EditorAccess {
     func highlightRects(for ranges: [NSRange], in snapshot: EditorSnapshot, quiet: Bool = false) -> [CGRect] {
         let element = snapshot.element
         guard let box = self.frame(element) else { return [] }
-        // A word's rect lies inside the editor; Chromium's placeholders are zero-size or whole-page.
+        // A word's rect lies inside the editor; Chromium's placeholders are zero-size, whole-page, or the
+        // editor's own frame (its text-marker bounds for a word in a contenteditable), which would light
+        // up the whole draft.
         let valid = box.insetBy(dx: -4, dy: -4)
         func usable(_ rect: CGRect?) -> CGRect? {
             guard let rect, rect.width > 0, rect.height > 0, rect.height <= 200, valid.contains(rect) else { return nil }
-            return rect
+            let wholeField = abs(rect.width - box.width) < 2 && abs(rect.height - box.height) < 2
+            return wholeField ? nil : rect
         }
         // Chromium answers range bounds only on text leaves and native text fields, never on a
         // contenteditable root: map the draft's offsets onto the root's static-text descendants.
@@ -139,9 +142,14 @@ extension EditorAccess {
             else { return nil }
             return usable(self.rangeRect(leaf.element, NSRange(location: at - leaf.range.location, length: range.length)))
         }
+        var route = ""
         func bounds(_ range: NSRange) -> CGRect? {
-            aligned(range) ?? usable(self.rangeRect(element, range)) ?? usable(self.markerRect(element, range)) ?? leafBounds(range)
-                ?? searchedBounds(range)
+            if let rect = aligned(range) { route = "aligned"; return rect }
+            if let rect = usable(self.rangeRect(element, range)) { route = "range"; return rect }
+            if let rect = usable(self.markerRect(element, range)) { route = "marker"; return rect }
+            if let rect = leafBounds(range) { route = "leaves"; return rect }
+            route = "search"
+            return searchedBounds(range)
         }
         var lineHeight: CGFloat?
         func place(_ range: NSRange) -> [CGRect]? {
@@ -168,7 +176,15 @@ extension EditorAccess {
         let started = CFAbsoluteTimeGetCurrent()
         for range in ranges.prefix(40) {
             guard !Task.isCancelled else { return [] }
-            if let placed = place(range) { rects += placed } else { missed.append(range) }
+            let placed = place(range)
+            if let placed { rects += placed } else { missed.append(range) }
+            #if DEBUG
+            // What each word got and from where, against the field, for the bake-off's highlight stage.
+            if !quiet {
+                let sizes = (placed ?? []).map { "\(Int($0.width))x\(Int($0.height))" }.joined(separator: ",")
+                Self.highlightLog.info("highlight_range length=\(range.length, privacy: .public) route=\(route, privacy: .public) rects=\(sizes, privacy: .public) field=\(Int(box.width), privacy: .public)x\(Int(box.height), privacy: .public)")
+            }
+            #endif
         }
         // Gecko fills its text-bounds cache on the first request and answers that one with a zero
         // rect: ask once more for what it couldn't place.

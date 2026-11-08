@@ -185,9 +185,15 @@ class CaseRun:
         flashes = self.oops.flash_frames(watcher)
         if "highlight" in self.stages:
             rects = self.oops.flashed(since)
-            self.stages["highlight"] = bool(rects) and self.flash_inside(flashes, frame)
+            covering = self.oops.field_sized(since)
+            self.stages["highlight"] = bool(rects) and self.flash_inside(flashes, frame) and not covering
             if not rects:
                 self.notes.append("highlight: no rects" if rects == 0 else "highlight: none asked")
+            if covering:
+                w, h, field = covering[0]
+                self.notes.append(
+                    f"highlight: {len(covering)} word pill(s) cover the field ({w}x{h} in {field[0]}x{field[1]})"
+                )
         if "revert" in self.stages and attempt.get("outcome") == "fixed":
             reverts = len(self.oops.entries("revert"))
             self.oops.trigger("restore-lab", self.host.activation())

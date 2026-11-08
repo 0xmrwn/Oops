@@ -22,6 +22,7 @@ class Oops:
         self.log = work / "log"
         self.probe = work / "probe.json"
         self.highlights = []  # (time, rects) for each highlight_rects line
+        self.pills = []  # (time, [(w, h)], (field w, field h)) for each word, from Debug's highlight_range lines
         self.stream = None
 
     @staticmethod
@@ -82,6 +83,11 @@ class Oops:
             if message.startswith("highlight_rects") and "rects=" in message:
                 rects = message.split("rects=")[1].split()[0]
                 self.highlights.append((time.time(), int(rects) if rects.isdigit() else 0))
+            elif message.startswith("highlight_range"):
+                fields = dict(part.split("=", 1) for part in message.split()[1:] if "=" in part)
+                size = lambda text: tuple(int(v) for v in text.split("x"))  # noqa: E731
+                pills = [size(r) for r in fields.get("rects", "").split(",") if r]
+                self.pills.append((time.time(), pills, size(fields.get("field", "0x0"))))
 
     def stop(self):
         if self.stream:
@@ -160,3 +166,14 @@ class Oops:
 
     def flashed(self, since):
         return max((rects for at, rects in self.highlights if at >= since), default=None)
+
+    def field_sized(self, since):
+        """Word pills since `since` that cover nearly the whole field: a placeholder taken for a word's
+        place, which lights up the entire draft instead of the word."""
+        return [
+            (w, h, field)
+            for at, pills, field in self.pills
+            if at >= since
+            for w, h in pills
+            if field[0] and field[1] and w >= 0.9 * field[0] and h >= 0.9 * field[1]
+        ]

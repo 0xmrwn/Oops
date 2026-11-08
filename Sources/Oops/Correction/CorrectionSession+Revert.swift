@@ -76,8 +76,6 @@ extension CorrectionSession {
                 }
                 let diff = WordDiff(before: from, after: to)
                 if restoring { fixture?.restored(corrected: from, original: to) } else { fixture?.corrected(before: from, expected: to, seconds: nil) }
-                await flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0, style: restoring ? .restore : .correction,
-                                      remounted: !CFEqual(snapshot.element, record.snapshot.element))
                 let geometry = await editor.geometry(of: snapshot.element) ?? snapshot.geometry
                 guard generation == id else { return }
                 if restoring { capsule.show(.reverted, label: "Reverted", geometry: geometry) } else {
@@ -87,6 +85,10 @@ extension CorrectionSession {
                 }
                 capsule.hide(after: ResultTiming.seconds)
                 capsule.follow(snapshot.element) { [editor = self.editor] element in await editor.geometry(of: element) ?? geometry }
+                // After the drop: a Chromium editor can take two seconds to place the words, and the swap
+                // itself is already done.
+                await flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0, style: restoring ? .restore : .correction,
+                                      remounted: !CFEqual(snapshot.element, record.snapshot.element), patient: true)
             } catch is CancellationError {
                 if generation == id { capsule.hide() }
             } catch {
