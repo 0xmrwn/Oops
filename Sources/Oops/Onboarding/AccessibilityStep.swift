@@ -160,8 +160,9 @@ import SwiftUI
         Sounds.play(.success, after: 0)
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: "Oops is allowed", .priority: NSAccessibilityPriorityLevel.high.rawValue])
-        // Back to onboarding, where Continue now waits.
-        NSApp.activate()
+        // Back to onboarding, where Continue now waits. Plain activate() is cooperative since macOS 14
+        // and waits for System Settings to give way, which it never does.
+        NSApp.activate(ignoringOtherApps: true)
         NSApp.windows.first { $0.identifier == ShortcutStep.window }?.makeKeyAndOrderFront(nil)
     }
 }
