@@ -45,7 +45,12 @@ extension CorrectionSession {
         while placement.rects.isEmpty || (patient && placement.missing > 0), !Task.isCancelled, current(),
               waited.duration(to: .now) < .milliseconds(2500) {
             try? await Task.sleep(for: .milliseconds(100))
-            placement = await editor.highlightPlacement(for: shifted, in: editor.following(snapshot, holding: text), quiet: true)
+            let followed = await editor.following(snapshot, holding: text)
+            // The page reloaded or moved on: give the switch back now, before the next page is read with it.
+            guard await editor.isOnItsPage(followed) else {
+                Self.flashLog.info("highlight_wait left_page ms=\(DebugLog.milliseconds(since: waited), privacy: .public)"); return
+            }
+            placement = await editor.highlightPlacement(for: shifted, in: followed, quiet: true)
         }
         var rects = placement.rects
         if waited.duration(to: .now) > .milliseconds(100) {

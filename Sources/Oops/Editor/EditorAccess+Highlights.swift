@@ -21,6 +21,12 @@ extension EditorAccess {
     func disableFullAccessibility(for snapshot: EditorSnapshot) {
         restoreFullAccessibility(pid: snapshot.pid)
     }
+    /// Whether the editor is still in the page it was read in: after a reload or a navigation there is
+    /// nothing left to place, and a switch held for it would carry over to the next page's capture.
+    func isOnItsPage(_ snapshot: EditorSnapshot) -> Bool {
+        guard let page = snapshot.page else { return true }
+        return webArea(of: snapshot.element).flatMap(self.page(of:)) == page
+    }
     /// Sets the switch on a Chromium host, on the Accessibility queue; false when it isn't one, the
     /// switch was already on (someone else's), or it wouldn't take.
     nonisolated func setFullAccessibility(pid: pid_t, geometry: CapsulePlacement.Geometry) -> Bool {
