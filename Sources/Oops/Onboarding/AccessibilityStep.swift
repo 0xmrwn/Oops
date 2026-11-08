@@ -63,6 +63,10 @@ import SwiftUI
     }
 
     func start() {
+        // Allowed when the step was made and taken away since (Settings stays open): start over.
+        if phase == .granted, !trusted {
+            phase = .waiting; check = 0; look = CGSize(width: 0, height: 0.75); needsRelaunch = false; settingsWasBehind = false
+        }
         guard timer == nil, phase != .granted else { return }
         // 30 Hz keeps the helper on the window while it's dragged around; the permission is asked
         // about less often, and at once when the system says Accessibility changed.
