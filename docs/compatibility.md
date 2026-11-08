@@ -100,9 +100,9 @@ The engines above are crossed with the situations a draft is really written in. 
 
 ## Real apps
 
-On top of the benchmark, ten real fields pass all five stages: TextEdit, Notes, the Mail message body, an Obsidian note, and a textarea and a contenteditable in each of Safari, Chrome and Zen. The Microsoft Teams and Claude composers were checked by hand.
+On top of the benchmark, ten real fields pass all five stages: TextEdit, Notes, the Mail message body, an Obsidian note, and a textarea and a contenteditable in each of Safari, Chrome and Zen. The Microsoft Teams and Claude composers were checked by hand, and so was a Notion page body in Notion's desktop app: correction, restore, reapplying the fix and highlights.
 
-Notion's desktop app didn't expose its editable field in the real-app check, so it hasn't been confirmed there, although its editor and shell both pass in the benchmark. Slack, Messages and VS Code haven't been checked as real apps either. Their engines and shells are all in the benchmark.
+Slack, Messages and VS Code haven't been checked as real apps. Their engines and shells are all in the benchmark.
 
 ## Capture and recovery
 
