@@ -36,7 +36,6 @@ import OopsCore
         testEditor.onRestore = { [weak self] in self?.restoreInTry() }
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
         shortcuts.invoke = { [weak self] in self?.session.correct() }
-        shortcuts.revert = { [weak self] in self?.session.revert() }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }
         do { try shortcuts.register() } catch { preferences.status = error.localizedDescription }
         // Onboarding doesn't ask for Accessibility yet: Settings does, once Hello closes.

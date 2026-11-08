@@ -35,7 +35,7 @@ import SwiftUI
             ("5-recording", { $0.seed(fixText, phase: .recording) }),
             ("6-recording-held", { $0.seed(fixText, phase: .recording, held: [.option]) }),
             ("7-hyper", { $0.seed(hyper, phase: .accepted, glow: 0.3) }),
-            ("8-taken", { $0.seed(fixText, phase: .recording, error: "That shortcut is already used by Restore original.") }),
+            ("8-taken", { $0.seed(fixText, phase: .recording, error: HyperShortcuts.taken(fixText)) }),
             ("9-hyper-waiting", { $0.seed(hyper, phase: .waiting) }),
             ("10-hyper-half", { $0.seed(hyper, phase: .waiting, held: [.control, .shift]) }),
             ("11-hyper-pressed", { $0.seed(hyper, phase: .waiting, held: [.control, .option, .shift, .command], key: UInt16(hyper.keyCode)) }),

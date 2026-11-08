@@ -52,10 +52,10 @@ struct CustomizePage: View {
                 Button { draft = CorrectionPolicy.defaultRules; save() } label: {
                     Label("Restore default", systemImage: "arrow.counterclockwise")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.settingsGlass)
                 .disabled(!custom && trimmed == CorrectionPolicy.defaultRules)
                 Spacer()
-                Button("Revert") { draft = saved }.buttonStyle(.glass).disabled(draft == saved)
+                Button("Revert") { draft = saved }.buttonStyle(.settingsGlass).disabled(draft == saved)
                 Button("Save", action: save)
                     .buttonStyle(.glassProminent).tint(.accentColor)
                     .disabled(draft == saved || trimmed.isEmpty)

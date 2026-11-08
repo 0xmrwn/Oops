@@ -63,7 +63,7 @@ struct DrillHeader<Mark: View>: View {
                 Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
                     .frame(width: 18, height: 18)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.settingsGlass)
             .buttonBorderShape(.circle)
             .controlSize(.large)
             .keyboardShortcut("[", modifiers: .command)

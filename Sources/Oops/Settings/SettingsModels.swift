@@ -20,7 +20,7 @@ struct ModelCard: View {
                 Spacer(minLength: 8)
                 ModelPickerButton(store: store) { store.wantsProvidersPage = true }
                 Button(action: tryIt) { Label("Try", systemImage: "text.cursor") }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass)
                     .controlSize(.large)
                     .help("Try a correction with this model")
             }
@@ -75,19 +75,19 @@ private struct ModelPickerButton: View {
             }
             .contentTransition(.opacity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.settingsGlass)
         .controlSize(.large)
         .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in presented = false }
         .accessibilityHint("Opens the model and reasoning options")
-        // Launch-only screenshot aid: `-SettingsPreviewPopover options|models` opens the popover.
+        // Screenshot aid: `-SettingsPreviewPopover options|models` opens the popover at launch.
         .task {
             guard DebugFlags.settingsPopover != nil else { return }
             try? await Task.sleep(for: .seconds(1))
             presented = true
         }
-        // Anchored to the chevron, at the pill's fixed trailing edge: the pill grows leftwards as the
-        // effort label changes, so the popover never slides. Always below: the card sits at the top
-        // of General, so there is room, and a pane change can't flip it to the other side.
+        // Anchored to the chevron, at the pill's fixed trailing edge (the pill grows leftwards with the
+        // effort label), so the popover never slides. Always below: the card tops General, so there is
+        // room, and no pane change can flip it.
         .overlay(alignment: .trailing) {
             Color.clear.frame(width: 22).padding(.trailing, 8).allowsHitTesting(false)
                 .popover(isPresented: $presented, arrowEdge: .bottom) { popover }
@@ -176,7 +176,7 @@ private struct ModelPopover: View {
                     Button { store.resetChoice() } label: {
                         Image(systemName: "arrow.counterclockwise").frame(width: 16, height: 16)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass)
                     .buttonBorderShape(.circle)
                     .disabled(settings == reset)
                     .help(reset.effort.map { "Reset to \(ModelSelection.effortName($0)), standard speed" } ?? "Reset to standard speed")
@@ -229,7 +229,7 @@ private struct ModelPopover: View {
             .accessibilityValue(on ? "On" : "Off")
             .accessibilityAddTraits(on ? .isSelected : [])
             // On: the filled bolt on a brighter glass, not the accent colour.
-            button.buttonStyle(.glass).foregroundStyle(.primary.opacity(on ? 1 : 0.7))
+            button.buttonStyle(.settingsGlass).foregroundStyle(.primary.opacity(on ? 1 : 0.7))
                 .background(Circle().fill(.primary.opacity(on ? 0.16 : 0)))
         } else {
             Color.clear.frame(width: 28, height: 28)
@@ -257,7 +257,7 @@ private struct ModelPopover: View {
             HStack {
                 if Self.hasOptions(store.currentModel) {
                     Button { drill(false) } label: { Image(systemName: "chevron.left").frame(width: 16, height: 16) }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.settingsGlass)
                         .buttonBorderShape(.circle)
                         .accessibilityLabel("Back")
                         .frame(width: 30)

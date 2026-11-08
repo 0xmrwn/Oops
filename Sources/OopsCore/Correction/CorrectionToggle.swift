@@ -33,7 +33,7 @@ public struct CorrectionToggle: Equatable, Sendable {
         }
     }
 
-    /// Whether the drop's button, the menu or the restore shortcut can still take the correction back.
+    /// Whether the drop's button or the menu can still take the correction back.
     public func canRestore(at now: Date = Date()) -> Bool { state == .corrected && isFresh(at: now) }
 
     /// After a restore or a re-apply landed: the other text is in the field, and the five minutes start again.

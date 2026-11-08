@@ -64,12 +64,12 @@ private struct ClaudeConnectionCard: View {
                             Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
                         }
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass)
                     .accessibilityLabel("Manage Claude usage (opens in browser)")
                 }
                 Divider()
                 HStack(spacing: 12) {
-                    Button { signIn() } label: { Label("Use a different account…", systemImage: "arrow.triangle.2.circlepath") }.buttonStyle(.glass)
+                    Button { signIn() } label: { Label("Use a different account…", systemImage: "arrow.triangle.2.circlepath") }.buttonStyle(.settingsGlass)
                         .help("Opens Terminal to sign Claude Code in to another account.")
                     Spacer()
                     remove
@@ -96,7 +96,7 @@ private struct ClaudeConnectionCard: View {
     }
 
     private var remove: some View {
-        Button { confirmingRemove = true } label: { Label("Remove", systemImage: "trash") }.buttonStyle(.glass)
+        Button { confirmingRemove = true } label: { Label("Remove", systemImage: "trash") }.buttonStyle(.settingsGlass)
     }
 
     private func state(_ problem: String, @ViewBuilder action: () -> some View) -> some View {
@@ -108,7 +108,7 @@ private struct ClaudeConnectionCard: View {
             Divider()
             HStack(spacing: 12) {
                 action()
-                Button { store.refreshClaude(force: true) } label: { Label("Check again", systemImage: "arrow.clockwise") }.buttonStyle(.glass)
+                Button { store.refreshClaude(force: true) } label: { Label("Check again", systemImage: "arrow.clockwise") }.buttonStyle(.settingsGlass)
                 Spacer()
                 remove
             }
@@ -179,7 +179,7 @@ private struct APIProviderForm: View {
                             .padding(.horizontal, 8).padding(.vertical, 5)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(.primary.opacity(0.05), in: .rect(cornerRadius: 6))
-                        Button("Replace…") { replacingKey = true }.buttonStyle(.glass)
+                        Button("Replace…") { replacingKey = true }.buttonStyle(.settingsGlass)
                     }
                 }
             }
@@ -191,8 +191,8 @@ private struct APIProviderForm: View {
             Divider()
             HStack(spacing: 12) {
                 if saved {
-                    Button { confirmingRemove = true } label: { Label("Remove", systemImage: "trash") }.buttonStyle(.glass).disabled(busy)
-                    if unreachable != nil { Button { store.refreshAPI(provider.id, force: true) } label: { Label("Try again", systemImage: "arrow.clockwise") }.buttonStyle(.glass) }
+                    Button { confirmingRemove = true } label: { Label("Remove", systemImage: "trash") }.buttonStyle(.settingsGlass).disabled(busy)
+                    if unreachable != nil { Button { store.refreshAPI(provider.id, force: true) } label: { Label("Try again", systemImage: "arrow.clockwise") }.buttonStyle(.settingsGlass) }
                 }
                 Spacer()
                 if busy {
@@ -200,7 +200,7 @@ private struct APIProviderForm: View {
                 } else if saved, !changed, store.health[provider.id] == .ready {
                     StatusBadge("Connected", ok: true)
                 }
-                if !saved { Button("Cancel") { store.closeDetail() }.buttonStyle(.glass).keyboardShortcut(.cancelAction) }
+                if !saved { Button("Cancel") { store.closeDetail() }.buttonStyle(.settingsGlass).keyboardShortcut(.cancelAction) }
                 Button(saved ? "Save" : "Add", action: commit)
                     .buttonStyle(.glassProminent).tint(.accentColor)
                     .disabled(!ready)

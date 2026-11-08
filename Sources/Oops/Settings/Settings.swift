@@ -305,9 +305,11 @@ private struct SettingsTabBar: View {
         .padding(Self.inset)
         .background(alignment: .leading) { pill }
         .background {
-            // The track: a faint plate with a hairline, so the glass pill is the only glass here.
+            // The track: a faint plate with a hairline, so the glass pill is the only glass here. In
+            // light the glass's edge stands in for the hairline, which a white backdrop washes out.
             Capsule().fill(.primary.opacity(colorScheme == .dark ? 0.07 : 0.05))
-                .overlay(Capsule().strokeBorder(.primary.opacity(0.1), lineWidth: 0.5))
+                .overlay { if colorScheme == .dark { Capsule().strokeBorder(.primary.opacity(0.1), lineWidth: 0.5) } }
+                .glassEdge(Capsule())
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Settings section")
@@ -320,6 +322,7 @@ private struct SettingsTabBar: View {
             let index = CGFloat(SettingsPage.allCases.firstIndex(of: selection) ?? 0)
             Capsule().fill(.clear)
                 .glassEffect(.regular.interactive(), in: .capsule)
+                .glassEdge(Capsule(), outside: true)
                 .frame(width: width, height: proxy.size.height - 2 * Self.inset)
                 .offset(x: Self.inset + index * (width + Self.gap), y: Self.inset)
         }

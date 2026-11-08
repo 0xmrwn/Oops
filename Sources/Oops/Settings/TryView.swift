@@ -33,6 +33,7 @@ struct TryView: View {
                 .foregroundStyle(.primary.opacity(active ? 1 : 0.7))
                 .glassEffect(active ? .regular.tint(.primary.opacity(0.14)).interactive() : .regular.interactive(),
                              in: .capsule)
+                .glassEdge(Capsule(), outside: true)
                 .disabled(model.busy)
                 .help("Replace the draft with a \(sample.rawValue.lowercased()) sample")
                 .accessibilityAddTraits(active ? .isSelected : [])
@@ -69,17 +70,11 @@ struct TryView: View {
     private var actions: some View {
         HStack(spacing: 10) {
             Spacer(minLength: 0)
-            Button(action: model.onRestore) {
-                HStack(spacing: 10) {
-                    Label("Restore original", systemImage: ShortcutSettings.Action.restore.symbol)
-                    // Unset by default (D10): pressing Fix text again restores too.
-                    if ShortcutSettings.shared.shortcut(.restore) != nil { HyperKeycaps(action: .restore) }
-                }
-            }
-            .buttonStyle(.glass).controlSize(.large)
+            // No keys of its own: pressing Fix text again restores too (D10).
+            Button(action: model.onRestore) { Label("Restore original", systemImage: "arrow.uturn.backward") }
+            .buttonStyle(.settingsGlass).controlSize(.large)
             .disabled(!model.canRestore || model.busy)
             .help("Restore the draft from before the last correction")
-            .accessibilityHint(ShortcutSettings.shared.shortcut(.restore)?.spoken ?? "")
 
             // Both stay alive and trade places: swapping two glass buttons in and out on every
             // status change rebuilt their glass and cost a frame each time.
@@ -92,7 +87,7 @@ struct TryView: View {
                         HyperKeycaps(action: .correct)
                     }
                 }
-                .buttonStyle(.glass).controlSize(.large)
+                .buttonStyle(.settingsGlass).controlSize(.large)
                 .disabled(!model.canCancel)
                 .help("Stop this correction")
                 .accessibilityHint(ShortcutSettings.shared.shortcut(.correct)?.spoken ?? "")
@@ -131,7 +126,7 @@ private struct Standby: ViewModifier {
 private struct PaneGlass: ViewModifier {
     let enabled: Bool
     func body(content: Content) -> some View {
-        if enabled { content.glassEffect(.clear, in: .rect(cornerRadius: 18)) } else { content }
+        if enabled { content.glassEffect(.clear, in: .rect(cornerRadius: 18)).glassEdge(RoundedRectangle(cornerRadius: 18), outside: true) } else { content }
     }
 }
 
@@ -154,7 +149,7 @@ private struct StatusStrip: View {
             Spacer(minLength: 8)
             if case let .failed(_, remedy?) = model.status {
                 Button(remedy.title) { model.openRemedy(remedy) }
-                    .buttonStyle(.glass).controlSize(.small)
+                    .buttonStyle(.settingsGlass).controlSize(.small)
             }
         }
         .frame(minHeight: 26)

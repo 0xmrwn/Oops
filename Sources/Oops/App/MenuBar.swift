@@ -27,7 +27,7 @@ import SwiftUI
         menu.addItem(statusLine)
         menu.addItem(withTitle: "Fix text", action: #selector(fix), keyEquivalent: "").image = Self.symbol(ShortcutSettings.Action.correct.symbol)
         menu.addItem(withTitle: "Restore last correction", action: #selector(restore), keyEquivalent: "").image =
-            Self.symbol(ShortcutSettings.Action.restore.symbol)
+            Self.symbol("arrow.uturn.backward")
         menu.addItem(withTitle: "Copy pending correction", action: #selector(copyPending), keyEquivalent: "").image = Self.symbol("doc.on.doc")
         menu.addItem(withTitle: "Copy original draft", action: #selector(copyOriginal), keyEquivalent: "").image = Self.symbol("doc.on.doc")
         menu.addItem(withTitle: "Turn off", action: #selector(toggleApp), keyEquivalent: "")
@@ -90,7 +90,6 @@ import SwiftUI
             case #selector(fix):
                 item.title = session.isBusy ? "Cancel correction" : "Fix text"
                 showChord(.correct, on: item)
-            case #selector(restore): showChord(.restore, on: item)
             default: break
             }
         }

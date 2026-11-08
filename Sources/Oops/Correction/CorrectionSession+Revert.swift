@@ -5,7 +5,7 @@ import OopsCore
 /// corrected restores the original, and once more re-applies the fix from memory.
 extension CorrectionSession {
     /// Puts the last correction's original back, while the corrected draft is unchanged: Fix text pressed
-    /// again, the drop's button, the menu or the restore shortcut.
+    /// again, the drop's button or the menu.
     func revert() {
         guard task == nil else { return }
         guard let record = lastCorrection, record.toggle.canRestore() else {

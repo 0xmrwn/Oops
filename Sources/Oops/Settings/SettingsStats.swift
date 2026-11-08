@@ -68,7 +68,7 @@ struct StatsPage: View {
                     }
                     Spacer()
                     Button { confirmingReset = true } label: { Label("Reset Stats", systemImage: "trash") }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.settingsGlass)
                 }
             }
             .confirmationDialog("Reset all stats?", isPresented: $confirmingReset) {

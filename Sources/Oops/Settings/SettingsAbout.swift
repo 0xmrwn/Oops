@@ -122,12 +122,12 @@ struct AboutPage: View {
             HStack(spacing: 10) {
                 StatusBadge("Couldn’t update", ok: false).help(message).accessibilityHint(message)
                 Button { Updates.shared.check() } label: { Label("Try again", systemImage: "arrow.clockwise") }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass)
             }
         case .idle:
             // Development builds carry no feed, so they never check.
             Button { Updates.shared.check() } label: { Label("Check for Updates", systemImage: "arrow.down.circle") }
-                .buttonStyle(.glass).disabled(!Updates.shared.canCheck)
+                .buttonStyle(.settingsGlass).disabled(!Updates.shared.canCheck)
         }
     }
 

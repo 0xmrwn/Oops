@@ -59,8 +59,6 @@ struct GeneralPage: View {
             // No heading: each row's icon, action and keys already say what the card is.
             VStack(alignment: .leading, spacing: 14) {
                 shortcut("Fix text", action: .correct)
-                Divider()
-                shortcut("Restore original", action: .restore)
                 if let shortcutError {
                     Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
                         .fixedSize(horizontal: false, vertical: true)
@@ -140,7 +138,7 @@ struct GeneralPage: View {
             Text(title).fontWeight(.semibold)
             Spacer(minLength: 4)
             // Left of the keys, so the keys' right edge never moves; only a changed shortcut has it. Without
-            // a default (Restore), going back to it clears the shortcut.
+            // a default (a layout with no W), going back to it clears the shortcut.
             if ShortcutSettings.shared.custom[action] != nil {
                 let fallback = ShortcutSettings.shared.defaultShortcut(action)
                 Button {
@@ -217,7 +215,7 @@ private struct OpenAtLoginRow: View {
                 Text("Open at login").fontWeight(.semibold)
                 Spacer()
                 if status == .requiresApproval {
-                    Button("Allow in Login Items…") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.glass)
+                    Button("Allow in Login Items…") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.settingsGlass)
                 }
                 Toggle("Open at login", isOn: Binding(get: { status == .enabled || status == .requiresApproval }, set: set))
                     .settingsSwitch().labelsHidden()
@@ -252,8 +250,12 @@ private struct ShortcutRecorder: View {
     @State private var held: UInt32 = 0
     @State private var monitor: Any?
     @State private var hovering = false
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var current: Shortcut? { ShortcutSettings.shared.shortcut(action) }
+    /// The field's resting outline: a step stronger in light, where a white backdrop thins it.
+    private var restingEdge: Double { contrast == .increased ? 0.4 : colorScheme == .dark ? 0.14 : 0.22 }
 
     var body: some View {
         Button { recording ? stop() : start() } label: {
@@ -279,7 +281,7 @@ private struct ShortcutRecorder: View {
             .background(Color.primary.opacity(recording ? 0.12 : hovering ? 0.08 : 0.04),
                         in: .rect(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.primary.opacity(recording ? 0.75 : hovering ? 0.28 : 0.14), lineWidth: recording ? 1.5 : 1))
+                .strokeBorder(Color.primary.opacity(recording ? 0.75 : hovering ? max(0.28, restingEdge) : restingEdge), lineWidth: recording ? 1.5 : 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -291,8 +293,6 @@ private struct ShortcutRecorder: View {
         .accessibilityLabel(title)
         .accessibilityValue(recording ? "Recording" : current?.spoken ?? "Not set")
         .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in stop() }
-        // Starting the other recorder ends this one.
-        .onChange(of: ShortcutSettings.shared.recording) { _, owner in if owner != action { stop() } }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
         .onDisappear { stop() }
     }
@@ -308,7 +308,6 @@ private struct ShortcutRecorder: View {
 
     private func start() {
         error = nil; held = 0
-        ShortcutSettings.shared.recording = action
         recording = true
         ShortcutSettings.shared.pause()
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
@@ -331,8 +330,6 @@ private struct ShortcutRecorder: View {
         guard recording else { return }
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil; recording = false; held = 0
-        if ShortcutSettings.shared.recording == action { ShortcutSettings.shared.recording = nil }
-        // The other recorder may have taken over; the shortcuts come back only when none records.
-        if ShortcutSettings.shared.recording == nil { ShortcutSettings.shared.resume() }
+        ShortcutSettings.shared.resume()
     }
 }

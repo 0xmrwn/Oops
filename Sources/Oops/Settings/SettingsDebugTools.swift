@@ -20,7 +20,7 @@ struct DebugToolsPage: View {
             HStack(spacing: 16) {
                 title("Capsule", tip: "Plays the capsule’s busy and done animation here, without sending any text.")
                 Spacer()
-                Button(action: preview) { Label("Play", systemImage: "play") }.buttonStyle(.glass)
+                Button(action: preview) { Label("Play", systemImage: "play") }.buttonStyle(.settingsGlass)
             }
             Divider()
             placementProbe
@@ -42,8 +42,8 @@ struct DebugToolsPage: View {
                     Button { NSWorkspace.shared.activateFileViewerSelecting(DebugLog.store.files()) } label: {
                         Label("Log", systemImage: "doc.text.magnifyingglass")
                     }
-                    .buttonStyle(.glass).help("Show the debug log in Finder")
-                    Button { confirmingDelete = true } label: { Label("Delete", systemImage: "trash") }.buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass).help("Show the debug log in Finder")
+                    Button { confirmingDelete = true } label: { Label("Delete", systemImage: "trash") }.buttonStyle(.settingsGlass)
                 }
                 Toggle("Debug log", isOn: $logging).settingsSwitch().labelsHidden()
             }
@@ -83,14 +83,14 @@ struct DebugToolsPage: View {
                 }
                 Spacer()
                 Button { probe.revealLog() } label: { Label("Log", systemImage: "doc.text.magnifyingglass") }
-                    .buttonStyle(.glass).help("Show the probe log in Finder")
+                    .buttonStyle(.settingsGlass).help("Show the probe log in Finder")
                 if probe.countdown == nil {
                     Button { probe.start(previewPlacement) } label: { Label("Preview", systemImage: "capsule") }
-                        .buttonStyle(.glass).help("Show the capsule where it would appear, 5 s after you press")
-                    Button { probe.start() } label: { Label("Probe", systemImage: "scope") }.buttonStyle(.glass)
+                        .buttonStyle(.settingsGlass).help("Show the capsule where it would appear, 5 s after you press")
+                    Button { probe.start() } label: { Label("Probe", systemImage: "scope") }.buttonStyle(.settingsGlass)
                         .help("Record where the text box and caret are, 5 s after you press. Geometry only, never text.")
                 } else {
-                    Button { probe.cancel() } label: { Label("Cancel", systemImage: "xmark") }.buttonStyle(.glass)
+                    Button { probe.cancel() } label: { Label("Cancel", systemImage: "xmark") }.buttonStyle(.settingsGlass)
                 }
             }
             Picker("Full accessibility in Chromium apps", selection: $probe.mode) {

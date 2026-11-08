@@ -252,7 +252,6 @@ import SwiftUI
     /// Saves a chord as Settings does; the default is stored as no custom shortcut at all.
     private func save(_ chord: Shortcut) throws {
         let settings = ShortcutSettings.shared
-        guard settings.shortcut(.restore) != chord else { throw CorrectionError.message("That shortcut is already used by Restore original.") }
         guard saves else { return }
         try settings.set(.correct, chord == settings.defaultShortcut(.correct) ? nil : chord)
         // Saving registers the hotkeys again; here they stay paused.

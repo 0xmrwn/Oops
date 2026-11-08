@@ -114,8 +114,7 @@ public struct DebugAttempt: Codable, Sendable, Equatable {
     }
 }
 
-/// A correction taken back (Fix text pressed again, the drop's button, the menu or the restore
-/// shortcut): a strong sign the model got it wrong, unless a later re-apply points at it too.
+/// A correction taken back (Fix text pressed again, the drop's button or the menu): a strong sign the model got it wrong, unless a later re-apply points at it too.
 public struct DebugRevert: Codable, Sendable, Equatable {
     public var attempt: UUID
     public var date: Date

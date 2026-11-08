@@ -69,26 +69,27 @@ struct Shortcut: Codable, Equatable {
     }
 }
 
-/// The two actions' shortcuts. Fix text defaults to ⌃⌘W wherever the layout puts W; Restore has none
-/// until one is recorded. A custom one is stored by key code under `Shortcut.<action>`.
+/// The shortcuts. Fix text, the only one, defaults to ⌃⌘W wherever the layout puts W; pressed again it
+/// restores (D10). A custom one is stored by key code under `Shortcut.<action>`.
 @MainActor @Observable final class ShortcutSettings {
     enum Action: String, CaseIterable {
-        case correct, restore
+        case correct
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
-        var symbol: String { self == .correct ? "checkmark.bubble" : "arrow.uturn.backward" }
+        var symbol: String { "checkmark.bubble" }
     }
     static let shared = ShortcutSettings()
 
     private(set) var custom: [Action: Shortcut] = [:]
-    /// The action whose shortcut is being recorded: one at a time.
-    var recording: Action?
     /// The action whose chord is down, as the hotkeys report it: a registered chord's key never
     /// reaches the app as a keyDown, and Try it lights it from here.
     fileprivate(set) var down: Action?
-    /// Set by the hotkey owner: re-registers both shortcuts, or throws without changing them.
+    /// Set by the hotkey owner: re-registers the shortcuts, or throws without changing them.
     @ObservationIgnored weak var hotkeys: HyperShortcuts?
 
     private init() {
+        // Restore had a shortcut of its own until Fix text pressed again took its place (D10): one
+        // recorded then is dropped, so it never fires or blocks a chord again.
+        UserDefaults.standard.removeObject(forKey: "Shortcut.restore")
         for action in Action.allCases {
             if let data = UserDefaults.standard.data(forKey: key(action)), let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) {
                 custom[action] = shortcut
@@ -97,23 +98,17 @@ struct Shortcut: Codable, Equatable {
     }
 
     func shortcut(_ action: Action) -> Shortcut? { custom[action] ?? defaultShortcut(action) }
-    /// ⌃⌘W to fix, a chord most people can press and that apps leave free (D8). Fix text pressed again
-    /// restores (D10), so Restore needs no chord of its own unless someone records one.
+    /// ⌃⌘W to fix, a chord most people can press and that apps leave free (D8). None when the layout
+    /// has no W.
     func defaultShortcut(_ action: Action) -> Shortcut? {
-        guard action == .correct else { return nil }
-        return KeyboardLayout.keyCode(for: "w").map { Shortcut(keyCode: $0, modifiers: UInt32(controlKey | cmdKey)) }
+        KeyboardLayout.keyCode(for: "w").map { Shortcut(keyCode: $0, modifiers: UInt32(controlKey | cmdKey)) }
     }
     func label(_ action: Action) -> String { shortcut(action)?.label ?? "—" }
 
-    /// Saves a shortcut (nil restores the default, none for Restore) once the system accepts it.
+    /// Saves a shortcut (nil restores the default) once the system accepts it.
     func set(_ action: Action, _ shortcut: Shortcut?) throws {
         let previous = custom
-        if let shortcut, Action.allCases.contains(where: { $0 != action && self.shortcut($0) == shortcut }) {
-            throw CorrectionError.message("That shortcut is already used by the other action.")
-        }
         custom[action] = shortcut
-        // Only this action's outcome decides: the other may still be taken by another app, and
-        // that must not block fixing this one.
         try? hotkeys?.register()
         if hotkeys?.failed.contains(action) == true {
             let message = self.shortcut(action).map(HyperShortcuts.taken) ?? "That shortcut can’t be used."
@@ -143,7 +138,6 @@ struct Shortcut: Codable, Equatable {
     private var refs: [EventHotKeyRef] = []
     private var layoutObserver: NSObjectProtocol?
     var invoke: (() -> Void)?
-    var revert: (() -> Void)?
     var registrationFailed: ((String) -> Void)?
     func register() throws {
         // Keep observing even when the current layout cannot bind the shortcuts.
@@ -173,30 +167,24 @@ struct Shortcut: Codable, Equatable {
             let owner = Unmanaged<HyperShortcuts>.fromOpaque(userData).takeUnretainedValue()
             KeyboardGate.shortcutHeld.withLock { $0 = pressed }
             DispatchQueue.main.async {
-                let action: ShortcutSettings.Action = id.id == 1 ? .correct : .restore
                 guard pressed else { ShortcutSettings.shared.down = nil; return }
-                guard ShortcutSettings.shared.down != action else { return }
-                ShortcutSettings.shared.down = action
-                if action == .correct { owner.invoke?() } else { owner.revert?() }
+                guard ShortcutSettings.shared.down != .correct else { return }
+                ShortcutSettings.shared.down = .correct
+                owner.invoke?()
             }
             return noErr
         }, specs.count, &specs, context, &handler)
         guard status == noErr else { throw CorrectionError.message("Could not register keyboard shortcut handler.") }
-        // Each action on its own: one taken chord must not take the other down, or Settings could
-        // never repair a pair that both collide.
         var problems: [String] = []
         for action in ShortcutSettings.Action.allCases {
             guard let shortcut = settings.shortcut(action) else {
-                // Restore unset is its default; only Fix text's default can be missing from a layout.
-                if action == .correct {
-                    failed.insert(action)
-                    problems.append("This keyboard layout has no W key for the default shortcut. Choose one in Settings.")
-                }
+                failed.insert(action)
+                problems.append("This keyboard layout has no W key for the default shortcut. Choose one in Settings.")
                 continue
             }
             var ref: EventHotKeyRef?
             let status = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers,
-                                            EventHotKeyID(signature: 0x53545854, id: action == .correct ? 1 : 2), GetEventDispatcherTarget(), 0, &ref)
+                                            EventHotKeyID(signature: 0x53545854, id: 1), GetEventDispatcherTarget(), 0, &ref)
             if status == noErr, let ref { refs.append(ref) } else {
                 failed.insert(action)
                 problems.append(Self.taken(shortcut))
@@ -209,7 +197,7 @@ struct Shortcut: Codable, Equatable {
     static func taken(_ shortcut: Shortcut) -> String {
         "\(shortcut.label) is already in use by another app. Choose another shortcut, or free that one."
     }
-    /// Stops both shortcuts until the next `register()`.
+    /// Stops the shortcuts until the next `register()`.
     func suspend() { clearRegistrations() }
     func unregister() {
         if let layoutObserver { DistributedNotificationCenter.default().removeObserver(layoutObserver) }; layoutObserver = nil

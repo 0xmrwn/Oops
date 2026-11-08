@@ -166,18 +166,18 @@ private struct ChatGPTConnectionCard: View {
                         Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
                     }
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.settingsGlass)
                 .accessibilityLabel("Manage ChatGPT usage (opens in browser)")
             }
             Divider()
             HStack(spacing: 12) {
                 // A glass button, not a link: blue text loses contrast on the clear glass.
                 Button { confirming = .switchAccount } label: { Label("Use a different account…", systemImage: "arrow.triangle.2.circlepath") }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass)
                     .help("Disconnect and forget this account, so the next sign-in can choose another one.")
                 Spacer()
                 Button { confirming = .disconnect } label: { Label("Disconnect", systemImage: "rectangle.portrait.and.arrow.right") }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.settingsGlass)
             }
             .disabled(preferences.disconnecting)
             if let message = preferences.chatGPTMessage { ChatGPTNotice(message) }

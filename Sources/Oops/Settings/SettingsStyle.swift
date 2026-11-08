@@ -42,6 +42,41 @@ extension View {
     func secondaryText() -> some View { modifier(SecondaryText()) }
     /// Settings' switches: monochrome rather than the accent blue, so they sit quietly on the glass.
     func settingsSwitch() -> some View { toggleStyle(.switch).tint(.primary.opacity(0.62)) }
+    /// The contour glass loses over a light backdrop (`GlassEdge`).
+    func glassEdge(_ shape: some InsettableShape, outside: Bool = false) -> some View {
+        modifier(GlassEdge(shape: shape, outside: outside))
+    }
+}
+
+/// Glass draws its rim in light, which vanishes when a white window sits behind Settings. In light
+/// mode a hairline of ink puts the contour back without filling the shape (no plates); dark keeps
+/// the glass's own rim. Increase Contrast strengthens it in both. A glass effect's rim light covers
+/// a hairline inside its shape, so glass surfaces take theirs just `outside` it; a glass button's
+/// own style leaves the inner one visible.
+private struct GlassEdge<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let outside: Bool
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        let opacity = contrast == .increased ? 0.4 : colorScheme == .dark ? 0 : 0.12
+        content.overlay {
+            if opacity > 0 { shape.inset(by: outside ? -1 : 0).strokeBorder(.primary.opacity(opacity), lineWidth: 1).allowsHitTesting(false) }
+        }
+    }
+}
+
+/// Settings' glass buttons, with their light-mode edge. A glass button is a capsule, or a circle when
+/// it is as wide as it is tall, which a capsule's outline also draws.
+struct SettingsGlassButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(configuration).buttonStyle(.glass).glassEdge(Capsule())
+    }
+}
+
+extension PrimitiveButtonStyle where Self == SettingsGlassButtonStyle {
+    static var settingsGlass: Self { .init() }
 }
 
 private struct SecondaryText: ViewModifier {
@@ -70,7 +105,7 @@ private struct SettingsSurface: ViewModifier {
                 .background(Color(nsColor: .controlBackgroundColor), in: shape)
                 .overlay(shape.strokeBorder(Color(nsColor: .separatorColor)))
         } else {
-            padded.glassEffect(glass, in: shape)
+            padded.glassEffect(glass, in: shape).glassEdge(shape, outside: true)
         }
     }
 }
