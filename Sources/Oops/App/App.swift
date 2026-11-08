@@ -43,8 +43,8 @@ import OopsCore
         OnboardingWindow.shared.preferences = preferences
         OnboardingWindow.shared.menuBar = menuBar
         Updates.shared.start()
-        if !UserDefaults.standard.bool(forKey: "hasLaunched") {
-            OnboardingWindow.shared.show(); UserDefaults.standard.set(true, forKey: "hasLaunched")
+        if !OnboardingWindow.finished {
+            OnboardingWindow.shared.show()
         } else if !AXIsProcessTrusted() {
             settings.show()
         }
