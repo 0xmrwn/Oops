@@ -22,6 +22,9 @@ import SwiftUI
     }
 
     private(set) var phase = Phase.waiting
+    /// macOS changed the Accessibility list while System Settings was open, yet still reports Oops as
+    /// not allowed: a copy with an earlier grant under another signature can need a relaunch to see it.
+    private(set) var needsRelaunch = false
     /// The drop is in the pointer's hand: the window's own copy steps aside.
     private(set) var carried = false
     private(set) var hovering = false
@@ -65,7 +68,7 @@ import SwiftUI
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.apple.accessibility.api"),
                                                                        object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.checkTrust() }
+            MainActor.assumeIsolated { self?.listChanged() }
         }
     }
 
@@ -137,6 +140,16 @@ import SwiftUI
         let next = CGSize(width: dx / length, height: -dy / length * 0.8)
         guard abs(next.width - look.width) > 0.02 || abs(next.height - look.height) > 0.02 else { return }
         withAnimation(.spring(duration: 0.5, bounce: 0.15)) { look = next }
+    }
+
+    /// The list changed: allowed now, or, if the system still says no a moment later, offer a relaunch.
+    private func listChanged() {
+        checkTrust()
+        guard phase == .inSettings else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            guard let self, self.phase == .inSettings, !self.trusted else { return }
+            withAnimation(.spring(duration: 0.5, bounce: 0.3)) { self.needsRelaunch = true }
+        }
     }
 
     private func checkTrust() {

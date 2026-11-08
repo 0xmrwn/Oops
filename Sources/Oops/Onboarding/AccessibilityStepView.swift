@@ -12,6 +12,10 @@ struct AccessibilityStepView: View {
         OnboardingStepLayout(height: 380) { column } primary: {
             if ready {
                 OnboardingNextButton(title: "Continue", action: next).transition(.scale(scale: 0.9).combined(with: .opacity))
+            } else if step.needsRelaunch {
+                OnboardingNextButton(title: "Relaunch Oops", icon: "arrow.clockwise", symbol: nil, width: 250, action: Relaunch.now)
+                    .help("macOS sometimes needs Oops to restart before it sees the permission")
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
             } else {
                 OnboardingNextButton(title: "Open System Settings", icon: "gearshape", symbol: nil, width: 250, action: step.openSettings)
                     .transition(.scale(scale: 0.9).combined(with: .opacity))
@@ -20,6 +24,7 @@ struct AccessibilityStepView: View {
             if !ready { OnboardingSkipButton(action: next).transition(.opacity) }
         }
         .animation(.spring(duration: 0.5, bounce: 0.3), value: ready)
+        .animation(.spring(duration: 0.5, bounce: 0.3), value: step.needsRelaunch)
         .onAppear { step.start() }
         .onDisappear { step.stop() }
     }
