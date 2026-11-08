@@ -120,8 +120,10 @@ import Testing
         #expect(step.selected == .chatGPT)
     }
 
+    /// Returns as soon as the step happens; the deadline only bounds a real failure, so it allows for a
+    /// busy machine running the suites in parallel.
     private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(2)
+        let deadline = ContinuousClock.now + .seconds(10)
         while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(2)) }
         try #require(condition(), "The expected account lifecycle step did not occur")
     }
