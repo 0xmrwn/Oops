@@ -1,0 +1,13 @@
+# Keeps the pinned actions current. Swift packages and the bake-off engines are pinned on purpose
+# and updated by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

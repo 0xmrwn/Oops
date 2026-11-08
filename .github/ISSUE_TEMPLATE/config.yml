@@ -1,5 +1,1 @@
 blank_issues_enabled: true
-contact_links:
-  - name: Report a security vulnerability
-    url: https://github.com/0xmrwn/Oops/security/advisories/new
-    about: Send a private report instead of posting vulnerability details in an issue.
