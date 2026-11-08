@@ -19,6 +19,20 @@ Oops is a macOS menu-bar app that corrects an unsent draft in place, in whicheve
 
 Fix what a hook reports rather than bypassing it (`--no-verify`) or loosening its config. If a rule is wrong, say so and why.
 
+## Workflow
+
+Every change reaches `main` through a pull request, squash-merged once CI passes. `main` takes no direct pushes or force-pushes, and every commit on it is signed.
+
+- Branch from an up-to-date `main` as `<type>/<short-slug>`, using the commit types below: `fix/duplicate-security-link`. One change per branch.
+- Commit messages and pull request titles follow [Conventional Commits](https://www.conventionalcommits.org): `<type>(<scope>): <summary>`, imperative and lowercase after the colon, no full stop, under 72 characters.
+  - Types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`, `revert`. A breaking change adds `!` after the type.
+  - Scopes, optional: `app`, `capsule`, `correction`, `editor`, `onboarding`, `settings`, `providers`, `eval`, `bakeoff`, `e2e`, `release`.
+- The pull request title becomes the commit on `main` and its description becomes the commit body, so write both for `git log`. The description is plain prose: what changed and why in a short paragraph or two, then a `Verified:` line naming what you ran (`just check`, an e2e scenario, a run in the app). Close a GitHub issue with `Fixes #N`.
+- A change people using the app would notice adds a line under the unreleased heading in `CHANGELOG.md`, in the same pull request.
+- Open the pull request with `gh pr create`. Merge it only when the person you're working for says to, with `gh pr merge --squash` once CI is green.
+- Public content (code, commits, branches, pull requests) never mentions private planning tools, their issue IDs or links, or anyone's personal details.
+- Releases are tagged `vX.Y.Z` on `main` (SemVer, `0.x` for now). The tag runs the release workflow.
+
 ## Conventions
 
 - Match the surrounding code: its density, naming and comment style. Comments say why, not what.

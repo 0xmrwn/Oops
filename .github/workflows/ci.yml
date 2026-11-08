@@ -1,9 +1,11 @@
-# Every push: hooks on every file, the Swift build, unit tests (corpus included) and the packaging contracts.
+# Every pull request and every push to main: hooks on every file, the Swift build, unit tests (corpus included) and the packaging contracts.
 # A thin wrapper over `just ci`; Accessibility e2e stays local (hosted runners can't grant TCC permissions).
 name: CI
 
 on:
+  pull_request:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
