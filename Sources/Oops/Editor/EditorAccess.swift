@@ -59,6 +59,8 @@ struct EditorSnapshot {
     var geckoMarkerSelection = true
     /// How far the draft's selection sits from the range the editor reported for it, and how much longer it is.
     var rangeShift = 0, rangeLengthShift = 0
+    /// The web page's address at capture, nil outside one.
+    var page: String?
     /// The editor's window, to recognise the editor if the app remounts it.
     var window: AXUIElement?
 }
@@ -169,7 +171,7 @@ actor EditorAccess {
             strategy = consistent; value = text; selection = range
         }
         self.logField(element, role: field.role, strategy: strategy, value: value, selection: selection)
-        let webContent = self.isWebContent(element)
+        let webArea = self.webArea(of: element), webContent = webArea != nil
         if let refusal = self.refusal(element, field: field, strategy: strategy, value: value, webContent: webContent) {
             self.restoreFullAccessibility(pid: pid)
             throw refusal
@@ -219,7 +221,7 @@ actor EditorAccess {
         return EditorSnapshot(element: element, pid: pid, hostPID: hostPID, appName: name,
                               bundleID: app.bundleIdentifier, owner: owner, appVersion: version, role: field.role, subrole: field.subrole,
                               transaction: transaction, geometry: self.geometry(element), strategy: strategy, webContent: webContent,
-                              rangeShift: shift, rangeLengthShift: lengthShift,
+                              rangeShift: shift, rangeLengthShift: lengthShift, page: webArea.flatMap(self.page(of:)),
                               window: self.attribute(element, kAXWindowAttribute).flatMap { CFGetTypeID($0) == AXUIElementGetTypeID() ? ($0 as! AXUIElement) : nil })
     }
 

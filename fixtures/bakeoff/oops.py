@@ -113,6 +113,10 @@ class Oops:
         e2e.require_screen()
         subprocess.run([str(e2e.TOOLS / "trigger"), name], check=True)
 
+    def forget(self):
+        """Drops Oops's last correction, so a case's first press corrects rather than toggles."""
+        subprocess.run([str(e2e.TOOLS / "trigger"), "forget"], check=True)
+
     def wait(self, kind, count, seconds):
         deadline = time.time() + seconds
         checked = 0
