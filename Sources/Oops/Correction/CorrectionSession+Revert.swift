@@ -61,7 +61,9 @@ extension CorrectionSession {
             do {
                 // For the words' flash; Chromium's two-second debounce may outrun a quick swap.
                 let fullAccessibility = await editor.enableFullAccessibility(for: snapshot)
-                defer { if fullAccessibility { Task { await self.editor.disableFullAccessibility(for: snapshot) } } }
+                // Handed to the flash once the swap is done: it needs the full tree until it has measured.
+                var flashOwnsSwitch = false
+                defer { if fullAccessibility, !flashOwnsSwitch { Task { await self.editor.disableFullAccessibility(for: snapshot) } } }
                 guard try await swap(id, { clipboard, protected in
                     snapshot = restoring
                         ? try await self.editor.revert(snapshot, from: from, clipboard: clipboard, protected: protected)
@@ -85,10 +87,20 @@ extension CorrectionSession {
                 }
                 capsule.hide(after: ResultTiming.seconds)
                 capsule.follow(snapshot.element) { [editor = self.editor] element in await editor.geometry(of: element) ?? geometry }
-                // After the drop: a Chromium editor can take two seconds to place the words, and the swap
-                // itself is already done.
-                await flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0, style: restoring ? .restore : .correction,
-                                      remounted: !CFEqual(snapshot.element, record.snapshot.element), patient: true)
+                // After the drop and apart from the swap, which is done: a Chromium editor can take two
+                // seconds to place the words, and a press meanwhile must toggle, not cancel. The flash
+                // only comes while this swap is the latest and its drop still shows.
+                task = nil
+                let remounted = !CFEqual(snapshot.element, record.snapshot.element)
+                flashOwnsSwitch = true
+                Task { [snapshot] in
+                    await self.flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0,
+                                               style: restoring ? .restore : .correction, remounted: remounted, patient: true) {
+                        self.generation == id && self.capsule.isShown
+                    }
+                    // A newer press holds the same switch and turns it off itself.
+                    if fullAccessibility, self.generation == id { await self.editor.disableFullAccessibility(for: snapshot) }
+                }
             } catch is CancellationError {
                 if generation == id { capsule.hide() }
             } catch {

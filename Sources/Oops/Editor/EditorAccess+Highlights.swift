@@ -87,8 +87,13 @@ extension EditorAccess {
     /// Ranges the editor cannot place are skipped; placeholders (Chromium's zero-size or
     /// off-element rects) count as unplaceable.
     func highlightRects(for ranges: [NSRange], in snapshot: EditorSnapshot, quiet: Bool = false) -> [CGRect] {
+        highlightPlacement(for: ranges, in: snapshot, quiet: quiet).rects
+    }
+
+    /// The rects, and how many of the measured ranges (at most 40) got none.
+    func highlightPlacement(for ranges: [NSRange], in snapshot: EditorSnapshot, quiet: Bool = false) -> (rects: [CGRect], missing: Int) {
         let element = snapshot.element
-        guard let box = self.frame(element) else { return [] }
+        guard let box = self.frame(element) else { return ([], min(ranges.count, 40)) }
         // A word's rect lies inside the editor; Chromium's placeholders are zero-size, whole-page, or the
         // editor's own frame (its text-marker bounds for a word in a contenteditable), which would light
         // up the whole draft.
@@ -175,7 +180,7 @@ extension EditorAccess {
         var rects: [CGRect] = [], missed: [NSRange] = []
         let started = CFAbsoluteTimeGetCurrent()
         for range in ranges.prefix(40) {
-            guard !Task.isCancelled else { return [] }
+            guard !Task.isCancelled else { return ([], min(ranges.count, 40)) }
             let placed = place(range)
             if let placed { rects += placed } else { missed.append(range) }
             #if DEBUG
@@ -190,7 +195,11 @@ extension EditorAccess {
         // rect: ask once more for what it couldn't place.
         if !missed.isEmpty {
             Thread.sleep(forTimeInterval: 0.15)
-            for range in missed where !Task.isCancelled { rects += place(range) ?? [] }
+            missed = missed.filter { range in
+                guard !Task.isCancelled, let placed = place(range) else { return true }
+                rects += placed
+                return false
+            }
         }
         // Only what shows: a word scrolled partly out of a small composer flashes where it shows.
         var visible = box, node = element
@@ -202,7 +211,7 @@ extension EditorAccess {
         rects = rects.map { $0.intersection(visible) }.filter { !$0.isNull && $0.width > 0 && $0.height > 0 }
         let ms = (CFAbsoluteTimeGetCurrent() - started) * 1000
         if !quiet { Self.highlightLog.info("highlight_rects ranges=\(ranges.count, privacy: .public) rects=\(rects.count, privacy: .public) ms=\(Int(ms), privacy: .public)") }
-        return rects
+        return (rects, missed.count)
     }
     /// The static-text descendants of a web editor with the draft offsets each covers. Blocks join
     /// with one newline in the draft; when the lengths add up neither way, the mapping is unknown.

@@ -27,26 +27,31 @@ extension CorrectionSession {
 
     /// The in-place flash over another app's draft, which now reads `text`: `ranges` shift by `offset`,
     /// where the text they were measured in starts in the full draft. Try flashes its own text view instead.
-    /// `patient`: the drop is already up, so wait for every word rather than flash the first few placed.
+    /// `patient`: the drop is already up, so wait for every word rather than flash the first few placed,
+    /// and only while `current` holds (the swap is still the latest, its drop still showing).
     func flashHighlights(_ ranges: [NSRange], in snapshot: EditorSnapshot, holding text: String, offset: Int,
-                         style: HighlightOverlay.Style, remounted: Bool = false, patient: Bool = false) async {
+                         style: HighlightOverlay.Style, remounted: Bool = false, patient: Bool = false,
+                         current: @escaping () -> Bool = { true }) async {
         guard snapshot.pid != getpid() || DebugFlags.highlightOverlayEverywhere else { return }
         // The app may have remounted the editor since the swap.
         let snapshot = await editor.following(snapshot, holding: text)
         let shifted = ranges.map { NSRange(location: $0.location + offset, length: $0.length) }
-        var rects = await editor.highlightRects(for: shifted, in: snapshot)
+        var placement = await editor.highlightPlacement(for: shifted, in: snapshot)
         // Remounted while it was measured: measure the new editor.
-        if rects.isEmpty { rects = await editor.highlightRects(for: shifted, in: editor.following(snapshot, holding: text)) }
+        if placement.rects.isEmpty { placement = await editor.highlightPlacement(for: shifted, in: editor.following(snapshot, holding: text)) }
         // Chromium fills its tree about two seconds after its switch comes on, which a quick restore or
         // reapply outruns (Notion): keep measuring until the words can be placed.
         let waited = ContinuousClock.now
-        while rects.isEmpty || (patient && rects.count < shifted.count), !Task.isCancelled,
+        while placement.rects.isEmpty || (patient && placement.missing > 0), !Task.isCancelled, current(),
               waited.duration(to: .now) < .milliseconds(2500) {
             try? await Task.sleep(for: .milliseconds(100))
-            rects = await editor.highlightRects(for: shifted, in: editor.following(snapshot, holding: text), quiet: true)
+            placement = await editor.highlightPlacement(for: shifted, in: editor.following(snapshot, holding: text), quiet: true)
         }
+        var rects = placement.rects
         if waited.duration(to: .now) > .milliseconds(100) {
-            Self.flashLog.info("highlight_wait ms=\(DebugLog.milliseconds(since: waited), privacy: .public) rects=\(rects.count, privacy: .public)")
+            Self.flashLog.info("highlight_wait ms=\(DebugLog.milliseconds(since: waited), privacy: .public) missing=\(placement.missing, privacy: .public)")
+            // Measured once more aloud, so the debug log (and the bake-off) shows what flashes.
+            if !rects.isEmpty { rects = await editor.highlightRects(for: shifted, in: editor.following(snapshot, holding: text)) }
         }
         // A rebuilt editor may still be laying out: measure until two readings agree.
         if remounted {
@@ -57,7 +62,7 @@ extension CorrectionSession {
                 rects = again
             }
         }
-        guard !Task.isCancelled, let first = shifted.first(where: { $0.length > 0 }) else { return }
+        guard !Task.isCancelled, current(), let first = shifted.first(where: { $0.length > 0 }) else { return }
         highlight.flash(rects, style: style, element: snapshot.element) { [weak self] in
             guard let editor = self?.editor else { return nil }
             return await editor.highlightRects(for: [first], in: editor.following(snapshot, holding: text), quiet: true).first
