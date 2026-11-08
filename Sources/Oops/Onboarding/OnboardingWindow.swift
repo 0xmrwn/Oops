@@ -119,7 +119,8 @@ private struct OnboardingView: View {
     }
     let close: () -> Void
     let presentation: WelcomePresentation
-    let saves: Bool
+    /// A first run not finished yet: it remembers its step. Show welcome replays from Hello and remembers nothing.
+    private let resumable: Bool
     /// The step an unfinished onboarding left off at, which it reopens at instead of Hello.
     private let resume: Step?
     @State private var director = HelloDirector()
@@ -143,8 +144,8 @@ private struct OnboardingView: View {
         _tryIt = State(initialValue: TryItStep(preferences: preferences, shortcuts: shortcut))
         _home = State(initialValue: HomeStep(saves: preferences != nil))
         self.close = close
-        saves = preferences != nil
-        resume = saves ? UserDefaults.standard.string(forKey: OnboardingWindow.resumeKey).flatMap(Step.init(rawValue:)) : nil
+        resumable = preferences != nil && !OnboardingWindow.finished
+        resume = resumable ? UserDefaults.standard.string(forKey: OnboardingWindow.resumeKey).flatMap(Step.init(rawValue:)) : nil
     }
 
     var body: some View {
@@ -206,7 +207,7 @@ private struct OnboardingView: View {
             director.play()
         }
         .onChange(of: step) { _, now in
-            if saves, now != .hello { UserDefaults.standard.set(now.rawValue, forKey: OnboardingWindow.resumeKey) }
+            if resumable, now != .hello { UserDefaults.standard.set(now.rawValue, forKey: OnboardingWindow.resumeKey) }
         }
         .environment(\.onboardingEffectsVisible, presentation.visible)
         .onDisappear { director.stop(); providers.stop(); shortcut.stop(); accessibility.stop(); tryIt.stop() }
