@@ -15,10 +15,8 @@ import SwiftUI
         self.saves = saves
         // On the first run it starts on, as a choice to keep or undo; Show welcome shows it as it is.
         let registered = [.enabled, .requiresApproval].contains(SMAppService.mainApp.status)
-        openAtLogin = !saves || registered || !UserDefaults.standard.bool(forKey: Self.finishedKey)
+        openAtLogin = !saves || registered || !OnboardingWindow.finished
     }
-
-    private static let finishedKey = "onboardingFinished"
 
     /// Whether the eyes can be seen in the menu bar; when they can't, the fold ends low on screen.
     var eyesVisible: Bool {
@@ -41,7 +39,7 @@ import SwiftUI
     /// Done: the login item as chosen, then the fold.
     func finish() {
         if saves {
-            UserDefaults.standard.set(true, forKey: Self.finishedKey)
+            OnboardingWindow.shared.markFinished()
             do {
                 let registered = [.enabled, .requiresApproval].contains(SMAppService.mainApp.status)
                 if openAtLogin, !registered { try SMAppService.mainApp.register() }

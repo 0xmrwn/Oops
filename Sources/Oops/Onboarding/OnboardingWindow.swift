@@ -5,6 +5,12 @@ import SwiftUI
 /// Show welcome; like Settings, the app is a regular one (Dock icon, Command-Tab) only while it is open.
 @MainActor final class OnboardingWindow: NSObject, NSWindowDelegate {
     static let shared = OnboardingWindow()
+    /// Set by Home's Done or by closing the window. Until then every launch reopens onboarding at
+    /// the step it left (`resumeKey`): quitting midway, or the relaunch Accessibility can need,
+    /// doesn't leave Oops silent in the menu bar.
+    static let finishedKey = "onboardingFinished"
+    static let resumeKey = "onboardingStep"
+    static var finished: Bool { UserDefaults.standard.bool(forKey: finishedKey) }
     /// Called once the window closes, so the app can ask for what onboarding didn't set up yet.
     var onClose: () -> Void = {}
     /// Where the setup steps save; nil in a `--hello-only` run beside a real Oops, which saves nothing.
@@ -40,7 +46,7 @@ import SwiftUI
         HelloZoom.window = width / HelloDraft.canvas.width
         presentation = WelcomePresentation()
         let controller = NSHostingController(rootView: OnboardingView(preferences: preferences, presentation: presentation,
-                                                                      close: { [weak self] in self?.window?.close() })
+                                                                      close: { [weak self] in self?.dismiss() })
             .focusRingsFromKeyboard())
         controller.sizingOptions = []
         let window = FocusRingsWindow(contentViewController: controller)
@@ -63,6 +69,24 @@ import SwiftUI
         guard let window else { return }
         OnboardingFold.run(window: window, drop: drop, look: look, eyes: menuBar?.eyesFrame,
                            greet: { [weak self] in self?.menuBar?.greet() }) { [weak window] in window?.close() }
+    }
+
+    /// The person closed onboarding (Escape or the close button): it counts as finished. Quitting
+    /// the app closes nothing this way, so an unfinished onboarding comes back.
+    private func dismiss() {
+        markFinished()
+        window?.close()
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        markFinished()
+        return true
+    }
+
+    func markFinished() {
+        guard preferences != nil else { return }
+        UserDefaults.standard.set(true, forKey: Self.finishedKey)
+        UserDefaults.standard.removeObject(forKey: Self.resumeKey)
     }
 
     /// Closing ends Hello (its sounds included) and releases the window, as Settings does.
@@ -95,6 +119,10 @@ private struct OnboardingView: View {
     }
     let close: () -> Void
     let presentation: WelcomePresentation
+    /// A first run not finished yet: it remembers its step. Show welcome replays from Hello and remembers nothing.
+    private let resumable: Bool
+    /// The step an unfinished onboarding left off at, which it reopens at instead of Hello.
+    private let resume: Step?
     @State private var director = HelloDirector()
     @State private var providers: ProviderStep
     @State private var shortcut: ShortcutStep
@@ -116,6 +144,8 @@ private struct OnboardingView: View {
         _tryIt = State(initialValue: TryItStep(preferences: preferences, shortcuts: shortcut))
         _home = State(initialValue: HomeStep(saves: preferences != nil))
         self.close = close
+        resumable = preferences != nil && !OnboardingWindow.finished
+        resume = resumable ? UserDefaults.standard.string(forKey: OnboardingWindow.resumeKey).flatMap(Step.init(rawValue:)) : nil
     }
 
     var body: some View {
@@ -173,7 +203,11 @@ private struct OnboardingView: View {
             }
             if DebugFlags.brandReview { director.skip(); return }
             #endif
+            if let resume { director.skip(); step = resume; dropAtStep = true; return }
             director.play()
+        }
+        .onChange(of: step) { _, now in
+            if resumable, now != .hello { UserDefaults.standard.set(now.rawValue, forKey: OnboardingWindow.resumeKey) }
         }
         .environment(\.onboardingEffectsVisible, presentation.visible)
         .onDisappear { director.stop(); providers.stop(); shortcut.stop(); accessibility.stop(); tryIt.stop() }
