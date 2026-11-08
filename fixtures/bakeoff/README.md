@@ -62,7 +62,8 @@ Each case says whether Oops should **work** or **refuse**, and why (`expect.why`
   - *revert*: the original text and atoms are back.
   - *highlight*: at least one flash rect was placed, and the flash lies inside the field's frame,
     give or take 6 points. The frame is measured from Oops's highlight panel and the probe's
-    `bounds`.
+    `bounds`. No word's pill may cover the field (90 % of its width and height): that's a placeholder
+    taken for the word's place, which lights up the whole draft.
   - *placement*: the capsule anchored to the composer or the caret, not the window or the screen.
 
   Editors that expose no text but support copy and paste on a selection skip revert and highlight,
