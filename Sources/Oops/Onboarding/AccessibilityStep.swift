@@ -5,8 +5,8 @@ import SwiftUI
 /// drag into System Settings' Accessibility list. Grabbing it (or Open System Settings) opens the
 /// pane; while System Settings is in front, a helper docked under its window carries a second drop,
 /// and the window's drop watches it. Once macOS reports the permission, the eyes become a check and
-/// onboarding comes back to the front. Nothing is inferred from opening Settings: only the system's
-/// answer moves the step on.
+/// the window it started from (onboarding, or Settings → General) comes back to the front. Nothing is
+/// inferred from opening System Settings: only the system's answer moves the step on.
 @MainActor @Observable final class AccessibilityStep {
     enum Phase: Equatable { case waiting, inSettings, granted }
 
@@ -34,6 +34,8 @@ import SwiftUI
     private(set) var check = 0.0
 
     @ObservationIgnored private let helper = AccessibilityHelper()
+    /// The window the drop is dragged from, brought back once the permission is allowed.
+    @ObservationIgnored private let home: NSUserInterfaceItemIdentifier
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var ticks = 0
     @ObservationIgnored private var observer: NSObjectProtocol?
@@ -42,7 +44,8 @@ import SwiftUI
     /// began isn't one the person opened from here.
     @ObservationIgnored private var settingsWasBehind = false
 
-    init() {
+    init(home: NSUserInterfaceItemIdentifier = ShortcutStep.window) {
+        self.home = home
         helper.onBegin = { [weak self] in self?.carried = true }
         helper.onEnd = { [weak self] in self?.carried = false }
         helper.onClick = { [weak self] in self?.openSettings() }
@@ -134,7 +137,7 @@ import SwiftUI
 
     /// The eyes turn toward System Settings, wherever it is relative to onboarding's window.
     private func watch(_ target: CGRect) {
-        guard let window = NSApp.windows.first(where: { $0.identifier == ShortcutStep.window }) else { return }
+        guard let window = NSApp.windows.first(where: { $0.identifier == home }) else { return }
         let dx = target.midX - window.frame.midX, dy = target.midY - window.frame.maxY + 140
         let length = max(hypot(dx, dy), 1)
         let next = CGSize(width: dx / length, height: -dy / length * 0.8)
@@ -160,10 +163,10 @@ import SwiftUI
         Sounds.play(.success, after: 0)
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
                              userInfo: [.announcement: "Oops is allowed", .priority: NSAccessibilityPriorityLevel.high.rawValue])
-        // Back to onboarding, where Continue now waits. Plain activate() is cooperative since macOS 14
+        // Back to the window it started from, where Continue (or the allowed permission) now shows. Plain activate() is cooperative since macOS 14
         // and waits for System Settings to give way, which it never does.
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first { $0.identifier == ShortcutStep.window }?.makeKeyAndOrderFront(nil)
+        NSApp.windows.first { $0.identifier == home }?.makeKeyAndOrderFront(nil)
     }
 }
 
