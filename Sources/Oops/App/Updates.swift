@@ -121,13 +121,17 @@ import Sparkle
     /// Sparkle quits Oops, swaps the bundle and opens the new version; the preview starts over.
     func relaunch() {
         guard preview else { driver.answer(.install); return }
-        flow?.cancel(); state = .upToDate
+        flow?.cancel(); show(.upToDate)
     }
 
     func show(_ new: State) {
         guard new != state else { return }
         let step = Self.step(state)
         state = new
+        // "Up to date" is an answer, not a resting state: Check for Updates comes back.
+        if new == .upToDate {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { if self.state == .upToDate { self.state = .idle } }
+        }
         guard Self.step(new) != step else { return }
         log.notice("state: \(Self.step(new), privacy: .public)")
         guard Self.isHarness else { return }
