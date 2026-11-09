@@ -42,7 +42,7 @@ import OopsCore
         // for the first onboarding to end too, so nothing goes out before the person has chosen anything.
         OnboardingWindow.shared.onClose = { [weak self] in
             Updates.shared.start()
-            if !AXIsProcessTrusted() { self?.settings.show() }
+            if !AccessibilityPermission.granted { self?.settings.show() }
         }
         OnboardingWindow.shared.preferences = preferences
         OnboardingWindow.shared.menuBar = menuBar
@@ -50,7 +50,7 @@ import OopsCore
             OnboardingWindow.shared.show()
         } else {
             Updates.shared.start()
-            if !AXIsProcessTrusted() { settings.show() }
+            if !AccessibilityPermission.granted { settings.show() }
         }
         #if DEBUG
         installDebugHooks()

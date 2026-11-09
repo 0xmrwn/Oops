@@ -8,7 +8,7 @@ import OopsCore
 @MainActor final class TestEditorModel: ObservableObject {
     enum Remedy: Equatable {
         case settings, accessibility
-        var title: String { self == .settings ? "Open Settings" : "Open Accessibility" }
+        var title: String { self == .settings ? "Open Settings" : "Open System Settings" }
     }
     enum Status: Equatable {
         case ready
@@ -95,7 +95,7 @@ import OopsCore
         switch remedy {
         case .settings: onOpenSettings()
         case .accessibility:
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            NSWorkspace.shared.open(AccessibilityPermission.pane)
         }
     }
 

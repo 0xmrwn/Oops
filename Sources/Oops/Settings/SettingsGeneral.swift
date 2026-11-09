@@ -113,7 +113,7 @@ struct GeneralPage: View {
     private var accessibilityCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label("Accessibility", systemImage: "accessibility").font(.headline)
+                Label(AccessibilityPermission.paneName, systemImage: AccessibilityPermission.paneSymbol).font(.headline)
                 Spacer()
                 StatusBadge("Required", ok: false)
             }
@@ -121,14 +121,18 @@ struct GeneralPage: View {
                 Text("Allow Oops to read and replace the draft you’re editing. Corrections won’t work until this permission is enabled.")
                     .secondaryText()
                     .fixedSize(horizontal: false, vertical: true)
-                // As in onboarding: a copy with an earlier grant under another signature can need a relaunch.
-                if accessibility.needsRelaunch {
-                    Button(action: Relaunch.now) { Label("Relaunch Oops", systemImage: "arrow.clockwise") }
-                        .buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
-                        .help("macOS sometimes needs Oops to restart before it sees the permission")
-                } else {
-                    Button(action: accessibility.openSettings) { Label("Open System Settings", systemImage: "arrow.up.forward.app") }
-                        .buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
+                // The action on the trailing edge, as in a macOS dialog.
+                HStack {
+                    Spacer()
+                    // As in onboarding: a copy with an earlier grant under another signature can need a relaunch.
+                    if accessibility.needsRelaunch {
+                        Button(action: Relaunch.now) { Label("Relaunch Oops", systemImage: "arrow.clockwise") }
+                            .buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
+                            .help("macOS sometimes needs Oops to restart before it sees the permission")
+                    } else {
+                        Button(action: accessibility.openSettings) { Label("Open System Settings", systemImage: "arrow.up.forward.app") }
+                            .buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
+                    }
                 }
             }
         }

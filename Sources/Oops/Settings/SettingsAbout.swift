@@ -80,7 +80,7 @@ struct AboutPage: View {
                 if hasAccessibility {
                     Divider()
                     HStack {
-                        Text("Accessibility").fontWeight(.semibold)
+                        Text(AccessibilityPermission.paneName).fontWeight(.semibold)
                         Spacer()
                         StatusBadge("Enabled", ok: true)
                     }
