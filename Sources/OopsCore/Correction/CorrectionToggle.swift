@@ -46,6 +46,13 @@ public struct CorrectionToggle: Equatable, Sendable {
         return elapsed >= 0 && elapsed < Self.window
     }
 
+    /// Whether a field found where the earlier one was is the app's remount of it: in the same slot and the
+    /// same page. Another page (a new chat, a reload to another address) holds a new draft, even one that
+    /// reads the same, so the press there corrects instead of reapplying an old fix.
+    public static func isRemount(_ now: CGRect, page: String?, of earlier: CGRect, page earlierPage: String?) -> Bool {
+        page == earlierPage && sameSlot(now, earlier)
+    }
+
     /// Whether a field found where the earlier one was is the app's remount of it rather than another field
     /// beside it: the same left edge and width, a height that differs by at most a line or two (a composer
     /// growing or shrinking with the fix), and the top or the bottom edge where it was.

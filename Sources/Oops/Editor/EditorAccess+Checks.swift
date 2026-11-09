@@ -73,14 +73,22 @@ extension EditorAccess {
 
     /// Whether the element is web content: a web area, or inside one. A web editor can keep a selection
     /// of its own apart from the DOM's, which Accessibility then echoes.
-    nonisolated func isWebContent(_ element: AXUIElement) -> Bool {
+    nonisolated func isWebContent(_ element: AXUIElement) -> Bool { webArea(of: element) != nil }
+
+    nonisolated func webArea(of element: AXUIElement) -> AXUIElement? {
         var node = element
         for _ in 0..<40 {
-            if attribute(node, kAXRoleAttribute) as? String == "AXWebArea" { return true }
-            guard let parent = attribute(node, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() else { return false }
+            if attribute(node, kAXRoleAttribute) as? String == "AXWebArea" { return node }
+            guard let parent = attribute(node, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() else { return nil }
             node = parent as! AXUIElement
         }
-        return false
+        return nil
+    }
+
+    /// The address of the page a web editor is in, which tells a remount from another page's editor.
+    nonisolated func page(of webArea: AXUIElement) -> String? {
+        guard let url = attribute(webArea, kAXURLAttribute), CFGetTypeID(url) == CFURLGetTypeID() else { return nil }
+        return (url as! URL).absoluteString
     }
 
     /// The roles around a focused element that exposes no text, for runs that score capture.

@@ -6,15 +6,15 @@ import OopsCore
 /// The revert: the correction taken back out of the editor, through the same guarded swap.
 extension EditorAccess {
     /// Whether `now` was read from the editor `earlier` was: the same element, or the one the app remounted
-    /// in its place (the earlier one gone, the new one focused in the same window, with the same role, where
-    /// the earlier one was). An element can go stale while its field lives on beside a new one, so being
+    /// in its place (the earlier one gone, the new one focused in the same window and page, with the same role,
+    /// where the earlier one was). An element can go stale while its field lives on beside a new one, so being
     /// gone alone doesn't make the new one a remount.
     func isSameEditor(_ now: EditorSnapshot, as earlier: EditorSnapshot) -> Bool {
         guard now.pid == earlier.pid else { return false }
         if CFEqual(now.element, earlier.element) { return true }
         guard now.role == earlier.role, let window = now.window, let before = earlier.window, CFEqual(window, before),
               let frame = now.geometry.element, let earlierFrame = earlier.geometry.element,
-              CorrectionToggle.sameSlot(frame, earlierFrame) else { return false }
+              CorrectionToggle.isRemount(frame, page: now.page, of: earlierFrame, page: earlier.page) else { return false }
         return attribute(earlier.element, kAXRoleAttribute) == nil
     }
 

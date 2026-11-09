@@ -77,6 +77,15 @@ final class CorrectionToggleTests: XCTestCase {
         XCTAssertTrue(CorrectionToggle.sameSlot(CGRect(x: 100, y: 580, width: 500, height: 80), composer))
     }
 
+    func testTheSameSlotInAnotherPageIsNotARemount() {
+        let composer = CGRect(x: 100, y: 600, width: 500, height: 60)
+        let chat = "https://example.com/chat/1"
+        XCTAssertTrue(CorrectionToggle.isRemount(composer, page: chat, of: composer, page: chat))
+        XCTAssertTrue(CorrectionToggle.isRemount(composer, page: nil, of: composer, page: nil))
+        XCTAssertFalse(CorrectionToggle.isRemount(composer, page: "https://example.com/chat/2", of: composer, page: chat))
+        XCTAssertFalse(CorrectionToggle.isRemount(composer, page: nil, of: composer, page: chat))
+    }
+
     func testAnotherFieldBesideItIsNot() {
         let full = CGRect(x: 0, y: 0, width: 1100, height: 754)
         // The lower half of the same window: same width and bottom edge, half the height.

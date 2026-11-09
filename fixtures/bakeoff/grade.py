@@ -88,6 +88,7 @@ class CaseRun:
         return self.oops.wait("attempt", count, 30)
 
     def run(self, first):
+        self.oops.forget()
         problem = self.show(self.host.first_load if first else 12)
         if problem:
             return self.finish(fixture=problem)

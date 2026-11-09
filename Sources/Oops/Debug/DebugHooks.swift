@@ -38,6 +38,8 @@ import OSLog
         }
         on("restore") { [weak self] _ in if self?.testEditor.presented == true { self?.restoreInTry() } }
         on("menu") { [weak self] _ in self?.menuBar?.open() }
+        // A bake-off case starts with nothing to restore or reapply, whatever the case before left.
+        on("forget") { [weak self] _ in self?.session.remember(nil); self?.session.capsule.model.canRevert = false }
         on("correct-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.correct() } }
         on("restore-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.revert() } }
         // Compatibility runs: a scratch draft in the app the trigger names, and only while it is in front.
