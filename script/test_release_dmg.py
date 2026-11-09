@@ -81,7 +81,7 @@ class DmgTests(unittest.TestCase):
             )
 
     def test_image_is_laid_out_from_the_app_link_and_window(self):
-        # Never mounted here: Finder offers to install any app on a disk image that appears, even with -nobrowse.
+        # Never mounted here: an installer helper may offer to install any app on a disk image that appears.
         # `just release dmg` mounts the real image to check it (check_image).
         (ROOT / ".build").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=ROOT / ".build") as directory:
@@ -94,6 +94,10 @@ class DmgTests(unittest.TestCase):
             self.assertEqual({path.name for path in volume.iterdir()}, {APP, "Applications", *window(ROOT)})
             self.assertEqual(str((volume / "Applications").readlink()), "/Applications")
             self.assertEqual(hashes(volume / APP), hashes(work / "Oops.app"))
+            # No Finder information or resource fork on the bundle (a hidden-extension flag is the former):
+            # `codesign --strict` rejects both, and installers that copy the app with its attributes refuse it.
+            attributes = subprocess.run(["xattr", str(volume / APP)], capture_output=True, check=True).stdout.split()
+            self.assertFalse({b"com.apple.FinderInfo", b"com.apple.ResourceFork"} & set(attributes), attributes)
             for name, source in window(ROOT).items():
                 self.assertEqual((volume / name).read_bytes(), source.read_bytes())
             info = plistlib.loads(
