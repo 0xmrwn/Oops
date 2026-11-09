@@ -174,12 +174,14 @@ public final class ChatGPTAuth: @unchecked Sendable {
                 try await self.serialized(check: check) {
                     guard var credentials = try self.store.readCredentials() else { throw ChatGPTError.signInRequired }
                     if let pending = credentials.pending { credentials = try await self.adopt(pending, into: credentials) }
-                    let tokens = credentials.tokens, left = tokens.expiresAt.timeIntervalSinceNow
-                    let usable = tokens.accessToken != rejected && left > 5
-                    if usable, left > 120 { return tokens.accessToken }
+                    // The token in a value of its own: Release builds (Swift 6.4) that compared `tokens.accessToken`
+                    // with the optional `rejected`, then returned it, handed back a string already freed.
+                    let tokens = credentials.tokens, access = tokens.accessToken, left = tokens.expiresAt.timeIntervalSinceNow
+                    let usable = access != rejected && left > 5
+                    if usable, left > 120 { return access }
                     // Never refresh before the server's `earliest_refresh_at`: a valid token serves until then.
                     if let earliest = tokens.earliestRefreshAt, earliest > Date() {
-                        if usable { return tokens.accessToken }
+                        if usable { return access }
                         throw ChatGPTError.named("refresh_deferred")
                     }
                     return try await self.refresh(credentials, check: check)

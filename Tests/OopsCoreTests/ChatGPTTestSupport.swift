@@ -10,10 +10,13 @@ final class MemoryChatGPTStore: ChatGPTStore, @unchecked Sendable {
     private var reads = 0
     private let failProfileRead: Bool
     private let failCredentialRead: Bool
+    /// Each read hands out a token in new storage, as a Keychain read that decodes it does.
+    private let freshTokens: Bool
     private let beforeExclusive: @Sendable () async -> Void
     init(profile: ChatGPTProfile? = nil, credentials: ChatGPTCredentials? = nil,
-         failProfileRead: Bool = false, failCredentialRead: Bool = false, beforeExclusive: @escaping @Sendable () async -> Void = {}) {
-        self.profile = profile; self.credentials = credentials; self.beforeExclusive = beforeExclusive
+         failProfileRead: Bool = false, failCredentialRead: Bool = false, freshTokens: Bool = false,
+         beforeExclusive: @escaping @Sendable () async -> Void = {}) {
+        self.profile = profile; self.credentials = credentials; self.beforeExclusive = beforeExclusive; self.freshTokens = freshTokens
         self.failProfileRead = failProfileRead; self.failCredentialRead = failCredentialRead
     }
     var savedProfile: ChatGPTProfile? { lock.withLock { profile } }
@@ -28,7 +31,9 @@ final class MemoryChatGPTStore: ChatGPTStore, @unchecked Sendable {
         try lock.withLock {
             reads += 1
             if failCredentialRead { throw CocoaError(.fileReadNoPermission) }
-            return credentials
+            guard freshTokens, var copy = credentials else { return credentials }
+            copy.tokens.accessToken = String(decoding: Array(copy.tokens.accessToken.utf8), as: UTF8.self)
+            return copy
         }
     }
     func writeCredentials(_ credentials: ChatGPTCredentials) throws { lock.withLock { self.credentials = credentials } }

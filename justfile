@@ -23,6 +23,12 @@ ci:
     CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache" swift test --skip-build --disable-sandbox
     python3 -m unittest discover -s script -p 'test_release*.py'
 
+# OopsCore's unit tests in a Release build, as the app ships, under Address Sanitizer: the optimizer can
+# free memory still in use where Debug passes, and only the sanitizer catches it every time
+[no-exit-message]
+test-release:
+    CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache" swift test -c release -Xswiftc -enable-testing --sanitize=address --scratch-path .build/release-asan --disable-sandbox --disable-keychain --filter OopsCoreTests
+
 # All unit tests (arguments go to swift test, e.g. --filter Placement)
 [no-exit-message]
 test *args:
