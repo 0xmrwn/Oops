@@ -11,6 +11,13 @@ extension ProviderStore {
         return true
     }
 
+    /// Whether the chosen provider's state isn't known yet: ChatGPT's sign-in is read only when
+    /// something asks, and Claude Code's check is still running.
+    var selectedIsUnknown: Bool {
+        guard let id = selection.choice?.providerID else { return false }
+        return health[id] == nil || health[id] == .checking
+    }
+
     /// The model onboarding proved, chosen at once: the choice holds until Claude Code's model list
     /// arrives with its sign-in check, which then shows that model.
     func useClaudeCode() {
