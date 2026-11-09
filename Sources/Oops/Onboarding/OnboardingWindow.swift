@@ -176,12 +176,13 @@ private struct OnboardingView: View {
                     .onboardingFooterRow(.center)
                     .transition(.opacity)
             }
-            // Escape skips Hello to Set up, then closes.
+            // Escape skips Hello to Set up, then closes. Out of the Tab loop: an invisible stop that Space
+            // pressed would close onboarding.
             Button("") { if step == .provider, providers.showingAPI { providers.backFromAPI() }
                 else if step == .hello, director.stage != .finale { director.skip() }
                 else { close() }
             }
-                .keyboardShortcut(.cancelAction).opacity(0).accessibilityHidden(true)
+                .keyboardShortcut(.cancelAction).focusable(false).opacity(0).accessibilityHidden(true)
         }
         .overlayPreferenceValue(OnboardingDropKey.self) { anchors in
             GeometryReader { proxy in
