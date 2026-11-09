@@ -88,7 +88,7 @@ actor EditorAccess {
 
     func capture() throws -> EditorSnapshot {
         try Task.checkCancellation()
-        guard AXIsProcessTrusted() else { throw CorrectionError.message("Enable Accessibility for Oops in Settings first.") }
+        guard AXIsProcessTrusted() else { throw CorrectionError.message("Allow Oops in \(AccessibilityPermission.paneName) first.") }
         var element = try self.focusedWaking()
         let pid = self.pid(of: element)
         let foreground = NSWorkspace.shared.frontmostApplication
@@ -254,7 +254,7 @@ actor EditorAccess {
     }
     /// Geometry of whatever editor has focus, without reading its text (Diagnostics preview).
     func focusedGeometry() throws -> CapsulePlacement.Geometry {
-        guard AXIsProcessTrusted() else { throw CorrectionError.message("Enable Accessibility for Oops in Settings first.") }
+        guard AXIsProcessTrusted() else { throw CorrectionError.message("Allow Oops in \(AccessibilityPermission.paneName) first.") }
         return self.geometry(try self.focusedWaking())
     }
 

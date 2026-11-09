@@ -83,7 +83,7 @@ extension CorrectionSession {
         // The message names the check that failed; it never carries the draft.
         Self.log.notice("correction_failed stage=\(String(describing: stage), privacy: .public) reason=\(message, privacy: .public)")
         attempt.fixture?.failed(message, remedy: stage == .provider ? .settings
-                                : (stage == .capture && !AXIsProcessTrusted() ? .accessibility : nil))
+                                : (stage == .capture && !AccessibilityPermission.granted ? .accessibility : nil))
         if pendingCorrection != nil {
             capsule.show(.pending, label: "Couldn’t paste", detail: message)
         } else {
@@ -106,7 +106,7 @@ extension CorrectionSession {
     /// The full message stays in the drop's tooltip and Settings.
     static func failure(_ error: Error, at stage: Stage) -> (label: String, remedy: CapsuleModel.Remedy?) {
         if (error as? CorrectionError)?.reason == .tooLong { return ("Too long", nil) }
-        if stage == .capture { return AXIsProcessTrusted() ? ("Can’t edit here", nil) : ("Allow Accessibility", .settings) }
+        if stage == .capture { return AccessibilityPermission.granted ? ("Can’t edit here", nil) : ("Not allowed", .settings) }
         return switch (error as? CorrectionError)?.reason {
         case .offline: ("No connection", .retry)
         case .slow: ("Took too long", .retry)

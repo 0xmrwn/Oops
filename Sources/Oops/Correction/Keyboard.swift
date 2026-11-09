@@ -255,7 +255,7 @@ final class KeyboardGate: @unchecked Sendable {
             if let copy = event.copy() { owner.held.append(copy) }
             return nil
         }, userInfo: Unmanaged.passUnretained(self).toOpaque())
-        guard let tap else { throw CorrectionError.message("macOS could not protect the brief text swap. Check the Accessibility permission for Oops.") }
+        guard let tap else { throw CorrectionError.message("macOS could not protect the brief text swap. Check that Oops is allowed in \(AccessibilityPermission.paneName).") }
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)

@@ -42,7 +42,7 @@ struct SettingsView: View {
     @State private var generalDetail = GeneralDetail.launchPreview
     /// About's drilled-in page. Launch-only aid: `-SettingsPreviewTab debug` or `changelog`.
     @State private var aboutDetail = AboutDetail.launchPreview
-    @State private var accessibilityEnabled = AXIsProcessTrusted()
+    @State private var accessibilityEnabled = AccessibilityPermission.granted
     /// Written on every pointer move and page change; only the eyes read it, so nothing else
     /// re-evaluates.
     @State private var spare = SpareSpaceModel()
@@ -163,6 +163,10 @@ struct SettingsView: View {
             ChatGPTWelcomeSheet { preferences.showWelcome = false }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in refreshPermission() }
+        // Changed in System Settings while this window stays open; macOS posts before the change applies.
+        .onReceive(DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.accessibility.api"))) { _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { refreshPermission() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             refreshPermission()
             if page == .providers { providerAppeared() }
@@ -255,7 +259,7 @@ struct SettingsView: View {
         accessibilityEnabled && !DebugFlags.missingAccessibility
     }
 
-    private func refreshPermission() { accessibilityEnabled = AXIsProcessTrusted() }
+    private func refreshPermission() { accessibilityEnabled = AccessibilityPermission.granted }
 }
 
 extension Notification.Name {

@@ -10,16 +10,8 @@ import SwiftUI
 @MainActor @Observable final class AccessibilityStep {
     enum Phase: Equatable { case waiting, inSettings, granted }
 
-    static let pane = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility")!
-    /// What System Settings calls that list: macOS 27 renamed it (checked on 27.0).
-    static var paneName: String { renamedPane ? "Device Control and Data Access" : "Accessibility" }
-    /// The symbol on the pane's blue tile: 27's `privacy-accessibility` icon in Privacy & Security's
-    /// Info.plist, and the Accessibility figure before it.
-    static var paneSymbol: String { renamedPane ? "folder.badge.gearshape" : "accessibility" }
-
-    private static var renamedPane: Bool {
-        if #available(macOS 27, *) { !DebugFlags.onboardingOlderPane } else { false }
-    }
+    static var paneName: String { AccessibilityPermission.paneName }
+    static var paneSymbol: String { AccessibilityPermission.paneSymbol }
 
     private(set) var phase = Phase.waiting
     /// macOS changed the Accessibility list while System Settings was open, yet still reports Oops as
@@ -59,7 +51,7 @@ import SwiftUI
         #if DEBUG
         if DebugFlags.missingAccessibility { return simulatedAt.map { $0 <= .now } ?? false }
         #endif
-        return AXIsProcessTrusted()
+        return AccessibilityPermission.granted
     }
 
     func start() {
@@ -90,7 +82,7 @@ import SwiftUI
 
     func openSettings() {
         guard phase != .granted else { return }
-        NSWorkspace.shared.open(Self.pane)
+        NSWorkspace.shared.open(AccessibilityPermission.pane)
         enterSettings()
     }
 
@@ -232,7 +224,7 @@ import SwiftUI
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.level = .floating; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        panel.title = "Oops Accessibility helper"
+        panel.title = "Oops permission helper"
         return panel
     }
 }

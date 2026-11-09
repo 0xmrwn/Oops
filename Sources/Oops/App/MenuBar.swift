@@ -141,8 +141,8 @@ import SwiftUI
             let warning = Self.symbol("exclamationmark.triangle")
             if session.isBusy {
                 setStatus("Fixing…", image: Self.symbol(ShortcutSettings.Action.correct.symbol))
-            } else if !AXIsProcessTrusted() {
-                setStatus("Allow Accessibility", image: warning)
+            } else if !AccessibilityPermission.granted {
+                setStatus("Allow in \(AccessibilityPermission.paneName)", image: warning)
             } else if let provider = store.currentProvider, let model = store.currentModel {
                 let state = store.problem(provider.id) ?? (store.status(provider.id).busy ? "Checking" : "Ready")
                 setStatus(model.name + " · " + state, image: Self.mark(provider))
