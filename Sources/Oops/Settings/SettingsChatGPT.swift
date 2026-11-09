@@ -234,7 +234,7 @@ struct ContinueWithChatGPTButton: View {
         }
         .buttonStyle(BrandButtonStyle())
         .disabled(loading)
-        .modifier(FocusVisibleRing())
+        .modifier(FocusVisibleRing(inside: listed))
         .accessibilityLabel(loading ? "Signing in with ChatGPT, finish in your browser" : "Continue with ChatGPT")
     }
 

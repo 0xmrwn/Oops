@@ -132,6 +132,8 @@ final class DraftEditorView: NSView {
 
     func focus() {
         guard let window, window.firstResponder !== textView else { return }
+        FocusRingsWindow.placing = true
+        defer { FocusRingsWindow.placing = false }
         window.makeFirstResponder(textView)
     }
 

@@ -59,10 +59,11 @@ struct TryView: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(model.editorFocused ? Color.primary.opacity(0.35)
+                // The draft takes focus on arrival; its edge marks it only as other focus rings do.
+                .strokeBorder(model.editorFocused && FocusRings.shared.shown ? Color.primary.opacity(0.35)
                               : (reduceTransparency ? Color(nsColor: .separatorColor) : .clear),
                               lineWidth: 1)
-                .animation(.easeOut(duration: 0.18), value: model.editorFocused)
+                .animation(.easeOut(duration: 0.18), value: model.editorFocused && FocusRings.shared.shown)
         }
         .modifier(PaneGlass(enabled: !reduceTransparency))
     }
