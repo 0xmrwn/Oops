@@ -15,6 +15,8 @@ struct GeneralPage: View {
     /// How long a finished correction's drop and flash stay (ResultTiming).
     @AppStorage(ResultTiming.key) private var resultSeconds = ResultTiming.fallback
     @State private var shortcutError: String?
+    /// Onboarding's drag helper, brought back to Settings once Accessibility is allowed.
+    @State private var accessibility = AccessibilityStep(home: SettingsWindow.identifier)
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -119,13 +121,20 @@ struct GeneralPage: View {
                 Text("Allow Oops to read and replace the draft you’re editing. Corrections won’t work until this permission is enabled.")
                     .secondaryText()
                     .fixedSize(horizontal: false, vertical: true)
-                Text("In System Settings → Privacy & Security → Accessibility, enable Oops, then return here.")
-                    .font(.callout).secondaryText()
-                Button(action: openAccessibility) {
-                    Label("Open System Settings", systemImage: "arrow.up.forward.app")
-                }.buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
+                // As in onboarding: a copy with an earlier grant under another signature can need a relaunch.
+                if accessibility.needsRelaunch {
+                    Button(action: Relaunch.now) { Label("Relaunch Oops", systemImage: "arrow.clockwise") }
+                        .buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
+                        .help("macOS sometimes needs Oops to restart before it sees the permission")
+                } else {
+                    Button(action: accessibility.openSettings) { Label("Open System Settings", systemImage: "arrow.up.forward.app") }
+                        .buttonStyle(.glassProminent).tint(.accentColor).controlSize(.large)
+                }
             }
-        }.settingsSurface()
+        }
+        .settingsSurface()
+        .onAppear { accessibility.start() }
+        .onDisappear { accessibility.stop() }
     }
 
     private func shortcut(_ title: String, action: ShortcutSettings.Action) -> some View {
@@ -154,10 +163,6 @@ struct GeneralPage: View {
             }
             ShortcutRecorder(title: title, action: action, error: $shortcutError)
         }
-    }
-
-    private func openAccessibility() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 }
 

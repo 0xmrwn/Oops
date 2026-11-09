@@ -4,6 +4,8 @@ import SwiftUI
 /// The Settings window: built once, shown in the middle of the screen the pointer is on, and the
 /// app becomes a regular one (Dock icon, Command-Tab) only while it is open.
 @MainActor final class SettingsWindow: NSObject, NSWindowDelegate {
+    /// What Accessibility's drag helper brings back to the front once the permission is allowed.
+    static let identifier = NSUserInterfaceItemIdentifier("settings")
     private let preferences: Preferences
     private let testEditor: TestEditorModel
     private let session: CorrectionSession?
@@ -62,6 +64,7 @@ import SwiftUI
         // One fixed size for every page: long pages scroll, short ones show the eyes.
         controller.sizingOptions = []
         let window = FocusRingsWindow(contentViewController: controller)
+        window.identifier = Self.identifier
         window.title = "Oops"; window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         // The header names the app; the title stays only for the Window menu and VoiceOver. An empty
