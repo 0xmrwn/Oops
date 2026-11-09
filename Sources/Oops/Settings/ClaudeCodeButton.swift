@@ -40,7 +40,8 @@ struct ClaudeCodeButton: View {
         }
         .buttonStyle(BrandButtonStyle())
         .disabled(loading)
-        .modifier(FocusVisibleRing())
+        // Only ever listed, inside a scroll view that would clip a ring drawn outside.
+        .modifier(FocusVisibleRing(inside: true))
         .accessibilityLabel(accessibilityTitle)
     }
 
@@ -83,22 +84,46 @@ struct BrandButtonStyle: ButtonStyle {
 }
 
 /// A focus ring for buttons that draw their own shape, where the system ring would trace the wrong outline:
-/// 3 pt in the system's keyboard-focus colour, 3 pt outside the button. Shown only once the keyboard is in
-/// use (`FocusRings`), the same rule as the system's own rings, so a click never leaves one behind.
+/// 3 pt in the system's keyboard-focus colour, 3 pt outside the button, or along its inner edge where a
+/// scroll view would clip it. Shown only once the keyboard is in use (`FocusRings`), the same rule as the
+/// system's own rings, so a click never leaves one behind.
 struct FocusVisibleRing: ViewModifier {
+    var inside = false
     @FocusState private var focused: Bool
     @Environment(\.isFocusEffectEnabled) private var keyboardInUse
+    @Environment(\.focusReport) private var report
     func body(content: Content) -> some View {
         content
             .focused($focused)
             .focusEffectDisabled()
+            .onChange(of: focused) { report?.changed($1) }
             .overlay {
                 if focused, keyboardInUse {
-                    RoundedRectangle(cornerRadius: ProviderListItem.radius + 6)
+                    RoundedRectangle(cornerRadius: ProviderListItem.radius + (inside ? 0 : 6))
                         .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 3)
-                        .padding(-6)
+                        .padding(inside ? 0 : -6)
                         .allowsHitTesting(false)
                 }
             }
     }
+}
+
+/// Tells `focusReport` when this control gains or loses focus, keeping the system's ring.
+struct FocusReporting: ViewModifier {
+    @FocusState private var focused: Bool
+    @Environment(\.focusReport) private var report
+    func body(content: Content) -> some View {
+        content.focused($focused).onChange(of: focused) { report?.changed($1) }
+    }
+}
+
+/// Called as a control below gains or loses focus, so a scrolling list can bring it into view. Equal
+/// to any other: set once per item, it never needs to update the views reading it.
+struct FocusReport: Equatable {
+    let changed: (Bool) -> Void
+    static func == (_: Self, _: Self) -> Bool { true }
+}
+
+extension EnvironmentValues {
+    @Entry var focusReport: FocusReport?
 }

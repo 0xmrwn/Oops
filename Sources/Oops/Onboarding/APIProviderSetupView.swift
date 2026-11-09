@@ -36,16 +36,12 @@ struct APIProviderSetupView: View {
             feedback.frame(height: 56)
         }
         .frame(width: 440)
-        .onAppear { DispatchQueue.main.async { focusFirst() } }
         .onDisappear { setup.enteringKey = false }
-        .onChange(of: setup.preset) { focusFirst() }
-        .onChange(of: setup.connected) { focusFirst() }
         .onChange(of: focus.wrappedValue) { _, field in setup.enteringKey = field == .key }
         .onChange(of: setup.error) { _, error in
             if let error {
                 AccessibilityNotification.Announcement(error).post()
-                if !setup.connected { focus.wrappedValue = error.localizedCaseInsensitiveContains("key") ? .key : .endpoint }
-                else if !setup.passed { Sounds.play(.failure, after: 0) }
+                if setup.connected, !setup.passed { Sounds.play(.failure, after: 0) }
             }
         }
         .onChange(of: setup.phase) { _, phase in
@@ -151,7 +147,6 @@ struct APIProviderSetupView: View {
     }
 
     private func connect() { focus.wrappedValue = nil; setup.connect() }
-    private func focusFirst() { focus.wrappedValue = setup.connected ? .model : setup.preset == nil || setup.keyOptional ? .endpoint : .key }
 }
 
 /// The API pages' forward action, in the step's primary slot: Connect, Test model, then Continue.

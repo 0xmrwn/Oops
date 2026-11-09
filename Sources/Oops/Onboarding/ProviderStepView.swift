@@ -8,6 +8,8 @@ struct ProviderStepView: View {
     let step: ProviderStep
     let next: () -> Void
     @FocusState private var apiFocus: APIProviderSetupView.Field?
+    /// The listed provider the keyboard is on, which the list scrolls into view.
+    @State private var keyboardRow: ProviderFindings.Row?
     /// The step's height, which the list's fit is worked out in.
     @State private var room: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -88,7 +90,12 @@ struct ProviderStepView: View {
 
     private var detectedRows: some View {
         VStack(spacing: fit.spacing) {
-            ForEach(step.shown) { item($0).id($0) }
+            ForEach(step.shown) { row in
+                item(row).id(row)
+                    .environment(\.focusReport, FocusReport { focused in
+                        if focused { keyboardRow = row } else if keyboardRow == row { keyboardRow = nil }
+                    })
+            }
         }
     }
 
@@ -101,6 +108,8 @@ struct ProviderStepView: View {
                 GlassEffectContainer(spacing: fit.spacing) { detectedRows.scrollTargetLayout() }
             }
             .scrollTargetBehavior(.viewAligned)
+            // Tab finishes the list before the API item: a row scrolled out of view sits behind it.
+            .focusSection()
             .frame(height: shown * ProviderListItem.height + (shown - 1) * fit.spacing)
             .providerListScrolls()
             // A preselected row below the fold comes up to the last place in view.
@@ -109,6 +118,11 @@ struct ProviderStepView: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
                     if index < visible { proxy.scrollTo(first, anchor: .top) } else { proxy.scrollTo(row, anchor: .bottom) }
                 }
+            }
+            // Tab reaching a row out of view: the least scroll that shows it whole.
+            .onChange(of: keyboardRow) { _, row in
+                guard let row else { return }
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { proxy.scrollTo(row) }
             }
         }
     }
@@ -139,6 +153,7 @@ struct ProviderStepView: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .modifier(FocusVisibleRing(inside: true))
         .glassEffect(.clear.interactive(), in: .rect(cornerRadius: ProviderListItem.radius))
     }
 
@@ -181,7 +196,9 @@ private struct ProviderStepRow: View {
         let content = ProviderListLabel(title: name) { mark } trailing: { trailing.font(.system(size: 13, weight: .medium)) }
         Group {
             if step.findings.isUsable(row) {
+                // The ring along the row's inner edge: the scrolling list clips anything outside it.
                 Button { step.choose(row) } label: { content.contentShape(.rect) }.buttonStyle(.plain)
+                    .modifier(FocusVisibleRing(inside: true))
             } else {
                 content
             }
@@ -219,7 +236,7 @@ private struct ProviderStepRow: View {
         } else if step.findings.isUsable(row) {
             Text(row == .claude || row == .chatGPT ? "Signed in" : "Running").opacity(0.7)
         } else if case .local(let id) = row {
-            Button("Set up") { step.openAPI(preset: ProviderPreset(id: id)) }.buttonStyle(.glass)
+            Button("Set up") { step.openAPI(preset: ProviderPreset(id: id)) }.buttonStyle(.glass).modifier(FocusReporting())
         }
     }
 }
