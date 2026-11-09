@@ -35,8 +35,8 @@ def build_image(root, app, image, run, work):
     run(["ditto", str(app), str(stage / APP)])
     if hashes(stage / APP) != hashes(app):
         raise ValueError("staging changed the signed app")
-    # Finder's label reads "Oops", unless the viewer shows every extension; the flag is outside the signature.
-    run(["SetFile", "-a", "E", str(stage / APP)])
+    # No hidden-extension flag: it is a FinderInfo attribute on the bundle, which `codesign --strict` rejects,
+    # and tools that copy the app with its attributes then refuse to install it. Finder hides `.app` anyway.
     (stage / "Applications").symlink_to("/Applications")
     for name, source in window(root).items():
         shutil.copyfile(source, stage / name)
@@ -87,6 +87,8 @@ def check_image(root, image, files, run, notarized=True):
                     raise ValueError(f"DMG's {name} differs from design/dmg")
             if hashes(mount / APP) != files:
                 raise ValueError("DMG's app differs from the verified notarized app")
+            # The app as it sits on the image, attributes included: what an installer copies off it.
+            run(["codesign", "--verify", "--deep", "--strict", "--verbose=2", str(mount / APP)])
             if notarized:
                 run(["xcrun", "stapler", "validate", str(mount / APP)])
         finally:
