@@ -44,6 +44,7 @@ import SwiftUI
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var status: AnyCancellable?
     @ObservationIgnored private var replaying: Task<Void, Never>?
+    @ObservationIgnored private var deciding: Task<Void, Never>?
 
     init(preferences: Preferences?, shortcuts: ShortcutStep) {
         self.preferences = preferences; self.shortcuts = shortcuts
@@ -64,6 +65,21 @@ import SwiftUI
         if DebugFlags.setupSnapshots != nil { return }
         #endif
         started = true
+        // Opened straight here (onboarding resumed after a relaunch), the provider's state may not be read
+        // yet: ask for it, and decide once it's in, rather than replay for someone who is set up.
+        guard let preferences, AXIsProcessTrusted(), !DebugFlags.missingAccessibility, preferences.providers.selectedIsUnknown else {
+            return begin()
+        }
+        if preferences.providers.selection.choice?.providerID == "chatgpt" { preferences.refreshChatGPT() }
+        deciding = Task { [weak self] in
+            var waited = 0
+            while preferences.providers.selectedIsUnknown, waited < 80 { try? await Task.sleep(for: .milliseconds(25)); waited += 1 }
+            guard !Task.isCancelled else { return }
+            self?.begin()
+        }
+    }
+
+    private func begin() {
         // Decided once, here: the steps before may just have granted Accessibility or added a provider.
         isLive = preferences.map {
             AXIsProcessTrusted() && !DebugFlags.missingAccessibility && $0.providers.selectedIsReady && (try? $0.providers.backend()) != nil
@@ -91,6 +107,7 @@ import SwiftUI
     }
 
     func stop() {
+        deciding?.cancel(); deciding = nil
         replaying?.cancel(); replaying = nil
         observers.forEach(NotificationCenter.default.removeObserver); observers = []
         status = nil
