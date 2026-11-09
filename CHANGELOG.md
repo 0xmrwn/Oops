@@ -2,6 +2,11 @@
 
 Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → About → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
 
+## 0.1.2
+
+- Oops never asks for your login password. When it can't read a saved sign-in or API key, Settings asks you to sign in or enter the key again.
+- Settings → About shows the version without the build number.
+
 ## 0.1.1
 
 - Correcting with ChatGPT no longer makes Oops quit.

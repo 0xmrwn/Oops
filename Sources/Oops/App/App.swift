@@ -99,6 +99,7 @@ import OopsCore
 @main enum OopsMain {
     @MainActor static func main() {
         signal(SIGPIPE, SIG_IGN)
+        KeychainPrompts.disallow()
         // Tooltips carry the explanations Settings no longer prints (the ⓘ marks): half a second,
         // sooner than AppKit's default but not on a pass of the pointer.
         UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 500])
