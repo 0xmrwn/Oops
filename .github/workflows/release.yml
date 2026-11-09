@@ -34,6 +34,10 @@ jobs:
       - name: Gate
         run: just ci
 
+      # What ships is optimized: OopsCore's tests again in Release, under Address Sanitizer.
+      - name: Release-build tests
+        run: just test-release
+
       - name: Signing keychain
         env:
           DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
