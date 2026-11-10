@@ -67,6 +67,11 @@ struct AboutPage: View {
             // A waiting update comes first; its notes are the Changelog's top entry.
             if let release = Updates.shared.pending {
                 UpdateCard(release: release, state: Updates.shared.state) { detail = .changelog }
+                    // Slides down from above the page on the same spring that moves the page below, so its bottom
+                    // edge keeps pace with the stats card's top: a card that faded in where it lands would cover
+                    // that card until it had moved.
+                    .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity),
+                                            removal: .opacity))
             }
             StatsCard(stats: Stats.shared) { detail = .stats }
             VStack(spacing: 14) {
@@ -107,10 +112,22 @@ struct AboutPage: View {
             .padding(.vertical, -6)
             .settingsSurface()
         }
+        // A found update eases in, and the page below makes room for it.
+        .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
     }
 
     /// Beside the version: Check, then checking, then up to date or what went wrong. A found update has its own card.
-    @ViewBuilder private var updateStatus: some View {
+    /// The states cross-fade at the button's height, so checking never resizes the row.
+    private var updateStatus: some View {
+        ZStack(alignment: .trailing) {
+            Button {} label: { Label("Check for Updates", systemImage: "arrow.down.circle") }
+                .buttonStyle(.settingsGlass).disabled(true).hidden().accessibilityHidden(true)
+            updateState.transition(.opacity)
+        }
+        .animation(.easeOut(duration: 0.2), value: Updates.shared.state)
+    }
+
+    @ViewBuilder private var updateState: some View {
         switch Updates.shared.state {
         case .checking:
             HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Checking…").secondaryText() }
