@@ -9,7 +9,7 @@ import OopsCore
 extension EditorAccess {
     /// RTF for `replacement` with each character formatted like the one it replaces, when the editor
     /// reports the span's formatting and some of it is bold, italic, underlined or struck through.
-    /// Nil leaves a plain paste: the span is plain, or its formatting can't be read.
+    /// Nil leaves a plain paste: the span is plain, holds a link, or its formatting can't be read.
     nonisolated func richInput(_ element: AXUIElement, _ range: NSRange, original: String, replacement: String) -> Data? {
         var value = CFRange(location: range.location, length: range.length)
         guard let parameter = AXValueCreate(.cfRange, &value) else { return nil }
@@ -19,6 +19,12 @@ extension EditorAccess {
                                                               parameter, &result) == .success ? result as? NSAttributedString : nil
         }
         guard let read, sameText(read.string, original) else { return nil }
+        // RTF can't carry a link Accessibility reports as an element: a plain paste keeps the editor's link.
+        var linked = false
+        read.enumerateAttribute(NSAttributedString.Key("AXLink"), in: NSRange(location: 0, length: read.length)) { value, _, stop in
+            if value != nil { linked = true; stop.pointee = true }
+        }
+        guard !linked else { return nil }
         let formatted = Self.appKitFormatting(read)
         guard Self.isFormatted(formatted) else { return nil }
         let rich = NSMutableAttributedString(string: replacement)
@@ -56,7 +62,12 @@ extension EditorAccess {
         read.enumerateAttributes(in: NSRange(location: 0, length: read.length)) { attributes, range, _ in
             var converted: [NSAttributedString.Key: Any] = [:]
             // Editors' own markers count too: Messages marks bold with `__kIMTextBoldAttributeName` beside a Semibold font.
-            let marked = { (word: String) in attributes.keys.contains { $0.rawValue.contains(word) && $0.rawValue != "AXFont" } }
+            // A marker reported as false (`AXFontBold = 0`) is no formatting.
+            let marked = { (word: String) in
+                attributes.contains { key, value in
+                    key.rawValue.contains(word) && key.rawValue != "AXFont" && ((value as? NSNumber)?.boolValue ?? true)
+                }
+            }
             if let font = attributes[NSAttributedString.Key("AXFont")] as? [String: Any] {
                 converted[.font] = Self.font(name: font["AXFontName"] as? String ?? "", size: (font["AXFontSize"] as? NSNumber)?.doubleValue ?? 13,
                                              bold: marked("Bold"), italic: marked("Italic"))

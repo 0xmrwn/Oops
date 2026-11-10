@@ -2,8 +2,8 @@ import Foundation
 
 /// Which original character each pasted character takes its formatting from, so a fix inside a bold
 /// word stays bold and a comma added after one doesn't turn bold. Characters both sides share at either
-/// end keep their own; the changed middle maps across proportionally; an insertion takes the formatting
-/// of the neighbour most like it (punctuation beside punctuation or a space, a letter beside a letter).
+/// end keep their own; the changed middle maps across proportionally, letters onto letters and punctuation
+/// onto punctuation; what has no counterpart takes the formatting of the neighbour most like it.
 public enum FormatCarry {
     /// Runs of `replacement` (UTF-16 ranges, in order, covering it) with the UTF-16 offset in `original`
     /// of the character whose formatting each run takes. Empty when `original` is.
@@ -14,7 +14,6 @@ public enum FormatCarry {
         while prefix < min(a.count, b.count), sameText(a[prefix].text, b[prefix].text) { prefix += 1 }
         var suffix = 0
         while suffix < min(a.count, b.count) - prefix, sameText(a[a.count - 1 - suffix].text, b[b.count - 1 - suffix].text) { suffix += 1 }
-        let middle = a.count - prefix - suffix, inserted = b.count - prefix - suffix
         var runs: [(range: NSRange, source: Int)] = []
         for (index, grapheme) in b.enumerated() {
             let from: Int
@@ -22,10 +21,15 @@ public enum FormatCarry {
                 from = index
             } else if index >= b.count - suffix {
                 from = a.count - (b.count - index)
-            } else if middle > 0 {
-                from = prefix + (index - prefix) * middle / inserted
             } else {
-                from = neighbour(of: grapheme.text, before: prefix - 1, after: prefix, in: a)
+                // Letters map to letters and punctuation to punctuation, so "smal," → "small." keeps the
+                // word's formatting on its new "l" and the comma's on the full stop.
+                let word = isWord(grapheme.text)
+                let same = (prefix..<(a.count - suffix)).filter { isWord(a[$0].text) == word }
+                let rank = (prefix..<index).count { isWord(b[$0].text) == word }
+                let total = (prefix..<(b.count - suffix)).count { isWord(b[$0].text) == word }
+                from = same.isEmpty ? neighbour(of: grapheme.text, before: prefix - 1, after: a.count - suffix, in: a)
+                    : same[rank * same.count / total]
             }
             let source = a[from].range.location
             if let last = runs.last, last.source == source, NSMaxRange(last.range) == grapheme.range.location {

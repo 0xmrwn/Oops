@@ -14,7 +14,7 @@ final class FormatCarryTests: XCTestCase {
     func testUnchangedWordsKeepTheirOwnFormatting() {
         // "handy" keeps its own (bold) characters; the added comma takes the space's, not the y's.
         XCTAssertEqual(carried("handy i", "handy, I"), "handy  i")
-        XCTAssertEqual(carried("handy, evriday,", "handy every day."), "handy,, evriday,")
+        XCTAssertEqual(carried("handy, evriday,", "handy every day."), "handy,eevri day,")
     }
 
     func testAFixInsideAWordTakesThatWordsFormatting() {
@@ -22,6 +22,8 @@ final class FormatCarryTests: XCTestCase {
         // An inserted letter sits beside a letter.
         XCTAssertEqual(carried("smal", "small"), "small")
         XCTAssertEqual(carried("vry", "very"), "vvry")
+        // A spelling and a punctuation fix in one span: the new letter takes the word's formatting.
+        XCTAssertEqual(carried("smal,", "small."), "small,")
     }
 
     func testRunsCoverTheReplacementInUTF16() {
