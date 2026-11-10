@@ -21,6 +21,8 @@ struct ShortcutChangeKey: View {
             .frame(height: height)
         }
         .buttonStyle(KeyButtonStyle(radius: radius))
+        // A custom style draws no system ring.
+        .modifier(FocusVisibleRing(radius: radius))
         .foregroundStyle(.white)
     }
 
@@ -55,7 +57,6 @@ private struct KeyButtonStyle: ButtonStyle {
                         .strokeBorder(.white.opacity(configuration.isPressed ? 0.7 : hovering ? 0.5 : 0.28), lineWidth: 1.25)
                 }
                 .contentShape(.rect(cornerRadius: radius))
-                .contentShape(.focusEffect, .rect(cornerRadius: radius))
                 .opacity(enabled ? 1 : 0.45)
                 .scaleEffect(configuration.isPressed ? 0.95 : 1)
                 .offset(y: configuration.isPressed ? 2 : 0)

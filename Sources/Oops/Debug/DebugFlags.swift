@@ -80,7 +80,6 @@ enum DebugFlags {
     /// `--setup-first`: onboarding skips Hello to its finale and goes straight on to the setup steps.
     static var setupFirst: Bool { argument("--setup-first") }
     static var onboardingAllProviders: Bool { brandReview && bool("OnboardingAllProviders") }
-    static var onboardingAccessibleGlass: Bool { brandReview && bool("OnboardingAccessibleGlass") }
     static var onboardingAPI: String? { brandReview ? string("OnboardingAPI") : nil }
     /// `-OnboardingStep provider|shortcut|accessibility|tryIt|home`: onboarding opens on that setup step, past Hello.
     static var onboardingStep: String? { string("OnboardingStep") }

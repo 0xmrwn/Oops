@@ -6,11 +6,10 @@ import SwiftUI
 struct APIProviderSetupView: View {
     @Bindable var setup: APIProviderSetup
     let focus: FocusState<Field?>.Binding
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    /// Opened from the keyboard: focus starts on the provider menu, not on whatever SwiftUI picks.
+    var keyboardOpened = false
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
-    private var accessibleGlass: Bool { reduceTransparency || contrast == .increased || DebugFlags.onboardingAccessibleGlass }
     enum Field: Hashable { case endpoint, key, model }
 
     private var proof: ProviderStep.Proof {
@@ -29,7 +28,8 @@ struct APIProviderSetupView: View {
                 }
                 .frame(height: 112)
                 .padding(16)
-                .glassEffect(accessibleGlass ? .regular : .clear, in: .rect(cornerRadius: 20))
+                // The regular lens, as Settings': clear glass let the bright end of the wallpaper wash the fields out.
+                .glassEffect(.regular, in: .rect(cornerRadius: 20))
             }
             .disabled(setup.busy)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: setup.connected)
@@ -117,6 +117,7 @@ struct APIProviderSetupView: View {
             .accessibilityLabel("Provider, \(setup.preset?.name ?? "Custom API")")
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+        .modifier(FocusVisibleRing(inside: true, radius: 6, claim: keyboardOpened))
     }
 
     private func field(_ title: String, @ViewBuilder content: () -> some View) -> some View {

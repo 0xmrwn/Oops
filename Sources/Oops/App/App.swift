@@ -38,8 +38,8 @@ import OopsCore
         shortcuts.invoke = { [weak self] in self?.session.correct() }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }
         do { try shortcuts.register() } catch { preferences.status = error.localizedDescription }
-        // Onboarding doesn't ask for Accessibility yet: Settings does, once Hello closes. Updates wait
-        // for the first onboarding to end too, so nothing goes out before the person has chosen anything.
+        // Onboarding asks for Accessibility in its own step; closed without it (skipped), Settings asks. Updates
+        // wait for the first onboarding to end too, so nothing goes out before the person has chosen anything.
         OnboardingWindow.shared.onClose = { [weak self] in
             Updates.shared.start()
             if !AccessibilityPermission.granted { self?.settings.show() }
