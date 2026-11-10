@@ -20,4 +20,5 @@ signed differently, so System Settings keeps one Accessibility row for both,
 tied to whichever was allowed first. When you switch between them, remove Oops
 from Privacy & Security → Accessibility with the minus button, then allow the
 build you're running. Switching the existing row on is not enough.
+
 Report security vulnerabilities [privately](SECURITY.md).
