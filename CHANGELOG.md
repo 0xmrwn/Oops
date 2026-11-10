@@ -4,6 +4,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 
 ## 0.1.4 (unreleased)
 
+- Fixing a word inside or next to bold, italic or underlined text keeps that formatting as it was, instead of dropping it or spreading it onto the fix.
 - In setup, Tab now shows where it is on Change shortcut, and opening or leaving the API setup from the keyboard keeps your place instead of jumping to Skip. The API setup's fields are easier to read over the bright end of the wallpaper.
 
 ## 0.1.3
