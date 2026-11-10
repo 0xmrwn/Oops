@@ -2,6 +2,10 @@
 
 Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → About → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
 
+## 0.1.5 (unreleased)
+
+- In Settings → About, checking for updates no longer makes the row jump, and a new version slides in instead of appearing abruptly.
+
 ## 0.1.4
 
 - Fixing a word inside or next to bold, italic or underlined text keeps that formatting as it was, instead of dropping it or spreading it onto the fix.
