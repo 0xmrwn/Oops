@@ -10,6 +10,9 @@ struct ProviderStepView: View {
     @FocusState private var apiFocus: APIProviderSetupView.Field?
     /// The listed provider the keyboard is on, which the list scrolls into view.
     @State private var keyboardRow: ProviderFindings.Row?
+    /// The API setup opened or closed from the keyboard: focus goes to the setup's first control, or back
+    /// to the API item, rather than to Skip, where one more Space would leave the step.
+    @State private var keyboardSwap: Bool?
     /// The step's height, which the list's fit is worked out in.
     @State private var room: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -25,6 +28,7 @@ struct ProviderStepView: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { room = $0 }
             .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: ready)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: step.showingAPI)
+            .onChange(of: step.showingAPI) { _, showing in keyboardSwap = FocusRings.shared.tabbed ? showing : nil }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: fit)
             .onAppear {
                 step.reduceMotion = reduceMotion
@@ -56,7 +60,7 @@ struct ProviderStepView: View {
                 .padding(.top, fit.dropToTitle)
             Group {
                 if step.showingAPI {
-                    APIProviderSetupView(setup: step.api, focus: $apiFocus)
+                    APIProviderSetupView(setup: step.api, focus: $apiFocus, keyboardOpened: keyboardSwap == true)
                 } else {
                     VStack(spacing: 0) {
                         Group {
@@ -153,7 +157,7 @@ struct ProviderStepView: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .modifier(FocusVisibleRing(inside: true))
+        .modifier(FocusVisibleRing(inside: true, claim: keyboardSwap == false))
         .glassEffect(.clear.interactive(), in: .rect(cornerRadius: ProviderListItem.radius))
     }
 

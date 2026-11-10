@@ -89,6 +89,9 @@ struct BrandButtonStyle: ButtonStyle {
 /// system's own rings, so a click never leaves one behind.
 struct FocusVisibleRing: ViewModifier {
     var inside = false
+    var radius = ProviderListItem.radius
+    /// Turning true moves focus here: where the keyboard goes after the view it was on is swapped out.
+    var claim = false
     @FocusState private var focused: Bool
     @Environment(\.isFocusEffectEnabled) private var keyboardInUse
     @Environment(\.focusReport) private var report
@@ -97,9 +100,10 @@ struct FocusVisibleRing: ViewModifier {
             .focused($focused)
             .focusEffectDisabled()
             .onChange(of: focused) { report?.changed($1) }
+            .onChange(of: claim, initial: true) { if $1 { focused = true } }
             .overlay {
                 if focused, keyboardInUse {
-                    RoundedRectangle(cornerRadius: ProviderListItem.radius + (inside ? 0 : 6))
+                    RoundedRectangle(cornerRadius: radius + (inside ? 0 : 6))
                         .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 3)
                         .padding(inside ? 0 : -6)
                         .allowsHitTesting(false)

@@ -2,6 +2,10 @@
 
 Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → About → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
 
+## 0.1.4 (unreleased)
+
+- In setup, Tab now shows where it is on Change shortcut, and opening or leaving the API setup from the keyboard keeps your place instead of jumping to Skip. The API setup's fields are easier to read over the bright end of the wallpaper.
+
 ## 0.1.3
 
 - Apps that install a downloaded disk image for you, rather than you dragging Oops to Applications, no longer refuse Oops.
