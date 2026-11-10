@@ -29,13 +29,15 @@ final class ClipboardLease: Sendable {
         self.saved = saved
         guard board.changeCount == capturedCount else { throw CorrectionError.message("The clipboard changed while preparing the correction. Try again.") }
     }
-    /// Puts `text` on the pasteboard, once per span, as long as nobody else wrote to it since.
-    func install(_ text: String) throws {
+    /// Puts `text` on the pasteboard, once per span, as long as nobody else wrote to it since; with `rtf`
+    /// beside it when the paste carries formatting.
+    func install(_ text: String, rtf: Data? = nil) throws {
         let board = NSPasteboard.general
         guard board.changeCount == ownership.withLock({ $0 }) ?? capturedCount else { throw CorrectionError.message("The clipboard changed. Nothing replaced.") }
         board.clearContents()
         let item = NSPasteboardItem()
         item.setString(text, forType: .string)
+        if let rtf { item.setData(rtf, forType: .rtf) }
         item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
         board.writeObjects([item]); ownership.withLock { $0 = board.changeCount }
     }

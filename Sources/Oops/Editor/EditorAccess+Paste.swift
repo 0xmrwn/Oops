@@ -110,7 +110,18 @@ extension EditorAccess {
                 inputOriginal = inner.original
                 span = inner.range
             }
-            try clipboard.install(input)
+            // Web editors take typed and pasted text's formatting from the first character replaced: leave
+            // out an untouched bold word at either end. Native ones get the formatting in the paste instead.
+            if target.webContent, !gecko, !nativeReplacement, span == edit.range,
+               let inner = try narrowed(edit, element: element, strategy: strategy, clipboard: clipboard, validate: validate,
+                                        reselectWhole: { selectSpan(edit.range) }) {
+                input = inner.replacement
+                inputOriginal = inner.original
+                span = inner.range
+            }
+            let rich = target.webContent || strategy != .value ? nil
+                : richInput(element, span, original: inputOriginal, replacement: input)
+            try clipboard.install(input, rtf: rich)
         } catch {
             if let failure = error as? SelectionConfirmation.Failure {
                 Self.selectionLog.notice("\(failure.diagnostic, privacy: .public)")
