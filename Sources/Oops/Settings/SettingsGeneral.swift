@@ -3,8 +3,8 @@ import OopsCore
 import ServiceManagement
 import SwiftUI
 
-/// The landing page: a waiting update, every feature at a glance, the permission while it's missing,
-/// app-wide settings, then About.
+/// The landing page: what needs the user (a missing permission, a waiting update), every feature at a glance,
+/// app-wide settings, the stats, then About.
 struct GeneralPage: View {
     let hasAccessibility: Bool
     let tabs: [SettingsTab]
@@ -22,6 +22,8 @@ struct GeneralPage: View {
     @AppStorage(ResultTiming.key) private var resultSeconds = ResultTiming.fallback
     /// Onboarding's drag helper, brought back to Settings once Accessibility is allowed.
     @State private var accessibility = AccessibilityStep(home: SettingsWindow.identifier)
+    /// Whether the open Changelog or Debug tools came from About.
+    @State private var fromAbout = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -34,9 +36,17 @@ struct GeneralPage: View {
                     StatsPage(stats: Stats.shared)
                 }
                 .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+            case .about:
+                VStack(alignment: .leading, spacing: 20) {
+                    DrillHeader(title: "About", parent: "General", back: { detail = nil }) {
+                        Image(systemName: "info.circle").font(.system(size: 18, weight: .medium))
+                    }
+                    AboutPage { page in fromAbout = true; detail = page }
+                }
+                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
             case .changelog:
                 VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Changelog", parent: "General", back: { detail = nil }) {
+                    DrillHeader(title: "Changelog", parent: fromAbout ? "About" : "General", back: back) {
                         Image(systemName: "sparkles.rectangle.stack").font(.system(size: 18, weight: .medium))
                     }
                     ChangelogPage()
@@ -44,7 +54,7 @@ struct GeneralPage: View {
                 .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
             case .debug:
                 VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Debug tools", parent: "General", back: { detail = nil }) {
+                    DrillHeader(title: "Debug tools", parent: fromAbout ? "About" : "General", back: back) {
                         Image(systemName: "ladybug").font(.system(size: 18, weight: .medium))
                     }
                     DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
@@ -57,20 +67,30 @@ struct GeneralPage: View {
         .animation(SettingsMotion.drill(reduceMotion), value: detail)
     }
 
+    /// Changelog and Debug tools go back where they were opened from: About, or General's update card.
+    private func back() {
+        detail = fromAbout ? .about : nil
+        fromAbout = false
+    }
+
     private var general: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // A waiting update comes first: the header's pill leads here. Its notes are the Changelog's top entry.
+            // What needs the user leads the page: the permission while it's missing (nothing works without it),
+            // then a waiting update, where the header's pill leads. Its notes are the Changelog's top entry.
+            if !hasAccessibility { accessibilityCard }
             if let release = Updates.shared.pending {
-                UpdateCard(release: release, state: Updates.shared.state) { detail = .changelog }
+                UpdateCard(release: release, state: Updates.shared.state) { fromAbout = false; detail = .changelog }
                     // Slides down from above the page on the same spring that moves the page below, so its bottom
                     // edge keeps pace with the next card's top: a card that faded in where it lands would cover
                     // that card until it had moved.
                     .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity),
                                             removal: .opacity))
             }
-            FeatureOverview(tabs: tabs, store: store, open: open)
-            // Only while missing: nothing works without it.
-            if !hasAccessibility { accessibilityCard }
+            FeatureOverview(tabs: tabs, store: store, open: open) { tab in
+                open(tab)
+                // After the switch has begun, which stops any recorder on the page being left.
+                DispatchQueue.main.async { NotificationCenter.default.post(name: .settingsRecordShortcut, object: tab) }
+            }
             VStack(spacing: 0) {
                 OpenAtLoginRow().padding(.vertical, 12).disabled(DebugFlags.brandReview)
                 Divider()
@@ -98,9 +118,13 @@ struct GeneralPage: View {
             }
             .padding(.vertical, -6)
             .settingsSurface()
-            AboutSection(detail: $detail)
-            // The maker's note closes the page.
-            Credit().frame(maxWidth: .infinity)
+            // Last, so it never moves as warnings come and go; the header's tally is the hook at the top.
+            StatsCard(stats: Stats.shared) { detail = .stats }
+            AboutRow(title: "About", value: AboutPage.version) { detail = .about } icon: {
+                Image(systemName: "info.circle").font(.system(size: 17, weight: .medium))
+            }
+            .padding(.vertical, -6)
+            .settingsSurface()
         }
         // A found update eases in, and the page below makes room for it.
         .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
@@ -140,10 +164,11 @@ struct GeneralPage: View {
 
 /// General's pages one level down.
 enum GeneralDetail: Hashable {
-    case stats, changelog, debug
+    case stats, about, changelog, debug
     static var launchPreview: Self? {
         switch DebugFlags.settingsTab {
         case "stats": .stats
+        case "about": .about
         case "changelog": .changelog
         case "debug", "developer", "diagnostics": .debug
         default: nil

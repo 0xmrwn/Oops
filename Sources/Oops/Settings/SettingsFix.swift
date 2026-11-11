@@ -142,6 +142,38 @@ private struct AppsList: View {
     }
 }
 
+/// The shortcut field's look: keys or a prompt in a rounded well, outlined more strongly on hover and while
+/// recording. Fix's recorder and the not-yet-wired Dictate and Actions shortcuts share it.
+struct ShortcutField<Content: View>: View {
+    var recording = false
+    var hovering = false
+    @ViewBuilder var content: Content
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    /// The resting outline: a step stronger in light, where a white backdrop thins it.
+    private var restingEdge: Double { contrast == .increased ? 0.4 : colorScheme == .dark ? 0.14 : 0.22 }
+
+    var body: some View {
+        HStack(spacing: 4) { content }
+            .padding(4)
+            .frame(minWidth: 120, alignment: .trailing)
+            .background(Color.primary.opacity(recording ? 0.12 : hovering ? 0.08 : 0.04), in: .rect(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.primary.opacity(recording ? 0.75 : hovering ? max(0.28, restingEdge) : restingEdge), lineWidth: recording ? 1.5 : 1))
+            .contentShape(Rectangle())
+    }
+}
+
+/// A shortcut field's words when it holds no keys.
+struct ShortcutPrompt: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View {
+        Text(text).font(.system(size: 13, weight: .medium)).secondaryText().frame(height: 32).padding(.horizontal, 10)
+    }
+}
+
 /// A shortcut in a field: click it, press the new keys (they show as they are held), and it is
 /// saved once the system accepts it. Escape, a second click or leaving the page cancels.
 private struct ShortcutRecorder: View {
@@ -153,39 +185,26 @@ private struct ShortcutRecorder: View {
     @State private var held: UInt32 = 0
     @State private var monitor: Any?
     @State private var hovering = false
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
 
     private var current: Shortcut? { ShortcutSettings.shared.shortcut(action) }
-    /// The field's resting outline: a step stronger in light, where a white backdrop thins it.
-    private var restingEdge: Double { contrast == .increased ? 0.4 : colorScheme == .dark ? 0.14 : 0.22 }
 
     var body: some View {
         Button { recording ? stop() : start() } label: {
-            HStack(spacing: 4) {
+            ShortcutField(recording: recording, hovering: hovering) {
                 if recording {
                     // All four held become the one Hyper key the saved shortcut shows.
                     let live = Shortcut(keyCode: 0, modifiers: held).keys.dropLast()
                     if live.isEmpty {
-                        Text("Type shortcut").font(.system(size: 13, weight: .medium)).secondaryText()
-                            .frame(height: 32).padding(.horizontal, 10)
+                        ShortcutPrompt("Type shortcut")
                     } else {
                         ForEach(Array(live), id: \.self) { keycap($0) }
                     }
                 } else if let current {
                     ForEach(current.keys, id: \.self) { keycap($0) }
                 } else {
-                    Text("Record shortcut").font(.system(size: 13, weight: .medium)).secondaryText()
-                        .frame(height: 32).padding(.horizontal, 10)
+                    ShortcutPrompt("Record shortcut")
                 }
             }
-            .padding(4)
-            .frame(minWidth: 120, alignment: .trailing)
-            .background(Color.primary.opacity(recording ? 0.12 : hovering ? 0.08 : 0.04),
-                        in: .rect(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.primary.opacity(recording ? 0.75 : hovering ? max(0.28, restingEdge) : restingEdge), lineWidth: recording ? 1.5 : 1))
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
@@ -196,6 +215,10 @@ private struct ShortcutRecorder: View {
         .accessibilityLabel(title)
         .accessibilityValue(recording ? "Recording" : current?.spoken ?? "Not set")
         .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in stop() }
+        // General's Turn on, for the feature this shortcut switches on.
+        .onReceive(NotificationCenter.default.publisher(for: .settingsRecordShortcut)) { note in
+            if note.object as? SettingsTab == .fix, action == .correct, !recording { start() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
         .onDisappear { stop() }
     }

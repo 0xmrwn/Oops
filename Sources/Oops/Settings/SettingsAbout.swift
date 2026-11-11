@@ -2,17 +2,18 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// General's About: stats, version and updates, then what's new, the welcome, the debug tools and the
-/// source. General closes with the maker's credit (`Credit`).
-struct AboutSection: View {
-    @Binding var detail: GeneralDetail?
+/// General → About: version and updates, what's new, the welcome, the debug tools and the source, closed by
+/// the maker's credit.
+struct AboutPage: View {
+    /// Opens one of About's own pages (Changelog, Debug tools).
+    let open: (GeneralDetail) -> Void
 
     /// Placeholder until the repository is public.
     private static let source = URL(string: "https://github.com/0xmrwn/oops")!
+    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            StatsCard(stats: Stats.shared) { detail = .stats }
             HStack(spacing: 12) {
                 Text("Version").fontWeight(.semibold)
                 Text(version).secondaryText().monospacedDigit().textSelection(.enabled)
@@ -21,7 +22,7 @@ struct AboutSection: View {
             }
             .settingsSurface()
             VStack(spacing: 0) {
-                AboutRow(title: "Changelog") { detail = .changelog } icon: {
+                AboutRow(title: "Changelog") { open(.changelog) } icon: {
                     Image(systemName: "sparkles.rectangle.stack").font(.system(size: 17, weight: .medium))
                 }
                 Divider()
@@ -29,7 +30,7 @@ struct AboutSection: View {
                     Image(systemName: "hand.wave").font(.system(size: 16, weight: .medium))
                 }
                 Divider()
-                AboutRow(title: "Debug tools") { detail = .debug } icon: {
+                AboutRow(title: "Debug tools") { open(.debug) } icon: {
                     Image(systemName: "ladybug").font(.system(size: 17, weight: .medium))
                 }
                 Divider()
@@ -39,6 +40,7 @@ struct AboutSection: View {
             }
             .padding(.vertical, -6)
             .settingsSurface()
+            Credit().frame(maxWidth: .infinity)
         }
     }
 
@@ -74,9 +76,7 @@ struct AboutSection: View {
         }
     }
 
-    private var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-    }
+    private var version: String { Self.version }
 }
 
 /// A release waiting to install: what it is, a way to its notes, and the one action it needs now.
@@ -120,9 +120,10 @@ struct UpdateCard: View {
     }
 }
 
-/// A list row like Providers': icon, title and where it leads (a page by default, or a link).
-private struct AboutRow<Icon: View>: View {
+/// A list row like Providers': icon, title, an optional value, and where it leads (a page by default, or a link).
+struct AboutRow<Icon: View>: View {
     let title: String
+    var value: String?
     var trailing = "chevron.right"
     let action: () -> Void
     @ViewBuilder var icon: Icon
@@ -133,6 +134,7 @@ private struct AboutRow<Icon: View>: View {
                 icon.frame(width: 24).accessibilityHidden(true)
                 Text(title).fontWeight(.semibold)
                 Spacer(minLength: 8)
+                if let value { Text(value).secondaryText().monospacedDigit() }
                 Image(systemName: trailing).font(.system(size: 11, weight: .semibold)).secondaryText()
             }
             .padding(.vertical, 12)
