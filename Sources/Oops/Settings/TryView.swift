@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import OopsCore
 
-/// Settings → General → Try: sample drafts, the draft and its status, then Restore and Fix.
+/// Settings → Fix → Try: sample drafts, the draft and its status, then Restore and Fix.
 struct TryView: View {
     @ObservedObject var model: TestEditorModel
     @Environment(\.colorScheme) private var colorScheme

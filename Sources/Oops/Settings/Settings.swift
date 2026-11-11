@@ -2,26 +2,6 @@ import AppKit
 import SwiftUI
 import OopsCore
 
-private enum SettingsPage: String, CaseIterable, Identifiable {
-    case general = "General", providers = "Providers", about = "About"
-    var id: Self { self }
-    static var launchPreview: Self {
-        switch DebugFlags.settingsTab {
-        case "provider", "providers": .providers
-        case "try", "customize", "advanced": .general
-        case "about", "stats", "changelog", "debug", "developer", "diagnostics": .about
-        default: .general
-        }
-    }
-    var symbol: String {
-        switch self {
-        case .general: "gearshape"
-        case .providers: "sparkles"
-        case .about: "info.circle"
-        }
-    }
-}
-
 struct SettingsView: View {
     @ObservedObject var preferences: Preferences
     /// The Try page's draft and status; the correction runs through AppDelegate's real pipeline.
@@ -32,16 +12,20 @@ struct SettingsView: View {
     static let height: CGFloat = 744
     /// Drops keyboard focus to the window, so no ring stays on a control of a page being hidden.
     var clearFocus: () -> Void = {}
+    /// The tabs this build shows; fixed for the life of the process.
+    private let tabs = SettingsTab.shown
     /// Launch-only screenshot aid: `-SettingsPreviewTab provider` (never persisted).
-    @State private var page = SettingsPage.launchPreview
+    @State private var page = SettingsTab.launch(DebugFlags.settingsTab, visible: SettingsTab.shown)
     /// The page fading out: it stays enabled until its fade ends, so its controls never dim.
-    @State private var leaving: SettingsPage?
+    @State private var leaving: SettingsTab?
     /// The page whose controls are live: the chosen one, set a frame before the switch animates.
-    @State private var enabled = SettingsPage.launchPreview
-    /// General's drilled-in page. Launch-only aid: `-SettingsPreviewTab try` or `customize`.
+    @State private var enabled = SettingsTab.launch(DebugFlags.settingsTab, visible: SettingsTab.shown)
+    /// General's drilled-in page. Launch-only aid: `-SettingsPreviewTab stats`, `changelog` or `debug`.
     @State private var generalDetail = GeneralDetail.launchPreview
-    /// About's drilled-in page. Launch-only aid: `-SettingsPreviewTab debug` or `changelog`.
-    @State private var aboutDetail = AboutDetail.launchPreview
+    /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
+    @State private var fixDetail = FixDetail.launchPreview
+    /// Bumped to bring the page back to its top without a page change (the update pill on General).
+    @State private var toTop = 0
     @State private var accessibilityEnabled = AccessibilityPermission.granted
     /// Written on every pointer move and page change; only the eyes read it, so nothing else
     /// re-evaluates.
@@ -58,7 +42,7 @@ struct SettingsView: View {
                 brand
                     .padding(.horizontal, 28)
                     .padding(.top, 54)
-                SettingsTabBar(selection: pageSelection)
+                SettingsTabBar(tabs: tabs, selection: pageSelection)
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
 
@@ -74,9 +58,10 @@ struct SettingsView: View {
                             // opacity, so every page would show through.
                             GlassEffectContainer(spacing: 8) {
                                 ZStack(alignment: .topLeading) {
-                                    ForEach(SettingsPage.allCases) { candidate in
+                                    ForEach(tabs) { candidate in
                                         GlassEffectContainer(spacing: 8) { pageContent(candidate) }
-                                            .modifier(PageSwap(position: position(of: candidate), enabled: candidate == enabled || candidate == leaving,
+                                            .modifier(PageSwap(position: SettingsTab.side(of: candidate, shown: page, in: tabs),
+                                                               enabled: candidate == enabled || candidate == leaving,
                                                                reduceMotion: reduceMotion))
                                     }
                                 }
@@ -104,15 +89,9 @@ struct SettingsView: View {
                     .focusEffectDisabled()
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.viewport = $0 }
                     // Whatever height the page leaves below it goes to the eyes.
-                    .overlay(alignment: .bottom) { SpareSpace(model: spare, suppressed: page == .general && generalDetail == .tryPage) }
-                    // The maker's note: About's footer, under the eyes.
-                    .overlay(alignment: .bottom) {
-                        let shown = page == .about && aboutDetail == nil
-                        Credit().padding(.bottom, 18)
-                            .opacity(shown ? 1 : 0).allowsHitTesting(shown).accessibilityHidden(!shown)
-                            .animation(SettingsMotion.page(reduceMotion), value: shown)
-                    }
+                    .overlay(alignment: .bottom) { SpareSpace(model: spare, suppressed: tryShown) }
                     .onChange(of: page) { _, _ in scroller.scrollTo("top", anchor: .top) }
+                    .onChange(of: toTop) { _, _ in withAnimation(SettingsMotion.page(reduceMotion)) { scroller.scrollTo("top", anchor: .top) } }
                 }
         }
         .frame(width: 620)
@@ -134,12 +113,10 @@ struct SettingsView: View {
         .onReceive(testEditor.$requested) { requested in
             guard requested else { return }
             testEditor.requested = false
-            if page != .general { pageSelection.wrappedValue = .general }
-            withAnimation(SettingsMotion.drill(reduceMotion)) { generalDetail = .tryPage }
+            if page != .fix { pageSelection.wrappedValue = .fix }
+            withAnimation(SettingsMotion.drill(reduceMotion)) { fixDetail = .tryPage }
         }
-        .onChange(of: page == .general && generalDetail == .tryPage, initial: true) { _, shown in testEditor.presented = shown }
-        // About's footer sits under the eyes.
-        .onChange(of: page == .about && aboutDetail == nil, initial: true) { _, footer in spare.reserved = footer ? 44 : 0 }
+        .onChange(of: tryShown, initial: true) { _, shown in testEditor.presented = shown }
         // Initial too: the capsule's Settings remedy can ask before this view exists.
         .onChange(of: preferences.providers.wantsProvidersPage, initial: true) { _, wanted in
             guard wanted else { return }
@@ -150,13 +127,12 @@ struct SettingsView: View {
         // recording and profiling the switch.
         .task {
             guard DebugFlags.cycleTabs || DebugFlags.perfHarness == "settings" else { return }
-            let order = SettingsPage.allCases
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1.5))
                 #if DEBUG
                 FramePacer.current?.markChange()
                 #endif
-                pageSelection.wrappedValue = order[((order.firstIndex(of: page) ?? 0) + 1) % order.count]
+                pageSelection.wrappedValue = tabs[((tabs.firstIndex(of: page) ?? 0) + 1) % tabs.count]
             }
         }
         .sheet(isPresented: $preferences.showWelcome) {
@@ -173,21 +149,18 @@ struct SettingsView: View {
         }
     }
 
-    /// Where a page sits relative to the one shown: -1 to its left, 0 shown, 1 to its right.
-    private func position(of candidate: SettingsPage) -> Int {
-        let order = SettingsPage.allCases
-        return (order.firstIndex(of: candidate) ?? 0).signum(relativeTo: order.firstIndex(of: page) ?? 0)
-    }
+    /// Try has eyes of its own (its status line), so the window's stay away.
+    private var tryShown: Bool { page == .fix && fixDetail == .tryPage }
 
     /// Pages slide in from their side of the tab order (see `PageSwap`).
-    private var pageSelection: Binding<SettingsPage> {
+    private var pageSelection: Binding<SettingsTab> {
         Binding(get: { page }, set: { destination in
             // The chosen tab again goes back to its list, like a tab bar on iOS.
             guard destination != page else {
                 withAnimation(SettingsMotion.drill(reduceMotion)) {
                     if page == .general { generalDetail = nil }
+                    if page == .fix { fixDetail = nil }
                     if page == .providers { preferences.providers.closeDetail() }
-                    if page == .about { aboutDetail = nil }
                 }
                 return
             }
@@ -207,6 +180,23 @@ struct SettingsView: View {
         })
     }
 
+    /// An overview row's jump: the tab's own page, not whatever was drilled into there before.
+    private func open(_ tab: SettingsTab) {
+        if tab == .fix { fixDetail = nil }
+        pageSelection.wrappedValue = tab
+    }
+
+    /// The update pill: General's top, where the update's card is.
+    private func showUpdate() {
+        if page == .general {
+            withAnimation(SettingsMotion.drill(reduceMotion)) { generalDetail = nil }
+            toTop += 1
+        } else {
+            generalDetail = nil
+            pageSelection.wrappedValue = .general
+        }
+    }
+
     private func providerAppeared() {
         preferences.refreshChatGPT(loadCatalog: true)
         preferences.providers.refresh()
@@ -224,9 +214,9 @@ struct SettingsView: View {
                 let fixed = Stats.shared.mistakesFixed
                 if fixed > 0 {
                     Button {
-                        // Choosing About again would pop its page, so only switch from another tab.
-                        if page != .about { pageSelection.wrappedValue = .about }
-                        withAnimation(SettingsMotion.drill(reduceMotion)) { aboutDetail = .stats }
+                        // Choosing General again would pop its page, so only switch from another tab.
+                        if page != .general { pageSelection.wrappedValue = .general }
+                        withAnimation(SettingsMotion.drill(reduceMotion)) { generalDetail = .stats }
                     } label: {
                         Text("\(fixed.formatted()) mistakes fixed").font(.callout).secondaryText().monospacedDigit()
                             .contentTransition(.numericText())
@@ -238,19 +228,30 @@ struct SettingsView: View {
                 }
             }
             Spacer(minLength: 0)
-            HeaderEyes(model: spare, suppressed: page == .general && generalDetail == .tryPage)
+            // A waiting update takes the eyes' place, on every page.
+            ZStack(alignment: .trailing) {
+                if let release = Updates.shared.pending {
+                    UpdatePill(release: release, open: showUpdate)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .trailing)))
+                } else {
+                    HeaderEyes(model: spare, suppressed: tryShown)
+                }
+            }
+            .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
         }
     }
 
     /// Each page is its own view with only the inputs it reads, so a switch (which changes this
     /// view's state) re-evaluates none of them: SwiftUI skips a page whose inputs are unchanged.
-    @ViewBuilder private func pageContent(_ page: SettingsPage) -> some View {
+    @ViewBuilder private func pageContent(_ page: SettingsTab) -> some View {
         switch page {
         case .general:
-            GeneralPage(hasAccessibility: hasAccessibility, store: preferences.providers, testEditor: testEditor, detail: $generalDetail)
+            GeneralPage(hasAccessibility: hasAccessibility, tabs: tabs, store: preferences.providers, preferences: preferences,
+                        detail: $generalDetail, open: open, preview: preview, previewPlacement: previewPlacement)
+        case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
+        case .dictate: DictatePage()
+        case .actions: ActionsPage()
         case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
-        case .about:
-            AboutPage(detail: $aboutDetail, hasAccessibility: hasAccessibility, preferences: preferences, preview: preview, previewPlacement: previewPlacement)
         }
     }
 
@@ -265,70 +266,6 @@ struct SettingsView: View {
 extension Notification.Name {
     /// Popovers on a page close when it hides: pages stay alive, and so would their popovers.
     static let settingsPageWillChange = Notification.Name("oops.settingsPageWillChange")
-}
-
-/// The tab bar: a capsule track spanning the content, with one Liquid Glass pill that slides to
-/// the chosen tab on the page spring. The pill is a single view that only moves: inserting a new
-/// pill in each tab on every click cost a glass layer's creation and teardown per switch.
-/// ⌘1–⌘3 switch tabs; tabs are not keyboard focus stops, so no focus ring lands on them when
-/// the window opens.
-private struct SettingsTabBar: View {
-    @Binding var selection: SettingsPage
-    @Environment(\.colorScheme) private var colorScheme
-    private static let inset: CGFloat = 4, gap: CGFloat = 4
-
-    var body: some View {
-        HStack(spacing: Self.gap) {
-            ForEach(Array(SettingsPage.allCases.enumerated()), id: \.element) { index, page in
-                let selected = page == selection
-                Button { selection = page } label: {
-                    HStack(spacing: 7) {
-                        Label(page.rawValue, systemImage: page.symbol)
-                        // A waiting update, said in words where the eye lands after the tab's name.
-                        if page == .about, Updates.shared.pending != nil {
-                            Text("Update")
-                                .font(.system(size: 10.5, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.accentColor, in: .capsule)
-                                .accessibilityLabel("Update available")
-                        }
-                    }
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary.opacity(selected ? 1 : 0.72))
-                    .frame(maxWidth: .infinity, minHeight: 32)
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
-                .help("\(page.rawValue) · ⌘\(index + 1)")
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        .padding(Self.inset)
-        .background(alignment: .leading) { pill }
-        .background {
-            // The track: a faint plate with a hairline, so the glass pill is the only glass here. In
-            // light the glass's edge stands in for the hairline, which a white backdrop washes out.
-            Capsule().fill(.primary.opacity(colorScheme == .dark ? 0.07 : 0.05))
-                .overlay { if colorScheme == .dark { Capsule().strokeBorder(.primary.opacity(0.1), lineWidth: 0.5) } }
-                .glassEdge(Capsule())
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Settings section")
-    }
-
-    private var pill: some View {
-        GeometryReader { proxy in
-            let count = CGFloat(SettingsPage.allCases.count)
-            let width = (proxy.size.width - 2 * Self.inset - (count - 1) * Self.gap) / count
-            let index = CGFloat(SettingsPage.allCases.firstIndex(of: selection) ?? 0)
-            Capsule().fill(.clear)
-                .glassEffect(.regular.interactive(), in: .capsule)
-                .glassEdge(Capsule(), outside: true)
-                .frame(width: width, height: proxy.size.height - 2 * Self.inset)
-                .offset(x: Self.inset + index * (width + Self.gap), y: Self.inset)
-        }
-    }
+    /// General's Turn on: the tab named by the object starts recording its feature's shortcut.
+    static let settingsRecordShortcut = Notification.Name("oops.settingsRecordShortcut")
 }

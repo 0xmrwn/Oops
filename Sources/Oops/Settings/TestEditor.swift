@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import OopsCore
 
-/// State for Settings → General → Try, the local test editor. The correction itself always runs through
+/// State for Settings → Fix → Try, the local test editor. The correction itself always runs through
 /// AppDelegate's real pipeline (Accessibility capture, provider call, native
 /// paste), so this model only mirrors what that pipeline reports.
 @MainActor final class TestEditorModel: ObservableObject {

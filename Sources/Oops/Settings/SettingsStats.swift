@@ -1,7 +1,7 @@
 import Charts
 import SwiftUI
 
-/// About's totals. The whole card opens the charts.
+/// The stats totals, on General. The whole card opens the charts.
 struct StatsCard: View {
     let stats: Stats
     let open: () -> Void

@@ -7,11 +7,9 @@ import SwiftUI
     var viewport: CGFloat = 0
     /// In window coordinates; nil while the pointer is outside the window.
     var pointer: CGPoint?
-    /// Room kept free at the bottom (About's footer), so the eyes centre above it.
-    var reserved: CGFloat = 0
     var spare: CGFloat { max(viewport - content, 0) }
     /// The companion's diameter under the page: up to 88 pt, smaller when the room is tight.
-    var belowHeight: CGFloat { max(min(88, (max(spare - reserved, 0) * 0.55).rounded()), 1) }
+    var belowHeight: CGFloat { max(min(88, (spare * 0.55).rounded()), 1) }
     /// Below a legible size (about 30 pt) they leave the page for the header's right side.
     var fitBelow: Bool { belowHeight >= 30 }
 }
@@ -44,7 +42,7 @@ struct SpareSpace: View {
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
 
     var body: some View {
-        let spare = max(model.spare - model.reserved, 0)
+        let spare = model.spare
         // At full strength whatever their size; too small and they go to the header instead. Always
         // in the tree: inserting and removing them made a switch that briefly narrowed the room
         // flash them.
@@ -64,7 +62,6 @@ struct SpareSpace: View {
             // spring instead of jumping there.
             .animation(SettingsMotion.page(reduceMotion), value: spare)
             .animation(SettingsMotion.page(reduceMotion), value: suppressed)
-            .padding(.bottom, model.reserved)
             .accessibilityHidden(true)
     }
 }

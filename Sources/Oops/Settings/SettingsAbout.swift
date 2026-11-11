@@ -2,98 +2,27 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// About's pages one level down.
-enum AboutDetail: Hashable {
-    case stats, changelog, debug
-    static var launchPreview: Self? {
-        switch DebugFlags.settingsTab {
-        case "stats": .stats
-        case "changelog": .changelog
-        case "debug", "developer", "diagnostics": .debug
-        default: nil
-        }
-    }
-}
-
-/// Stats, version and updates, then what's new, the source and the debug tools. The maker's
-/// credit is the window's footer on this page (`Credit`).
+/// General → About: version and updates, what's new, the welcome, the debug tools and the source, closed by
+/// the maker's credit.
 struct AboutPage: View {
-    @Binding var detail: AboutDetail?
-    let hasAccessibility: Bool
-    let preferences: Preferences
-    let preview: () -> Void
-    let previewPlacement: @MainActor () async -> String
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Opens one of About's own pages (Changelog, Debug tools).
+    let open: (GeneralDetail) -> Void
 
     /// Placeholder until the repository is public.
     private static let source = URL(string: "https://github.com/0xmrwn/oops")!
+    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—" }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            switch detail {
-            case .stats:
-                VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Stats", parent: "About", back: { detail = nil }) {
-                        Image(systemName: "chart.bar.xaxis").font(.system(size: 18, weight: .medium))
-                    }
-                    StatsPage(stats: Stats.shared)
-                }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
-            case .changelog:
-                VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Changelog", parent: "About", back: { detail = nil }) {
-                        Image(systemName: "sparkles.rectangle.stack").font(.system(size: 18, weight: .medium))
-                    }
-                    ChangelogPage()
-                }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
-            case .debug:
-                VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Debug tools", parent: "About", back: { detail = nil }) {
-                        Image(systemName: "ladybug").font(.system(size: 18, weight: .medium))
-                    }
-                    DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
-                }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
-            case nil:
-                overview.transition(PaneSlideTransition(edge: -1, reduceMotion: reduceMotion))
-            }
-        }
-        .animation(SettingsMotion.drill(reduceMotion), value: detail)
-    }
-
-    private var overview: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // A waiting update comes first; its notes are the Changelog's top entry.
-            if let release = Updates.shared.pending {
-                UpdateCard(release: release, state: Updates.shared.state) { detail = .changelog }
-                    // Slides down from above the page on the same spring that moves the page below, so its bottom
-                    // edge keeps pace with the stats card's top: a card that faded in where it lands would cover
-                    // that card until it had moved.
-                    .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity),
-                                            removal: .opacity))
-            }
-            StatsCard(stats: Stats.shared) { detail = .stats }
-            VStack(spacing: 14) {
-                HStack(spacing: 12) {
-                    Text("Version").fontWeight(.semibold)
-                    Text(version).secondaryText().monospacedDigit().textSelection(.enabled)
-                    Spacer(minLength: 8)
-                    updateStatus
-                }
-                // General shows the permission only while it is missing.
-                if hasAccessibility {
-                    Divider()
-                    HStack {
-                        Text(AccessibilityPermission.paneName).fontWeight(.semibold)
-                        Spacer()
-                        StatusBadge("Enabled", ok: true)
-                    }
-                }
+            HStack(spacing: 12) {
+                Text("Version").fontWeight(.semibold)
+                Text(version).secondaryText().monospacedDigit().textSelection(.enabled)
+                Spacer(minLength: 8)
+                updateStatus
             }
             .settingsSurface()
             VStack(spacing: 0) {
-                AboutRow(title: "Changelog") { detail = .changelog } icon: {
+                AboutRow(title: "Changelog") { open(.changelog) } icon: {
                     Image(systemName: "sparkles.rectangle.stack").font(.system(size: 17, weight: .medium))
                 }
                 Divider()
@@ -101,7 +30,7 @@ struct AboutPage: View {
                     Image(systemName: "hand.wave").font(.system(size: 16, weight: .medium))
                 }
                 Divider()
-                AboutRow(title: "Debug tools") { detail = .debug } icon: {
+                AboutRow(title: "Debug tools") { open(.debug) } icon: {
                     Image(systemName: "ladybug").font(.system(size: 17, weight: .medium))
                 }
                 Divider()
@@ -111,9 +40,8 @@ struct AboutPage: View {
             }
             .padding(.vertical, -6)
             .settingsSurface()
+            Credit().frame(maxWidth: .infinity)
         }
-        // A found update eases in, and the page below makes room for it.
-        .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
     }
 
     /// Beside the version: Check, then checking, then up to date or what went wrong. A found update has its own card.
@@ -148,13 +76,11 @@ struct AboutPage: View {
         }
     }
 
-    private var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-    }
+    private var version: String { Self.version }
 }
 
 /// A release waiting to install: what it is, a way to its notes, and the one action it needs now.
-private struct UpdateCard: View {
+struct UpdateCard: View {
     let release: Updates.Release
     let state: Updates.State
     let showNotes: () -> Void
@@ -194,9 +120,10 @@ private struct UpdateCard: View {
     }
 }
 
-/// A list row like Providers': icon, title and where it leads (a page by default, or a link).
-private struct AboutRow<Icon: View>: View {
+/// A list row like Providers': icon, title, an optional value, and where it leads (a page by default, or a link).
+struct AboutRow<Icon: View>: View {
     let title: String
+    var value: String?
     var trailing = "chevron.right"
     let action: () -> Void
     @ViewBuilder var icon: Icon
@@ -207,6 +134,7 @@ private struct AboutRow<Icon: View>: View {
                 icon.frame(width: 24).accessibilityHidden(true)
                 Text(title).fontWeight(.semibold)
                 Spacer(minLength: 8)
+                if let value { Text(value).secondaryText().monospacedDigit() }
                 Image(systemName: trailing).font(.system(size: 11, weight: .semibold)).secondaryText()
             }
             .padding(.vertical, 12)

@@ -1,10 +1,11 @@
 # Changelog
 
-Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → About → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
+Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → General → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
 
 ## 0.1.5 (unreleased)
 
-- In Settings → About, checking for updates no longer makes the row jump, and a new version slides in instead of appearing abruptly.
+- Settings has a new layout. General opens with your shortcut and model at a glance, Fix has a tab of its own, and what was in About is now at the bottom of General. A waiting update shows as a button in the top-right corner.
+- In Settings → General, checking for updates no longer makes the row jump, and a new version slides in instead of appearing abruptly.
 
 ## 0.1.4
 

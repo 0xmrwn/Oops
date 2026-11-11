@@ -1,48 +1,63 @@
 import AppKit
-import Carbon
 import OopsCore
 import ServiceManagement
 import SwiftUI
 
+/// The landing page: what needs the user (a missing permission, a waiting update), every feature at a glance,
+/// app-wide settings, the stats, then About.
 struct GeneralPage: View {
     let hasAccessibility: Bool
+    let tabs: [SettingsTab]
     let store: ProviderStore
-    let testEditor: TestEditorModel
+    let preferences: Preferences
     @Binding var detail: GeneralDetail?
+    /// An overview row's jump to its tab.
+    let open: (SettingsTab) -> Void
+    let preview: () -> Void
+    let previewPlacement: @MainActor () async -> String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The drop's start, success and failure cues (Sounds).
     @AppStorage("SoundsEnabled") private var sounds = true
     /// How long a finished correction's drop and flash stay (ResultTiming).
     @AppStorage(ResultTiming.key) private var resultSeconds = ResultTiming.fallback
-    @State private var shortcutError: String?
     /// Onboarding's drag helper, brought back to Settings once Accessibility is allowed.
     @State private var accessibility = AccessibilityStep(home: SettingsWindow.identifier)
+    /// Whether the open Changelog or Debug tools came from About.
+    @State private var fromAbout = false
 
     var body: some View {
         ZStack(alignment: .top) {
             switch detail {
-            case .tryPage:
+            case .stats:
                 VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Try", parent: "General", back: { detail = nil }) {
-                        Image(systemName: "text.cursor").font(.system(size: 18, weight: .medium))
+                    DrillHeader(title: "Stats", parent: "General", back: { detail = nil }) {
+                        Image(systemName: "chart.bar.xaxis").font(.system(size: 18, weight: .medium))
                     }
-                    TryView(model: testEditor)
+                    StatsPage(stats: Stats.shared)
                 }
                 .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
-            case .customize:
+            case .about:
                 VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Customize", parent: "General", back: { detail = nil }) {
-                        Image(systemName: "wand.and.stars").font(.system(size: 18, weight: .medium))
+                    DrillHeader(title: "About", parent: "General", back: { detail = nil }) {
+                        Image(systemName: "info.circle").font(.system(size: 18, weight: .medium))
                     }
-                    CustomizePage()
+                    AboutPage { page in fromAbout = true; detail = page }
                 }
                 .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
-            case .apps:
+            case .changelog:
                 VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Apps", parent: "General", back: { detail = nil }) {
-                        Image(systemName: "square.grid.2x2").font(.system(size: 18, weight: .medium))
+                    DrillHeader(title: "Changelog", parent: fromAbout ? "About" : "General", back: back) {
+                        Image(systemName: "sparkles.rectangle.stack").font(.system(size: 18, weight: .medium))
                     }
-                    AppsList()
+                    ChangelogPage()
+                }
+                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+            case .debug:
+                VStack(alignment: .leading, spacing: 20) {
+                    DrillHeader(title: "Debug tools", parent: fromAbout ? "About" : "General", back: back) {
+                        Image(systemName: "ladybug").font(.system(size: 18, weight: .medium))
+                    }
+                    DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
                 }
                 .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
             case nil:
@@ -50,23 +65,32 @@ struct GeneralPage: View {
             }
         }
         .animation(SettingsMotion.drill(reduceMotion), value: detail)
-        .animation(.easeOut(duration: 0.15), value: ShortcutSettings.shared.custom)
+    }
+
+    /// Changelog and Debug tools go back where they were opened from: About, or General's update card.
+    private func back() {
+        detail = fromAbout ? .about : nil
+        fromAbout = false
     }
 
     private var general: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Only while missing: nothing works without it. Once granted, About shows it.
+            // What needs the user leads the page: the permission while it's missing (nothing works without it),
+            // then a waiting update, where the header's pill leads. Its notes are the Changelog's top entry.
             if !hasAccessibility { accessibilityCard }
-            ModelCard(store: store, tryIt: { detail = .tryPage }, customize: { detail = .customize })
-            // No heading: each row's icon, action and keys already say what the card is.
-            VStack(alignment: .leading, spacing: 14) {
-                shortcut("Fix text", action: .correct)
-                if let shortcutError {
-                    Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            if let release = Updates.shared.pending {
+                UpdateCard(release: release, state: Updates.shared.state) { fromAbout = false; detail = .changelog }
+                    // Slides down from above the page on the same spring that moves the page below, so its bottom
+                    // edge keeps pace with the next card's top: a card that faded in where it lands would cover
+                    // that card until it had moved.
+                    .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity),
+                                            removal: .opacity))
             }
-            .settingsSurface()
+            FeatureOverview(tabs: tabs, store: store, open: open) { tab in
+                open(tab)
+                // After the switch has begun, which stops any recorder on the page being left.
+                DispatchQueue.main.async { NotificationCenter.default.post(name: .settingsRecordShortcut, object: tab) }
+            }
             VStack(spacing: 0) {
                 OpenAtLoginRow().padding(.vertical, 12).disabled(DebugFlags.brandReview)
                 Divider()
@@ -85,29 +109,23 @@ struct GeneralPage: View {
                         .secondaryText().accessibilityHidden(true)
                     Text("Show results for").fontWeight(.semibold)
                     Spacer()
-                    Picker("Show results for", selection: $resultSeconds) {
-                        ForEach(ResultTiming.choices, id: \.self) { Text($0.formatted() + " s").tag($0) }
-                    }
-                    .labelsHidden().pickerStyle(.menu).fixedSize()
+                    GlassMenu(title: "Show results for", choices: ResultTiming.choices.map { ($0, $0.formatted() + " s") },
+                              selection: $resultSeconds)
                 }
                 .padding(.vertical, 12)
-                Divider()
-                Button { detail = .apps } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "square.grid.2x2").font(.system(size: 17, weight: .medium)).frame(width: 24)
-                            .secondaryText().accessibilityHidden(true)
-                        Text("Apps").fontWeight(.semibold)
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).secondaryText()
-                    }
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+            }
+            .padding(.vertical, -6)
+            .settingsSurface()
+            // Last, so it never moves as warnings come and go; the header's tally is the hook at the top.
+            StatsCard(stats: Stats.shared) { detail = .stats }
+            AboutRow(title: "About", value: AboutPage.version) { detail = .about } icon: {
+                Image(systemName: "info.circle").font(.system(size: 17, weight: .medium))
             }
             .padding(.vertical, -6)
             .settingsSurface()
         }
+        // A found update eases in, and the page below makes room for it.
+        .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
     }
 
     private var accessibilityCard: some View {
@@ -140,72 +158,18 @@ struct GeneralPage: View {
         .onAppear { accessibility.start() }
         .onDisappear { accessibility.stop() }
     }
-
-    private func shortcut(_ title: String, action: ShortcutSettings.Action) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: action.symbol)
-                .font(.system(size: 18, weight: .medium))
-                .frame(width: 24)
-                .secondaryText()
-                .accessibilityHidden(true)
-            Text(title).fontWeight(.semibold)
-            Spacer(minLength: 4)
-            // Left of the keys, so the keys' right edge never moves; only a changed shortcut has it. Without
-            // a default (a layout with no W), going back to it clears the shortcut.
-            if ShortcutSettings.shared.custom[action] != nil {
-                let fallback = ShortcutSettings.shared.defaultShortcut(action)
-                Button {
-                    do { try ShortcutSettings.shared.set(action, nil); shortcutError = nil } catch { shortcutError = error.localizedDescription }
-                } label: {
-                    Image(systemName: fallback == nil ? "xmark" : "arrow.counterclockwise").font(.system(size: 13, weight: .semibold)).secondaryText()
-                        .frame(width: 24, height: 24).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(fallback.map { "Back to " + $0.label } ?? "Remove shortcut")
-                .accessibilityLabel(fallback == nil ? "Remove \(title) shortcut" : "Reset \(title) shortcut")
-                .transition(.opacity.combined(with: .scale(scale: 0.8)))
-            }
-            ShortcutRecorder(title: title, action: action, error: $shortcutError)
-        }
-    }
 }
 
 /// General's pages one level down.
 enum GeneralDetail: Hashable {
-    case tryPage, customize, apps
+    case stats, about, changelog, debug
     static var launchPreview: Self? {
         switch DebugFlags.settingsTab {
-        case "try": .tryPage
-        case "customize", "advanced": .customize
-        case "apps": .apps
+        case "stats": .stats
+        case "about": .about
+        case "changelog": .changelog
+        case "debug", "developer", "diagnostics": .debug
         default: nil
-        }
-    }
-}
-
-/// General → Apps: every app Oops has corrected in, most recent first, each with its switch.
-private struct AppsList: View {
-    private let scope = AppScope.shared
-
-    var body: some View {
-        if scope.apps.isEmpty {
-            Text("Apps you correct in appear here.").secondaryText().frame(maxWidth: .infinity, alignment: .leading).settingsSurface()
-        } else {
-            VStack(spacing: 0) {
-                ForEach(Array(scope.apps.enumerated()), id: \.element) { index, app in
-                    if index > 0 { Divider() }
-                    HStack(spacing: 14) {
-                        Image(nsImage: AppScope.icon(app)).resizable().frame(width: 24, height: 24).accessibilityHidden(true)
-                        Text(AppScope.name(app)).fontWeight(.semibold)
-                        Spacer()
-                        Toggle(AppScope.name(app), isOn: Binding(get: { scope.isOn(app) }, set: { scope.set(app, on: $0) }))
-                            .settingsSwitch().labelsHidden()
-                    }
-                    .padding(.vertical, 12)
-                }
-            }
-            .padding(.vertical, -6)
-            .settingsSurface()
         }
     }
 }
@@ -245,100 +209,5 @@ private struct OpenAtLoginRow: View {
             error = nil
         } catch { self.error = "macOS didn’t change the login item. \(error.localizedDescription)" }
         status = SMAppService.mainApp.status
-    }
-}
-
-/// A shortcut in a field: click it, press the new keys (they show as they are held), and it is
-/// saved once the system accepts it. Escape, a second click or leaving the page cancels.
-private struct ShortcutRecorder: View {
-    let title: String
-    let action: ShortcutSettings.Action
-    @Binding var error: String?
-    @State private var recording = false
-    /// Modifiers held so far while recording.
-    @State private var held: UInt32 = 0
-    @State private var monitor: Any?
-    @State private var hovering = false
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
-
-    private var current: Shortcut? { ShortcutSettings.shared.shortcut(action) }
-    /// The field's resting outline: a step stronger in light, where a white backdrop thins it.
-    private var restingEdge: Double { contrast == .increased ? 0.4 : colorScheme == .dark ? 0.14 : 0.22 }
-
-    var body: some View {
-        Button { recording ? stop() : start() } label: {
-            HStack(spacing: 4) {
-                if recording {
-                    // All four held become the one Hyper key the saved shortcut shows.
-                    let live = Shortcut(keyCode: 0, modifiers: held).keys.dropLast()
-                    if live.isEmpty {
-                        Text("Type shortcut").font(.system(size: 13, weight: .medium)).secondaryText()
-                            .frame(height: 32).padding(.horizontal, 10)
-                    } else {
-                        ForEach(Array(live), id: \.self) { keycap($0) }
-                    }
-                } else if let current {
-                    ForEach(current.keys, id: \.self) { keycap($0) }
-                } else {
-                    Text("Record shortcut").font(.system(size: 13, weight: .medium)).secondaryText()
-                        .frame(height: 32).padding(.horizontal, 10)
-                }
-            }
-            .padding(4)
-            .frame(minWidth: 120, alignment: .trailing)
-            .background(Color.primary.opacity(recording ? 0.12 : hovering ? 0.08 : 0.04),
-                        in: .rect(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.primary.opacity(recording ? 0.75 : hovering ? max(0.28, restingEdge) : restingEdge), lineWidth: recording ? 1.5 : 1))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .pointerStyle(.link)
-        .animation(.easeOut(duration: 0.12), value: held)
-        .animation(.easeOut(duration: 0.15), value: recording)
-        .help(recording ? "Press the new shortcut · Escape cancels" : current == nil ? "Click to set" : "Click to change")
-        .accessibilityLabel(title)
-        .accessibilityValue(recording ? "Recording" : current?.spoken ?? "Not set")
-        .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in stop() }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
-        .onDisappear { stop() }
-    }
-
-    private func keycap(_ key: String) -> some View {
-        Group {
-            if key == Shortcut.hyperKey { HyperKeyLegend(size: 12.5, partSize: 8.5) } else { Text(key).font(.system(size: 15, weight: .medium)) }
-        }
-        .frame(minWidth: 29, minHeight: 32).padding(.horizontal, key.count > 1 ? 6 : 0)
-        .background(.quaternary, in: .rect(cornerRadius: 6))
-        .transition(.scale(scale: 0.8).combined(with: .opacity))
-    }
-
-    private func start() {
-        error = nil; held = 0
-        recording = true
-        ShortcutSettings.shared.pause()
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
-            let modifiers = Shortcut.modifiers(event.modifierFlags)
-            if event.type == .flagsChanged { held = modifiers; return nil }
-            if event.keyCode == 53, modifiers == 0 { stop(); return nil }
-            // A shortcut needs ⌃, ⌥ or ⌘; Shift alone would take a letter from every text field.
-            guard modifiers & UInt32(controlKey | optionKey | cmdKey) != 0 else {
-                if Sounds.enabled { NSSound.beep() }
-                return nil
-            }
-            do { try ShortcutSettings.shared.set(action, Shortcut(keyCode: UInt32(event.keyCode), modifiers: modifiers)) }
-            catch { self.error = error.localizedDescription }
-            stop()
-            return nil
-        }
-    }
-
-    private func stop() {
-        guard recording else { return }
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil; recording = false; held = 0
-        ShortcutSettings.shared.resume()
     }
 }

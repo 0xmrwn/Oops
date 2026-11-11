@@ -93,10 +93,11 @@ struct DebugToolsPage: View {
                     Button { probe.cancel() } label: { Label("Cancel", systemImage: "xmark") }.buttonStyle(.settingsGlass)
                 }
             }
-            Picker("Full accessibility in Chromium apps", selection: $probe.mode) {
-                ForEach(PlacementProbe.Mode.allCases) { Text($0.title).tag($0) }
+            HStack(spacing: 12) {
+                Text("Full accessibility in Chromium apps").font(.callout)
+                GlassMenu(title: "Full accessibility in Chromium apps", choices: PlacementProbe.Mode.allCases.map { ($0, $0.title) },
+                          selection: $probe.mode)
             }
-            .font(.callout).fixedSize()
             .help("Sets the chosen switch on the app for about 3 s, samples, then restores it. Electron answers AXManualAccessibility; Chrome and WebView2 answer AXEnhancedUserInterface.")
             if !probe.summary.isEmpty {
                 Text(probe.summary).font(.callout).secondaryText().textSelection(.enabled)

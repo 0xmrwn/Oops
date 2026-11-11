@@ -11,7 +11,9 @@ import Foundation
             "DiagnosticsRemoteTrigger": true, "StubProvider": "/tmp/should-not-load", "ProbeState": "/tmp/should-not-write",
             "DebugLogDirectory": "/tmp/should-not-write", "PerfHarness": "settings", "PerfSeconds": 30,
             "SettingsPreviewProviders": true, "SettingsPreviewUpdate": "available", "SettingsPreviewStats": true,
+            "DebugDictation": true, "DebugActions": true,
         ])
+        precondition(!DebugFlags.dictation && !DebugFlags.actions)
         precondition(!DebugFlags.labTriggers && DebugFlags.stubProvider == nil && DebugFlags.probeState == nil)
         precondition(DebugFlags.debugLogDirectory == nil && DebugFlags.perfHarness == nil && DebugFlags.perfSeconds == 0)
         precondition(!DebugFlags.providers && DebugFlags.update == nil && !DebugFlags.sampleStats)

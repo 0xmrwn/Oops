@@ -35,7 +35,7 @@ import SwiftUI
         updateBackdrop()
     }
 
-    /// General → Try.
+    /// Fix → Try.
     func showTry() {
         testEditor.requested = true
         show()
