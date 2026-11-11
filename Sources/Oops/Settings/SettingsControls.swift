@@ -97,6 +97,9 @@ struct GlassMenu<Value: Hashable>: View {
         }
         // Just below the capsule's leading edge (the anchor view is not flipped).
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -4), in: view)
+        // Tracking is synchronous and a pick has run by now. Kept, the callback would hold the control (and
+        // through it this anchor) after Settings closes.
+        self.pick = nil
     }
 
     @objc private func chosen(_ item: NSMenuItem) { pick?(item.tag) }
