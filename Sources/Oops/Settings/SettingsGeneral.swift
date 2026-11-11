@@ -109,10 +109,8 @@ struct GeneralPage: View {
                         .secondaryText().accessibilityHidden(true)
                     Text("Show results for").fontWeight(.semibold)
                     Spacer()
-                    Picker("Show results for", selection: $resultSeconds) {
-                        ForEach(ResultTiming.choices, id: \.self) { Text($0.formatted() + " s").tag($0) }
-                    }
-                    .labelsHidden().pickerStyle(.menu).fixedSize()
+                    GlassMenu(title: "Show results for", choices: ResultTiming.choices.map { ($0, $0.formatted() + " s") },
+                              selection: $resultSeconds)
                 }
                 .padding(.vertical, 12)
             }

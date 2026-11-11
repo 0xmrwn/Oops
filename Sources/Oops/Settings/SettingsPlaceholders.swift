@@ -14,12 +14,7 @@ struct DictatePage: View {
                     ShortcutField { ShortcutPrompt("Record shortcut") }
                 }
                 Divider()
-                SettingRow(symbol: "hand.tap", title: "Mode") {
-                    Picker("Mode", selection: .constant("Hold or tap")) {
-                        ForEach(["Hold or tap", "Hold to talk", "Tap to start and stop"], id: \.self) { Text($0).tag($0) }
-                    }
-                    .labelsHidden().pickerStyle(.menu).fixedSize()
-                }
+                SettingRow(symbol: "hand.tap", title: "Mode") { menu("Mode", ["Hold or tap", "Hold to talk", "Tap to start and stop"]) }
             }
             .padding(.vertical, -6)
             .settingsSurface()
@@ -28,26 +23,26 @@ struct DictatePage: View {
                     Button {} label: {
                         HStack(spacing: 6) {
                             Text("Choose a model").fontWeight(.medium)
-                            Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).secondaryText()
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
                         }
                     }
                     .buttonStyle(.settingsGlass).controlSize(.large)
                 }
                 Divider()
-                SettingRow(symbol: "globe", title: "Language") { menu("Automatic") }
+                SettingRow(symbol: "globe", title: "Language") { menu("Language", ["Automatic"]) }
                 Divider()
-                SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("System default") }
+                SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("Microphone", ["System default"]) }
             }
             .padding(.vertical, -6)
             .settingsSurface()
-            SettingRow(symbol: "wand.and.sparkles", title: "Clean up") { segments(["Off", "Button", "Always"]) }
+            SettingRow(symbol: "wand.and.sparkles", title: "Clean up") { choice("Clean up", ["Off", "Button", "Always"]) }
                 .settingsSurface()
             VStack(spacing: 0) {
-                SettingRow(symbol: "circle.grid.3x3", title: "Visualizer") { segments(["Hex", "Wave", "Ripple"]) }
+                SettingRow(symbol: "circle.grid.3x3", title: "Visualizer") { choice("Visualizer", ["Hex", "Wave", "Ripple"]) }
                 Divider()
-                SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") { segments(["By the text", "Top", "Bottom"]) }
+                SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") { choice("Position", ["By the text", "Top", "Bottom"]) }
                 Divider()
-                SettingRow(symbol: "text.bubble", title: "Live words") { segments(["In the drop", "Over the text"]) }
+                SettingRow(symbol: "text.bubble", title: "Live words") { choice("Live words", ["In the drop", "Over the text"]) }
             }
             .padding(.vertical, -6)
             .settingsSurface()
@@ -57,13 +52,13 @@ struct DictatePage: View {
         .disabled(true)
     }
 
-    private func menu(_ value: String) -> some View {
-        Picker(value, selection: .constant(value)) { Text(value).tag(value) }.labelsHidden().pickerStyle(.menu).fixedSize()
+    /// The first value is the one the setting will start with.
+    private func menu(_ title: String, _ values: [String]) -> some View {
+        GlassMenu(title: title, choices: values.map { ($0, $0) }, selection: .constant(values[0]))
     }
 
-    private func segments(_ values: [String]) -> some View {
-        Picker(values[0], selection: .constant(values[0])) { ForEach(values, id: \.self) { Text($0).tag($0) } }
-            .labelsHidden().pickerStyle(.segmented).fixedSize()
+    private func choice(_ title: String, _ values: [String]) -> some View {
+        GlassChoice(title: title, choices: values.map { ($0, $0) }, selection: .constant(values[0]))
     }
 }
 

@@ -67,11 +67,12 @@ private struct GlassEdge<S: InsettableShape>: ViewModifier {
     }
 }
 
-/// Settings' glass buttons, with their light-mode edge. A glass button is a capsule, or a circle when
-/// it is as wide as it is tall, which a capsule's outline also draws.
+/// Settings' glass buttons, with their light-mode edge: always a capsule (a circle when as wide as tall),
+/// which the edge's outline matches. macOS draws a glass button below the large size as a rounded
+/// rectangle, which showed both outlines at once.
 struct SettingsGlassButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        Button(configuration).buttonStyle(.glass).glassEdge(Capsule())
+        Button(configuration).buttonStyle(.glass).buttonBorderShape(.capsule).glassEdge(Capsule())
     }
 }
 
