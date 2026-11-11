@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Lifetime usage, kept on this Mac only: one line per correction with counts and timing, never
-/// text. Settings → About shows the totals and charts; the header shows the mistakes fixed.
+/// text. Settings → General shows the totals and charts; the header shows the mistakes fixed.
 /// `-SettingsPreviewStats YES` (launch-only) shows a generated month instead and writes nothing.
 @MainActor @Observable final class Stats {
     static let shared = Stats(file: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

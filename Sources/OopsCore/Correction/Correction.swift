@@ -21,7 +21,7 @@ public enum CorrectionError: LocalizedError, Equatable {
 }
 
 public enum CorrectionPolicy {
-    /// The correction rules, editable in Settings → General → Customize.
+    /// The correction rules, editable in Settings → Fix → Customize.
     public static let defaultRules = "Correct only typos, spelling, grammar, punctuation, accents and capitalization with minimal edits. "
         + "Preserve meaning, uncertainty, language mixing, casual tone, slang, emoji, all whitespace at the edges, "
         + "exact line breaks, Markdown, URLs, mentions, paths, identifiers and all code. Do not translate, formalize, "

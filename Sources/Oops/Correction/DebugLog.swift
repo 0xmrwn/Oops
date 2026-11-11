@@ -1,7 +1,7 @@
 import Foundation
 import OopsCore
 
-/// Settings → About → Debug tools → Debug log. Off unless turned on; kept on this Mac only.
+/// Settings → General → Debug tools → Debug log. Off unless turned on; kept on this Mac only.
 enum DebugLog {
     static let key = "DebugLog"
     /// `DebugLogDirectory` (a launch argument for end-to-end runs) keeps a run's log apart.

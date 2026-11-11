@@ -16,6 +16,14 @@ enum DebugFlags {
     private static func argument(_ name: String) -> Bool { false }
     #endif
 
+    // MARK: Features still being built
+
+    /// Dictation, hidden until it ships: `-DebugDictation YES` for one launch, or `defaults write
+    /// dev.0xmrwn.oops DebugDictation -bool YES` to keep it on in development builds.
+    static var dictation: Bool { bool("DebugDictation") }
+    /// Actions, the same way: `DebugActions`.
+    static var actions: Bool { bool("DebugActions") }
+
     // MARK: Labs, end-to-end runs and profiling
 
     /// Lab triggers over distributed notifications (`fixtures/composer-lab/tools/trigger.swift`), and
