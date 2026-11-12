@@ -21,7 +21,10 @@ under its own terms.
   (`CaptureInstant.swift`, `DictationCapture*.swift`, `DictationClip.swift`, `SpeechFrames.swift` and
   `VoiceTrack.swift` in `Sources/OopsCore/Dictation/`) and their tests are ported from its `src/dictation.rs`,
   `src/transcription/pause_segmenter.rs` and `src/audio/instant.rs`; the WAV stand-in for the microphone
-  (`Sources/Oops/Dictation/DictationAudioFile.swift`) follows its `src/audio/fixture.rs`.
+  (`Sources/Oops/Dictation/DictationAudioFile.swift`) follows its `src/audio/fixture.rs`. The hold-or-double-tap
+  shortcut mode (`Sources/OopsCore/Dictation/DictationDoubleTap.swift`) and its tests
+  (`Tests/OopsCoreTests/DictationActivationHexTests.swift`) are ported from its `src/suppression/hotkey.rs`,
+  `src/suppression.rs`, `src/suppression/tests.rs` and the short-tap rule of `src/dictation.rs` (v3.4.0).
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
   `src-tauri/src/transcription_coordinator.rs` (revision 73cc857).
