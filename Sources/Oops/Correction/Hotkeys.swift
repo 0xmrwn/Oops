@@ -3,6 +3,8 @@ import Carbon
 import OopsCore
 
 typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
+/// When a hotkey event happened, on the clock microphone timestamps share and on the one activation timing uses.
+typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Instant)
 
 /// Registers only the configured chords; no always-on typing event tap.
 @MainActor final class HyperShortcuts {
@@ -11,8 +13,9 @@ typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
     private var layoutObserver: NSObjectProtocol?
     /// Each action under its own hotkey identity, so the handler knows which one fired.
     private var router = HotkeyRouter(ShortcutSettings.Action.allCases)
-    /// Told which action's chord went down or came up. A held chord tells its press once.
-    var invoke: ((ShortcutSettings.Action, HotkeyPhase) -> Void)?
+    /// Told which action's chord went down or came up, and when: taken as the event arrives, before the hop
+    /// to the main thread. A held chord tells its press once.
+    var invoke: ((ShortcutSettings.Action, HotkeyPhase, HotkeyInstant) -> Void)?
     var registrationFailed: ((String) -> Void)?
     func register() throws {
         // Keep observing even when the current layout cannot bind the shortcuts.
@@ -39,17 +42,23 @@ typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
                               MemoryLayout<EventHotKeyID>.size, nil, &id)
             let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed), identity = id.id
+            let instant: HotkeyInstant = (CaptureInstant.now(), ContinuousClock.now)
             let owner = Unmanaged<HyperShortcuts>.fromOpaque(userData).takeUnretainedValue()
             KeyboardGate.heldShortcuts.withLock { held in
                 if pressed { held.insert(identity) } else { held.remove(identity) }
             }
-            DispatchQueue.main.async { owner.deliver(identity: identity, pressed: pressed) }
+            DispatchQueue.main.async { owner.deliver(identity: identity, pressed: pressed, at: instant) }
             return noErr
         }, specs.count, &specs, context, &handler)
         guard status == noErr else { throw CorrectionError.message("Could not register keyboard shortcut handler.") }
         var problems: [String] = []
         for action in ShortcutSettings.Action.allCases {
-            guard let shortcut = settings.shortcut(action), let identity = router.identity(of: action) else {
+            guard let identity = router.identity(of: action) else { continue }
+            let shortcut: Shortcut
+            switch settings.registration(action) {
+            case .chord(let chord): shortcut = chord
+            case .off: continue
+            case .noDefault:
                 failed.insert(action)
                 problems.append("This keyboard layout has no W key for the default shortcut. Choose one in Settings.")
                 continue
@@ -65,14 +74,14 @@ typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
         if !problems.isEmpty { throw CorrectionError.message(problems.joined(separator: " ")) }
     }
     /// One hotkey event, on the main thread: the action it belongs to, pressed or released.
-    private func deliver(identity: UInt32, pressed: Bool) {
+    private func deliver(identity: UInt32, pressed: Bool, at instant: HotkeyInstant) {
         guard let event = router.route(identity: identity, pressed: pressed) else { return }
         let settings = ShortcutSettings.shared
         switch event.phase {
         case .pressed: settings.down = event.action
         case .released: if settings.down == event.action { settings.down = nil }
         }
-        invoke?(event.action, event.phase)
+        invoke?(event.action, event.phase, instant)
     }
     /// Actions whose shortcut did not register in the last `register()`.
     private(set) var failed: Set<ShortcutSettings.Action> = []
@@ -91,6 +100,7 @@ typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
         KeyboardGate.heldShortcuts.withLock { $0 = [] }
         if let handler { RemoveEventHandler(handler) }; handler = nil
         // A chord that was down loses its release with its registration: told here, so nothing waits on it.
-        cut.forEach { invoke?($0.action, $0.phase) }
+        let now: HotkeyInstant = (CaptureInstant.now(), ContinuousClock.now)
+        cut.forEach { invoke?($0.action, $0.phase, now) }
     }
 }

@@ -13,6 +13,8 @@ import OopsCore
     private(set) lazy var settings = SettingsWindow(preferences: preferences, testEditor: testEditor, session: session)
     private(set) var menuBar: MenuBar?
     private let shortcuts = HyperShortcuts()
+    /// Only while dictation is switched on (`DebugFlags.dictation`).
+    private(set) var dictation: DictationSession?
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         settings.show()
@@ -37,15 +39,18 @@ import OopsCore
         testEditor.onCorrect = { [weak self] in self?.correctInTry() }
         testEditor.onRestore = { [weak self] in self?.restoreInTry() }
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
-        // Fix runs on its press; its release ends nothing.
-        shortcuts.invoke = { [weak self] action, phase in
+        dictation = makeDictation()
+        // Fix runs on its press; its release ends nothing. Dictate hears both, at the instants they happened.
+        shortcuts.invoke = { [weak self] action, phase, instant in
             switch (action, phase) {
             case (.correct, .pressed): self?.session.correct()
             case (.correct, .released): break
+            case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
             }
         }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }
         do { try shortcuts.register() } catch { preferences.status = error.localizedDescription }
+        warmUpDictation()
         // Onboarding asks for Accessibility in its own step; closed without it (skipped), Settings asks. Updates
         // wait for the first onboarding to end too, so nothing goes out before the person has chosen anything.
         OnboardingWindow.shared.onClose = { [weak self] in

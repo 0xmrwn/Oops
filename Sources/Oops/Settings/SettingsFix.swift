@@ -82,12 +82,26 @@ struct FixPage: View {
                 .accessibilityHidden(true)
             Text(title).fontWeight(.semibold)
             Spacer(minLength: 4)
+            ShortcutControl(title: title, action: action, error: $shortcutError)
+        }
+    }
+}
+
+/// An action's shortcut on its page: the recorder, with a button to its left that resets a changed shortcut
+/// to the default, or removes it when the action has none (which turns the action off).
+struct ShortcutControl: View {
+    let title: String
+    let action: ShortcutSettings.Action
+    @Binding var error: String?
+
+    var body: some View {
+        HStack(spacing: 14) {
             // Left of the keys, so the keys' right edge never moves; only a changed shortcut has it. Without
-            // a default (a layout with no W), going back to it clears the shortcut.
+            // a default (a layout with no W, or Dictate), going back to it clears the shortcut.
             if ShortcutSettings.shared.custom[action] != nil {
                 let fallback = ShortcutSettings.shared.defaultShortcut(action)
                 Button {
-                    do { try ShortcutSettings.shared.set(action, nil); shortcutError = nil } catch { shortcutError = error.localizedDescription }
+                    do { try ShortcutSettings.shared.set(action, nil); error = nil } catch { self.error = error.localizedDescription }
                 } label: {
                     Image(systemName: fallback == nil ? "xmark" : "arrow.counterclockwise").font(.system(size: 13, weight: .semibold)).secondaryText()
                         .frame(width: 24, height: 24).contentShape(Rectangle())
@@ -97,7 +111,7 @@ struct FixPage: View {
                 .accessibilityLabel(fallback == nil ? "Remove \(title) shortcut" : "Reset \(title) shortcut")
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
-            ShortcutRecorder(title: title, action: action, error: $shortcutError)
+            ShortcutRecorder(title: title, action: action, error: $error)
         }
     }
 }
@@ -143,7 +157,7 @@ private struct AppsList: View {
 }
 
 /// The shortcut field's look: keys or a prompt in a rounded well, outlined more strongly on hover and while
-/// recording. Fix's recorder and the not-yet-wired Dictate and Actions shortcuts share it.
+/// recording. Fix's and Dictate's recorders and the not-yet-wired Actions shortcut share it.
 struct ShortcutField<Content: View>: View {
     var recording = false
     var hovering = false
@@ -217,7 +231,7 @@ private struct ShortcutRecorder: View {
         .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in stop() }
         // General's Turn on, for the feature this shortcut switches on.
         .onReceive(NotificationCenter.default.publisher(for: .settingsRecordShortcut)) { note in
-            if note.object as? SettingsTab == .fix, action == .correct, !recording { start() }
+            if note.object as? SettingsTab == action.tab, !recording { start() }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
         .onDisappear { stop() }

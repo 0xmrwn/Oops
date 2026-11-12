@@ -5,6 +5,7 @@ import SwiftUI
 struct DropFeature: Hashable, Sendable {
     let name: String
     static let fix = DropFeature(name: "fix")
+    static let dictate = DropFeature(name: "dictate")
 }
 
 /// The drop and the flash over the draft, which one feature holds at a time. A feature claims them
