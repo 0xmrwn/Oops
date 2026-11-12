@@ -33,7 +33,10 @@ struct DictateShortcutCard: View {
         .settingsSurface()
         .animation(.easeOut(duration: 0.15), value: ShortcutSettings.shared.custom)
         .onChange(of: ShortcutSettings.shared.custom[.dictate]) { old, new in
-            if old == nil, new != nil { Self.askForMicrophone() }
+            guard old == nil, new != nil else { return }
+            Self.askForMicrophone()
+            // Dictate just came on: the model warms now, as it would have at launch.
+            (NSApp.delegate as? AppDelegate)?.warmUpDictation()
         }
     }
 
