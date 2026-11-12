@@ -1,6 +1,7 @@
 """The end-to-end scenarios fixtures/e2e/run.py drives: native ones, then each web editor in each browser."""
 
-# name, lab text, stub script, expectations. Selections are "location,length" in UTF-16 units.
+# name, lab text, stub script, expectations (insert cases: the `insert` text and the `expect`ed outcome, see
+# inserts.py). Selections are "location,length" in UTF-16 units.
 # "{round}" in a text becomes the soak round, for drafts that must differ from the last round's.
 SCENARIOS = [
     dict(
@@ -353,6 +354,52 @@ SCENARIOS += [
         final="مرحبا بالفريق\n\nتحديث سريع عن الخطة\n\nتم نقل المراجعة إلى الخميس",
         restore=True,
     ),
+]
+
+# Insert at the caret: no correction runs, so there is no stub. Each case checks the outcome Oops logs, the
+# text left behind and that the clipboard is back as it was.
+INSERTS = [
+    dict(name="insert-empty", text="", insert="hello there", expect="inserted", final="hello there"),
+    # A field showing only its placeholder reads as empty.
+    dict(
+        name="insert-placeholder",
+        variant="placeholder",
+        text="",
+        insert="hello there",
+        expect="inserted",
+        final="hello there",
+    ),
+    dict(
+        name="insert-caret",
+        text="send the notes today",
+        selection="9,0",
+        insert="release ",
+        expect="inserted",
+        final="send the release notes today",
+    ),
+    dict(
+        name="insert-selection",
+        text="send the notes today",
+        selection="9,5",
+        insert="minutes",
+        expect="inserted",
+        final="send the minutes today",
+    ),
+    dict(
+        name="insert-unicode",
+        text="Merci",
+        insert=" beaucoup 🙏\nà demain",
+        expect="inserted",
+        final="Merci beaucoup 🙏\nà demain",
+    ),
+    # The field's text must stay as it was.
+    dict(name="insert-secure", scenario="e2e-secure", insert="hunter3", expect="refused", reason="secureField"),
+]
+WEB_INSERTS = ["insert-empty", "insert-placeholder", "insert-caret", "insert-selection"]
+SCENARIOS += INSERTS + [
+    dict(c, name=f"webkit:textarea:{c['name']}", host="webkit", scenario="web-textarea")
+    for c in INSERTS
+    if c["name"] in WEB_INSERTS
 ]
 
 # The editors fixtures/e2e/web.html offers, and the cases each runs, by native scenario name.

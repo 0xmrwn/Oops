@@ -77,6 +77,8 @@ actor EditorAccess {
     let switches = AccessibilitySwitches()
     /// Processes already checked for Gecko (and woken if so).
     var geckoChecked: Set<pid_t> = []
+    /// The clipboard inserts go through, kept between them: rapid inserts give back what was there before the first.
+    let insertClipboard = InsertClipboard()
     init() {
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 0.25)
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: nil) { [weak self] note in
@@ -91,39 +93,18 @@ actor EditorAccess {
         guard AXIsProcessTrusted() else { throw CorrectionError.message("Allow Oops in \(AccessibilityPermission.paneName) first.") }
         var element = try self.focusedWaking()
         let pid = self.pid(of: element)
-        let foreground = NSWorkspace.shared.frontmostApplication
-        guard let app = NSRunningApplication(processIdentifier: pid) else { throw CorrectionError.message("No editable composer has focus.") }
-        let verdict = EditorApplicationPolicy.verdict(bundleID: app.bundleIdentifier, bundleURL: app.bundleURL,
-                                                      foregroundBundleID: foreground?.bundleIdentifier,
-                                                      foregroundBundleURL: foreground?.bundleURL, turnedOff: AppScope.current)
-        let name = (EditorApplicationPolicy.isNested(app.bundleURL, in: foreground?.bundleURL) ? foreground : app)?.localizedName ?? "this app"
-        Self.captureLog.info("editor_scope bundle=\(app.bundleIdentifier ?? "unknown", privacy: .public) verdict=\(String(describing: verdict), privacy: .public)")
+        guard let scope = self.scope(of: pid) else { throw CorrectionError.message("No editable composer has focus.") }
+        let app = scope.app, foreground = scope.foreground, name = scope.name
         let nested: Bool, owner: String
-        switch verdict {
+        switch scope.verdict {
         case .accepted(let id, let isNested): owner = id; nested = isNested
         case .denied: throw CorrectionError.message("Oops stays out of terminals and password managers.")
         case .turnedOff: throw CorrectionError.message("Oops is off in \(name). Turn it back on in Settings.")
         case .unknown: throw CorrectionError.message("No editable composer has focus.")
         }
         let hostPID = nested ? foreground?.processIdentifier : nil
-        // An Electron or Chromium editor whose tree is still dormant has no text to read yet:
-        // set the host's accessibility switch and wait for its field to come alive. A document
-        // whose markers already read a draft is awake: waking it would only cost a second.
-        var field = self.textField(element)
-        let awakeDocument = field == nil && !(self.markerText(element) ?? "").isEmpty && self.supportsMarkers(element)
-        if field == nil, !awakeDocument, self.setFullAccessibility(pid: pid, geometry: self.geometry(element)) {
-            for _ in 0..<20 where field == nil {
-                do { try Task.checkCancellation() } catch { self.restoreFullAccessibility(pid: pid); throw error }
-                Thread.sleep(forTimeInterval: 0.05)
-                // Only the same app's editor: focus moving elsewhere meanwhile must not be read under this app's verdict.
-                if let woken = try? self.focused(), self.pid(of: woken) == pid { element = woken; field = self.textField(element) }
-            }
-            Self.captureLog.notice("capture_woke_chromium found=\(field != nil, privacy: .public)")
-            if field == nil { self.restoreFullAccessibility(pid: pid) }
-        }
-        // In a web page, focus can rest beside the editor: on a menu option the editor points at
-        // (aria-activedescendant), or on a cross-origin frame's document. The editor holds the caret.
-        if field == nil, let holder = self.caretHolder(element), let found = self.textField(holder) { element = holder; field = found }
+        let woken = try self.wakingField(&element, pid: pid), awakeDocument = woken.awakeDocument
+        var field = woken.field
         let version = app.bundleURL.flatMap { Bundle(url: $0)?.infoDictionary?["CFBundleShortVersionString"] as? String }
         /// The editor as only copy and paste can reach it: `selected` is false when it is known to hold no selection.
         func opaque(role: String, subrole: String?, selected: Bool?, empty: EmptyDraft? = nil, rejectCopiedLine: Bool = false) -> OpaqueEditor {
@@ -226,7 +207,7 @@ actor EditorAccess {
     }
 
     /// What a field says it is for: labels, placeholder, help, identifiers and autofill hints.
-    private func descriptions(_ element: AXUIElement) -> [String] {
+    func descriptions(_ element: AXUIElement) -> [String] {
         var texts = [kAXTitleAttribute, kAXDescriptionAttribute, kAXPlaceholderValueAttribute, kAXHelpAttribute, kAXIdentifierAttribute,
                      "AXDOMIdentifier", "AXAutocompleteValue", "AXInputType"]
             .compactMap { attribute(element, $0) as? String }

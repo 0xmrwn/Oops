@@ -1,6 +1,7 @@
 #if DEBUG
 import AppKit
 import OSLog
+import OopsCore
 
 /// Debug builds only: launch-argument previews, lab triggers and the perf harness (see DebugFlags).
 @MainActor extension AppDelegate {
@@ -42,6 +43,11 @@ import OSLog
         on("forget") { [weak self] _ in self?.session.remember(nil); self?.session.capsule.model.canRevert = false }
         on("correct-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.correct() } }
         on("restore-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.revert() } }
+        // Writes `text` at the lab's caret, so a run can exercise insert without a microphone.
+        on("insert-lab") { [weak self] info in
+            guard let self, let text = info["text"], Self.labIsInFront() else { return }
+            Task { Self.recordInsert(await self.session.editor.insert(text)) }
+        }
         // Compatibility runs: a scratch draft in the app the trigger names, and only while it is in front.
         on("app") { [weak self] info in
             guard let self, let bundle = info["bundle"], let action = info["action"] else { return }
@@ -58,6 +64,24 @@ import OSLog
             let mode = PlacementProbe.Mode(rawValue: info["mode"] ?? "") ?? .plain
             Task { self?.preferences.status = await PlacementProbe.record(mode: mode) }
         }
+    }
+
+    /// One line per lab insert in the run's log folder (`inserts.jsonl`), for the run to check.
+    private static func recordInsert(_ outcome: InsertOutcome) {
+        guard let directory = DebugFlags.debugLogDirectory else { return }
+        let entry: [String: String] = switch outcome {
+        case .inserted: ["outcome": "inserted"]
+        case .unconfirmed: ["outcome": "unconfirmed"]
+        case .refused(let refusal): ["outcome": "refused", "reason": refusal.rawValue]
+        }
+        guard let line = try? JSONSerialization.data(withJSONObject: entry) else { return }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appendingPathComponent("inserts.jsonl")
+        if !FileManager.default.fileExists(atPath: file.path) { FileManager.default.createFile(atPath: file.path, contents: nil) }
+        guard let handle = try? FileHandle(forWritingTo: file) else { return }
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: line + Data("\n".utf8))
     }
 
     /// Whether the focused element's window is a lab (fixtures/composer-lab, fixtures/native-lab), by

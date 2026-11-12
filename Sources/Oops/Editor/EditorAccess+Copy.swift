@@ -204,7 +204,7 @@ extension EditorAccess {
 
     /// The editor still has focus. An element that exposes nothing may not compare equal across
     /// reads, so one in the same process, window and role stands in for it.
-    private func assertFocus(element: AXUIElement, pid: pid_t, hostPID: pid_t?, role: String) throws {
+    func assertFocus(element: AXUIElement, pid: pid_t, hostPID: pid_t?, role: String) throws {
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == hostPID ?? pid else {
             throw CorrectionError.message("Focus moved to another app. Your correction is ready to copy.")
         }

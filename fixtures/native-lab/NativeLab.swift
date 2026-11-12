@@ -7,11 +7,12 @@ import WebKit
 // Usage: NativeLab <control.json> <composer-lab/index.html>; switches to whatever control.json names.
 // End-to-end runs (fixtures/e2e) use `e2e` (a plain text view with the control's `text` and optional
 // `selection` "location,length", and a `variant`: `ime` leaves a composition at the caret, `readonly` can't be
-// edited, `remount` rebuilds the text view after each edit like a remounted component, and every U+FFFC in
-// the text becomes an attachment chip), `e2e-secure` (a password field), `e2e-opaque` (a text view that hides
-// its text from Accessibility, like editors only copy and paste can reach), `append` to type into the
-// current editor mid-correction, and `other` to focus a second editor below it, holding that text. The
-// focused editor's text is mirrored to <control.json>.state. `web-*` scenarios with a `url` show that page in
+// edited, `remount` rebuilds the text view after each edit like a remounted component, `placeholder` is an
+// empty text field showing only its placeholder, and every U+FFFC in the text becomes an attachment chip),
+// `e2e-secure` (a password field), `e2e-opaque` (a text view that hides its text from Accessibility, like
+// editors only copy and paste can reach), `append` to type into the current editor mid-correction, and
+// `other` to focus a second editor below it, holding that text. The focused editor's text (a field's too) is
+// mirrored to <control.json>.state. `web-*` scenarios with a `url` show that page in
 // the WebKit view instead (fixtures/e2e/web.html), which reports its own text.
 
 let draft = "hey, i just pushed the fix for the login bug. it shoud work now but can you double check befor we ship it ?"
@@ -32,6 +33,7 @@ final class Lab: NSObject, NSApplicationDelegate, NSTextViewDelegate {
     let web = WKWebView(frame: .zero)
     var nonce = ""
     var current: NSTextView?
+    var field: NSTextField? // A field's editor is the window's, so its text is read here instead.
     var reported: String?
     var served: URL?
     init(control: URL, page: URL) { self.control = control; self.page = page }
@@ -58,7 +60,7 @@ final class Lab: NSObject, NSApplicationDelegate, NSTextViewDelegate {
         if scenario.hasPrefix("web-") {
             guard let url = object["url"].flatMap(URL.init(string:)) else { return }
             if served != url { served = url; web.load(URLRequest(url: url)) }
-            current = nil
+            current = nil; field = nil
             window.title = "oops native lab · web"
             window.contentView = web
             window.makeFirstResponder(web)
@@ -68,12 +70,13 @@ final class Lab: NSObject, NSApplicationDelegate, NSTextViewDelegate {
             current.insertText(append, replacementRange: NSRange(location: (current.string as NSString).length, length: 0)); return
         }
         if let other = object["other"], let current { return otherField(other, below: current) }
-        current = nil; remount = false
+        current = nil; field = nil; remount = false
         switch scenario {
         case "e2e":
             let parts = (object["selection"] ?? "").split(separator: ",").compactMap { Int($0) }
             let caret: Caret = parts.count == 2 ? .selection(NSRange(location: parts[0], length: parts[1])) : .end
             window.title = "oops native lab · e2e"
+            if object["variant"] == "placeholder" { return placeholder() }
             text(object["text"] ?? "", caret: caret)
             variant(object["variant"])
         case "e2e-opaque":
@@ -94,8 +97,18 @@ final class Lab: NSObject, NSApplicationDelegate, NSTextViewDelegate {
             let field = NSSecureTextField(frame: NSRect(x: 24, y: 700, width: 400, height: 28))
             field.stringValue = object["text"] ?? "hunter2 pasword"; field.autoresizingMask = [.minYMargin]
             root.addSubview(field); window.contentView = root; window.makeFirstResponder(field)
+            self.field = field
         default: show(scenario)
         }
+    }
+
+    private func placeholder() {
+        let root = NSView(frame: NSRect(origin: .zero, size: window.contentRect(forFrameRect: window.frame).size))
+        let field = NSTextField(frame: NSRect(x: 24, y: 640, width: 600, height: 80))
+        field.placeholderString = "Type a message"; field.cell?.wraps = true; field.cell?.isScrollable = false
+        field.autoresizingMask = [.minYMargin]
+        root.addSubview(field); window.contentView = root; window.makeFirstResponder(field)
+        self.field = field
     }
 
     private func variant(_ name: String?) {
@@ -131,10 +144,11 @@ final class Lab: NSObject, NSApplicationDelegate, NSTextViewDelegate {
 
     /// The editor's text and the nonce it belongs to, written only when they change.
     private func report() {
-        let state = "\(nonce)\u{0}\(current?.string ?? "")"
+        let text = current?.string ?? field.map { $0.currentEditor()?.string ?? $0.stringValue }
+        let state = "\(nonce)\u{0}\(text ?? "")"
         guard state != reported else { return }
         reported = state
-        let object: [String: Any] = ["nonce": nonce, "text": current?.string ?? NSNull()]
+        let object: [String: Any] = ["nonce": nonce, "text": text ?? NSNull()]
         if let data = try? JSONSerialization.data(withJSONObject: object) {
             try? data.write(to: control.appendingPathExtension("state"), options: .atomic)
         }

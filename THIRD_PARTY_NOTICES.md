@@ -15,6 +15,9 @@ under its own terms.
 - **Sparkle** 2, Copyright (c) 2006-2013 Andy Matuschak and the other authors in its licence, MIT with the
   additional notices in that file. Linked as a Swift package for updates; its licence ships inside
   `Sparkle.framework`.
+- **Hex**, Copyright (c) 2026 Christopher Langton, MIT. The clipboard rules of text written at the caret
+  (`Sources/OopsCore/Editor/PasteClipboard.swift`, `Sources/Oops/Editor/InsertClipboard.swift`) and their
+  tests are ported from its `src/paste.rs`.
 
 ## Assets
 

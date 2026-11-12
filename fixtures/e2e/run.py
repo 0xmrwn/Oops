@@ -4,7 +4,8 @@
 Builds Oops (Debug, so the stub exists) and installs it as the development runtime, launches it
 with launch-argument-only settings (stub provider, debug log in a temporary folder, lab triggers,
 no sounds), drives each scenario and checks the lab's final text and the attempt Oops logged, then
-what each further press of Fix text did (`toggle:` cases), counting the stub's calls. No model is called. Native scenarios run in fixtures/native-lab; web ones run fixtures/e2e/web.html,
+what each further press of Fix text did (`toggle:` cases), counting the stub's calls. No model is called.
+`insert-` cases write text at the caret instead (inserts.py). Native scenarios run in fixtures/native-lab; web ones run fixtures/e2e/web.html,
 served here, in each browser host: WebKit (the native lab's web view), Chrome and Zen (Gecko), the
 browsers with throwaway profiles. Fronts the lab windows: don't run it while someone is using the
 Mac. Leaves Oops relaunched as normal and no defaults or profiles behind.
@@ -27,6 +28,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import inserts
 from scenarios import QUICK, SCENARIOS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -185,12 +187,12 @@ class Run:
             time.sleep(0.1)
         raise TimeoutError(what)
 
-    def trigger(self, name):
+    def trigger(self, name, *arguments):
         require_screen()
         sh(str(TOOLS / "activate"), str(self.profile) if self.profile else LAB_MARKER, stdout=subprocess.DEVNULL)
         time.sleep(0.4)
         require_screen()
-        sh(str(TOOLS / "trigger"), name)
+        sh(str(TOOLS / "trigger"), name, *arguments)
 
     def control(self, scenario, **fields):
         self.nonce += 1
@@ -249,6 +251,8 @@ class Run:
         case = json.loads(json.dumps(case).replace("{round}", str(round)))
         self.use(case.get("host", "native"))
         self.capture = None
+        if "insert" in case:
+            return inserts.check(self, case)
         self.write(self.stub, case["stub"])
         self.show(case.get("scenario", "e2e"), case.get("text"), case.get("selection"), case.get("variant"))
         before = len([e for e in self.entries() if e["kind"] == "attempt"])
