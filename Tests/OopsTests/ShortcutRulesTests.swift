@@ -1,0 +1,35 @@
+import Carbon
+@testable import Oops
+import XCTest
+
+/// Which actions register, with what, and that two of them never share a chord.
+@MainActor final class ShortcutRulesTests: XCTestCase {
+    private let fixDefault = Shortcut(keyCode: 13, modifiers: UInt32(controlKey | cmdKey))
+    private let chord = Shortcut(keyCode: 2, modifiers: UInt32(optionKey | cmdKey))
+
+    func testOnlyFixHasADefault() {
+        XCTAssertEqual(ShortcutSettings.defaultShortcut(.correct, w: 13), fixDefault)
+        XCTAssertNil(ShortcutSettings.defaultShortcut(.correct, w: nil), "a layout with no W")
+        XCTAssertNil(ShortcutSettings.defaultShortcut(.dictate, w: 13))
+    }
+
+    func testAnActionWithoutAShortcutIsOffNotAFailure() {
+        XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: nil, dictation: true), .off)
+        XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: chord, dictation: true), .chord(chord))
+        // Fix keeps its message for a layout with no W.
+        XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: nil, dictation: true), .noDefault)
+        XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: fixDefault, dictation: false), .chord(fixDefault))
+    }
+
+    func testDictateRegistersOnlyWhileDictationIsOn() {
+        XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: chord, dictation: false), .off)
+    }
+
+    func testTwoActionsCannotShareAChord() {
+        let both: [ShortcutSettings.Action: Shortcut] = [.correct: fixDefault, .dictate: chord]
+        XCTAssertEqual(ShortcutSettings.clash(.dictate, fixDefault, with: both, dictation: true), .correct)
+        XCTAssertEqual(ShortcutSettings.clash(.correct, chord, with: both, dictation: true), .dictate)
+        XCTAssertNil(ShortcutSettings.clash(.dictate, chord, with: both, dictation: true), "its own chord again")
+        XCTAssertNil(ShortcutSettings.clash(.correct, chord, with: both, dictation: false), "Dictate isn't registered while off")
+    }
+}

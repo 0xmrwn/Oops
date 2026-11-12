@@ -69,13 +69,42 @@ struct Shortcut: Codable, Equatable {
     }
 }
 
-/// The shortcuts. Fix text, the only one, defaults to ⌃⌘W wherever the layout puts W; pressed again it
-/// restores (D10). A custom one is stored by key code under `Shortcut.<action>`.
+/// The shortcuts. Fix text defaults to ⌃⌘W wherever the layout puts W; pressed again it restores (D10).
+/// Dictate has no default: without a shortcut it is off. A custom one is stored by key code under
+/// `Shortcut.<action>`.
 @MainActor @Observable final class ShortcutSettings {
     enum Action: String, CaseIterable {
         case correct
+        case dictate
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
-        var symbol: String { "checkmark.bubble" }
+        var symbol: String {
+            switch self {
+            case .correct: "checkmark.bubble"
+            case .dictate: SettingsTab.dictate.symbol
+            }
+        }
+        /// The action's name in Settings.
+        var title: String {
+            switch self {
+            case .correct: "Fix text"
+            case .dictate: "Dictate"
+            }
+        }
+        /// The Settings tab the action belongs to.
+        var tab: SettingsTab {
+            switch self {
+            case .correct: .fix
+            case .dictate: .dictate
+            }
+        }
+    }
+
+    /// What `register()` does with an action: binds its chord, leaves it off, or reports that its
+    /// default can't be had on this layout.
+    enum Registration: Equatable {
+        case chord(Shortcut)
+        case off
+        case noDefault
     }
     static let shared = ShortcutSettings()
 
@@ -98,15 +127,44 @@ struct Shortcut: Codable, Equatable {
     }
 
     func shortcut(_ action: Action) -> Shortcut? { custom[action] ?? defaultShortcut(action) }
-    /// ⌃⌘W to fix, a chord most people can press and that apps leave free (D8). None when the layout
-    /// has no W.
-    func defaultShortcut(_ action: Action) -> Shortcut? {
-        KeyboardLayout.keyCode(for: "w").map { Shortcut(keyCode: $0, modifiers: UInt32(controlKey | cmdKey)) }
+    func defaultShortcut(_ action: Action) -> Shortcut? { Self.defaultShortcut(action, w: KeyboardLayout.keyCode(for: "w")) }
+    /// ⌃⌘W to fix, a chord most people can press and that apps leave free (D8), when the layout has a W
+    /// (`w`, its key code). Dictate has none.
+    static func defaultShortcut(_ action: Action, w: UInt32?) -> Shortcut? {
+        guard action == .correct else { return nil }
+        return w.map { Shortcut(keyCode: $0, modifiers: UInt32(controlKey | cmdKey)) }
     }
     func label(_ action: Action) -> String { shortcut(action)?.label ?? "—" }
 
-    /// Saves a shortcut (nil restores the default) once the system accepts it.
+    func registration(_ action: Action) -> Registration {
+        Self.registration(action, shortcut: shortcut(action), dictation: DebugFlags.dictation)
+    }
+    /// Dictate only while dictation is switched on. An action with no shortcut is off, which is no failure;
+    /// only Fix, whose default is missing from this layout, has something to report.
+    static func registration(_ action: Action, shortcut: Shortcut?, dictation: Bool) -> Registration {
+        if action == .dictate, !dictation { return .off }
+        if let shortcut { return .chord(shortcut) }
+        return action == .correct ? .noDefault : .off
+    }
+
+    /// The other action already bound to `shortcut`, among the ones that register: two actions on one
+    /// chord would leave one of them dead, whatever the system says.
+    static func clash(_ action: Action, _ shortcut: Shortcut, with shortcuts: [Action: Shortcut], dictation: Bool) -> Action? {
+        Action.allCases.first { other in
+            other != action && shortcuts[other] == shortcut
+                && registration(other, shortcut: shortcuts[other], dictation: dictation) != .off
+        }
+    }
+
+    /// Saves a shortcut (nil restores the default, or turns off an action that has none) once the system
+    /// accepts it.
     func set(_ action: Action, _ shortcut: Shortcut?) throws {
+        if let chosen = shortcut ?? defaultShortcut(action) {
+            let others = Dictionary(uniqueKeysWithValues: Action.allCases.compactMap { other in self.shortcut(other).map { (other, $0) } })
+            if let other = Self.clash(action, chosen, with: others, dictation: DebugFlags.dictation) {
+                throw CorrectionError.message("\(chosen.label) is already in use by \(other.title). Choose another shortcut.")
+            }
+        }
         let previous = custom
         custom[action] = shortcut
         try? hotkeys?.register()
