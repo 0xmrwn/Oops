@@ -1,5 +1,6 @@
 import Foundation
 import OopsCore
+import OSLog
 
 /// Dictation from the shortcut to the caret: the shortcut's presses and releases go through the activation
 /// for the current mode, whose effects start a recording, stop it for transcription or discard it. A stopped
@@ -23,6 +24,9 @@ import OopsCore
         case done
         case failed(DictationFailure)
     }
+
+    /// What each dictation came to, in numbers only: never what was said.
+    static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Dictation")
 
     private(set) var activation = DictationActivation()
     /// Held from a start until its outcome shows or the drop leaves.
@@ -122,6 +126,7 @@ import OopsCore
         guard drop.claim(busy: { [weak self] in self?.holdsDrop == true }) else {
             status(CorrectionSession.dropTaken)
             activation.startResult(started: false)
+            Self.log.notice("start refused=dropHeld")
             return
         }
         holdsDrop = true
@@ -133,11 +138,13 @@ import OopsCore
         }
         do { try await recorder.start(at: pressed) } catch { return refuse(Self.failure(error)) }
         activation.startResult(started: true)
+        Self.log.notice("recording mode=\(self.activation.sessionMode.rawValue, privacy: .public)")
         drop.show(.recording)
     }
 
     private func refuse(_ failure: DictationFailure) {
         activation.startResult(started: false)
+        Self.log.notice("start refused=\(String(describing: failure), privacy: .public)")
         conclude(.failed(failure))
     }
 
