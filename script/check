@@ -3,7 +3,7 @@
 # and stops at the first failure.
 #   1. hooks   the commit hooks (.pre-commit-config.yaml) on the changed files
 #   2. build   Swift, when Swift changed: incremental, niced, half the cores (warnings are errors: Package.swift)
-#   3. tests   unit tests, when OopsCore, OopsEval, the tests, their data or the package changed
+#   3. tests   unit tests, when OopsCore, OopsEngine, OopsEval, the tests, their data or the package changed
 # Prints one line per step and a progress line every 10 s; the full output is in .build/check.log, rewritten
 # on every run. Usage: script/check [BASE]   (a branch or commit: checks everything since it forked)
 set -uo pipefail
@@ -99,9 +99,9 @@ if has '^fixtures/eval/(evaluation/|test_.*\.py$|manage\.py$|rubric\.json$|cases
   step eval python3 -m unittest discover -s fixtures/eval -p 'test_*.py' || fail 'ERROR|FAIL|Error|Traceback' eval
 fi
 
-# Unit tests cover OopsCore and the eval harness, and read the decode corpus and the bundled sound cues; app-only
-# changes stop at the build.
-tested='^Sources/OopsCore/|^Sources/OopsEval/|^Tests/|^Package\.(swift|resolved)$|^fixtures/corpus/|^Resources/Sounds/'
+# Unit tests cover OopsCore, the speech engine and the eval harness, and read the decode corpus and the bundled
+# sound cues; app-only changes stop at the build.
+tested='^Sources/OopsCore/|^Sources/OopsEngine/|^Sources/OopsEval/|^Tests/|^Package\.(swift|resolved)$|^fixtures/corpus/|^Resources/Sounds/'
 
 # Packaging contracts run without compiling Swift or opening an app.
 if has '^script/(release.*|test_release.*\.py)$'; then

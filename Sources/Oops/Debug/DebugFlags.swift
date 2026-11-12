@@ -19,8 +19,19 @@ enum DebugFlags {
     // MARK: Features still being built
 
     /// Dictation, hidden until it ships: `-DebugDictation YES` for one launch, or `defaults write
-    /// dev.0xmrwn.oops DebugDictation -bool YES` to keep it on in development builds.
+    /// dev.0xmrwn.oops DebugDictation -bool YES` to keep it on in development builds. Always on in a preview
+    /// build (OOPS_PREVIEW=1), Release included: building one is the opt-in.
+    #if OOPS_PREVIEW
+    static var dictation: Bool { true }
+    #else
     static var dictation: Bool { bool("DebugDictation") }
+    #endif
+    /// The model file dictation loads: `-DebugDictationModel <path>`, in Debug and preview builds.
+    #if DEBUG || OOPS_PREVIEW
+    static var dictationModel: String? { UserDefaults.standard.string(forKey: "DebugDictationModel") }
+    #else
+    static var dictationModel: String? { nil }
+    #endif
     /// Actions, the same way: `DebugActions`.
     static var actions: Bool { bool("DebugActions") }
 

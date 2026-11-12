@@ -9,7 +9,14 @@ DISTRIBUTION_SIGNING = "Developer ID, hardened runtime, secure timestamp"
 FRAMEWORK = "Contents/Frameworks/Sparkle.framework"
 # Nested code, inside out: Sparkle's helpers, then the framework. Never --deep (Sparkle's guidance).
 NESTED_CODE = (f"{FRAMEWORK}/Versions/B/Autoupdate", f"{FRAMEWORK}/Versions/B/Updater.app", FRAMEWORK)
+# A preview build's speech engine (OOPS_PREVIEW=1), and the microphone it listens through under hardened runtime.
+ENGINE = "Contents/Frameworks/CTranscribe.framework"
+AUDIO_INPUT = "com.apple.security.device.audio-input"
 LIBRARY_VALIDATION = "com.apple.security.cs.disable-library-validation"
+
+
+def nested_code(preview):
+    return (*NESTED_CODE, ENGINE) if preview else NESTED_CODE
 
 
 def validate_identity(fingerprint, run):
@@ -22,23 +29,27 @@ def validate_identity(fingerprint, run):
     return fingerprint
 
 
-def sign(app, fingerprint, run):
+def sign(app, fingerprint, run, preview=False):
     command = ["codesign", "--force", "--sign", fingerprint or "-", "--options", "runtime"]
     command.append("--timestamp" if fingerprint else "--timestamp=none")
-    for nested in NESTED_CODE:
+    for nested in nested_code(preview):
         run(command + [str(app / nested)])
-    if fingerprint:
+    # Library validation only accepts frameworks from the app's own Team ID, which ad-hoc code lacks:
+    # local builds may load their ad-hoc Sparkle. Developer ID builds never carry this (verify_signature),
+    # and only a preview build asks for the microphone.
+    entitlements = {LIBRARY_VALIDATION: True} if not fingerprint else {}
+    if preview:
+        entitlements[AUDIO_INPUT] = True
+    if not entitlements:
         run(command + [str(app)])
         return
-    # Library validation only accepts frameworks from the app's own Team ID, which ad-hoc code lacks:
-    # local builds may load their ad-hoc Sparkle. Developer ID builds never carry this (verify_signature).
-    with tempfile.NamedTemporaryFile("wb", suffix=".plist") as entitlements:
-        entitlements.write(plistlib.dumps({LIBRARY_VALIDATION: True}))
-        entitlements.flush()
-        run(command + ["--entitlements", entitlements.name, str(app)])
+    with tempfile.NamedTemporaryFile("wb", suffix=".plist") as file:
+        file.write(plistlib.dumps(entitlements))
+        file.flush()
+        run(command + ["--entitlements", file.name, str(app)])
 
 
-def verify_signature(app, fingerprint, run):
+def verify_signature(app, fingerprint, run, preview=False):
     command = ["codesign", "--verify", "--deep", "--strict"]
     if fingerprint:
         if not re.fullmatch(r"[0-9A-Fa-f]{40}", fingerprint):
@@ -49,7 +60,7 @@ def verify_signature(app, fingerprint, run):
         )
         command += ["-R", "=" + requirement]
     run(command + [str(app)])
-    for code in (*NESTED_CODE, ""):
+    for code in (*nested_code(preview), ""):
         # The same signer, hardened runtime and timestamp for Sparkle's code as for the app.
         run(command + [str(app / code)])
         details = run(["codesign", "-dvvv", str(app / code)], capture=True, stderr=True)
@@ -71,4 +82,8 @@ def verify_signature(app, fingerprint, run):
             raise ValueError(f"Release must not allow debugger attachment via get-task-allow: {name}")
         if fingerprint and entitlements.get(LIBRARY_VALIDATION):
             raise ValueError(f"distribution signature must keep library validation: {name}")
+        if preview and not code and entitlements.get(AUDIO_INPUT) is not True:
+            raise ValueError("a preview build must be signed with the audio-input entitlement")
+        if AUDIO_INPUT in entitlements and not (preview and not code):
+            raise ValueError(f"only a preview build's app may ask for the microphone (audio-input): {name}")
     return DISTRIBUTION_SIGNING if fingerprint else LOCAL_SIGNING

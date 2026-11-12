@@ -20,9 +20,20 @@ if [[ -n "$SIGNING_IDENTITY" && ! "$SIGNING_IDENTITY" =~ ^[[:xdigit:]]{40}$ ]]; 
   exit 1
 fi
 export CLANG_MODULE_CACHE_PATH="$ROOT_DIR/.build/clang-cache"
+# OOPS_PREVIEW=1 embeds the speech engine and asks for the microphone, in its own scratch path so switching
+# doesn't rebuild the normal one. Package.swift reads the same variable; anything but 1 is a normal build.
+PREVIEW=0
+SCRATCH=(--scratch-path "$ROOT_DIR/.build")
+if [[ "${OOPS_PREVIEW:-}" == 1 ]]; then
+  PREVIEW=1
+  SCRATCH=(--scratch-path "$ROOT_DIR/.build/preview")
+  echo "Preview build (OOPS_PREVIEW=1): speech engine and microphone included; for this Mac only." >&2
+else
+  unset OOPS_PREVIEW
+fi
 # No Keychain lookup: resolving Sparkle from github.com can otherwise wait on a hidden prompt.
-swift build --disable-sandbox --disable-keychain
-BIN_DIR="$(swift build --show-bin-path --disable-sandbox)"
+swift build --disable-sandbox --disable-keychain "${SCRATCH[@]}"
+BIN_DIR="$(swift build --show-bin-path --disable-sandbox "${SCRATCH[@]}")"
 PACKAGE_TMP_BASE="${TMPDIR:-/private/tmp}"
 STAGING_DIR="$(mktemp -d "${PACKAGE_TMP_BASE%/}/oops-package.XXXXXX")"
 trap 'rm -rf "$STAGING_DIR"' EXIT
@@ -37,6 +48,15 @@ FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
 mkdir -p "$APP/Contents/Frameworks"
 ditto "$BIN_DIR/Sparkle.framework" "$FRAMEWORK"
 rm -rf "$FRAMEWORK/XPCServices" "$FRAMEWORK/Versions/B/XPCServices"
+# The speech engine, trimmed as release_bundle.py does: arm64 code only, no headers or module map.
+ENGINE="$APP/Contents/Frameworks/CTranscribe.framework"
+if [[ $PREVIEW == 1 ]]; then
+  ditto "$BIN_DIR/CTranscribe.framework" "$ENGINE"
+  for extra in Headers Modules; do rm -rf "${ENGINE:?}/$extra" "$ENGINE/Versions/A/$extra"; done
+  if [[ "$(lipo -archs "$ENGINE/Versions/A/CTranscribe")" != arm64 ]]; then
+    lipo "$ENGINE/Versions/A/CTranscribe" -thin arm64 -output "$ENGINE/Versions/A/CTranscribe"
+  fi
+fi
 # Compile the layered Icon Composer source, including appearance variants.
 xcrun actool "$ROOT_DIR/Resources/Oops.icon" "$ROOT_DIR/Resources/Assets.xcassets" \
   --compile "$APP/Contents/Resources" --output-format human-readable-text \
@@ -76,6 +96,18 @@ cat >"$APP/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 /usr/libexec/PlistBuddy -c "Merge $STAGING_DIR/icon-info.plist" "$APP/Contents/Info.plist"
+# The same text as release_bundle.py's MICROPHONE_USAGE.
+MICROPHONE_USAGE="Oops listens while you dictate, and only then."
+ENTITLEMENTS=()
+if [[ $PREVIEW == 1 ]]; then
+  /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string $MICROPHONE_USAGE" "$APP/Contents/Info.plist"
+  cat >"$STAGING_DIR/entitlements.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>com.apple.security.device.audio-input</key><true/></dict></plist>
+PLIST
+  ENTITLEMENTS=(--entitlements "$STAGING_DIR/entitlements.plist")
+fi
 # A review has its own defaults domain and never replaces the installed development app.
 BUNDLE_ID="dev.0xmrwn.oops"
 if [[ "$MODE" == "--brand-review" ]]; then
@@ -90,20 +122,22 @@ xattr -dr com.apple.FinderInfo "$APP" 2>/dev/null || true
 xattr -dr com.apple.ResourceFork "$APP" 2>/dev/null || true
 # Nested code first, inside out, then the app: never --deep, which Sparkle's helpers must not get.
 sign_nested() {
-  local code
-  for code in "$FRAMEWORK/Versions/B/Autoupdate" "$FRAMEWORK/Versions/B/Updater.app" "$FRAMEWORK"; do
+  local code nested=("$FRAMEWORK/Versions/B/Autoupdate" "$FRAMEWORK/Versions/B/Updater.app" "$FRAMEWORK")
+  if [[ $PREVIEW == 1 ]]; then nested+=("$ENGINE"); fi
+  for code in "${nested[@]}"; do
     codesign --force --sign "$1" --timestamp=none "$code" >/dev/null
   done
 }
+# ${ENTITLEMENTS[@]+…}: bash 3.2 (macOS) treats an empty array as unset under set -u.
 if [[ -n "$SIGNING_IDENTITY" ]]; then
   sign_nested "$SIGNING_IDENTITY"
-  codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$APP" >/dev/null
+  codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none ${ENTITLEMENTS[@]+"${ENTITLEMENTS[@]}"} "$APP" >/dev/null
   if codesign -dv "$APP" 2>&1 | grep -q '^TeamIdentifier=not set'; then
     # Self-signed: pin the certificate. Keychain still keys such builds to their code hash,
     # so each rebuild asks for the ChatGPT sign-in again; an Apple Development identity
     # carries a team ID that Keychain and Accessibility both keep across rebuilds.
     REQUIREMENT="identifier \"$BUNDLE_ID\" and certificate leaf = H\"$SIGNING_IDENTITY\""
-    codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none \
+    codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none ${ENTITLEMENTS[@]+"${ENTITLEMENTS[@]}"} \
       --requirements "=designated => $REQUIREMENT" "$APP" >/dev/null
     codesign --verify --deep --strict -R "=$REQUIREMENT" "$APP"
   else
@@ -112,7 +146,7 @@ if [[ -n "$SIGNING_IDENTITY" ]]; then
 else
   echo "No local signing identity configured; using ad-hoc signing." >&2
   sign_nested -
-  codesign --force --sign - "$APP" >/dev/null
+  codesign --force --sign - ${ENTITLEMENTS[@]+"${ENTITLEMENTS[@]}"} "$APP" >/dev/null
 fi
 mkdir -p "$ROOT_DIR/dist"
 DIST_APP="$ROOT_DIR/dist/oops.app"
@@ -124,6 +158,26 @@ ditto --norsrc --noextattr "$APP" "$DIST_APP"
 xattr -dr com.apple.FinderInfo "$DIST_APP" 2>/dev/null || true
 xattr -dr com.apple.ResourceFork "$DIST_APP" 2>/dev/null || true
 codesign --verify --deep --strict "$DIST_APP"
+# The engine, the microphone text and the entitlement come together, and only with OOPS_PREVIEW=1.
+verify_preview() {
+  local app=$1 found=0 entitled=0 described=0 entitlements
+  [[ -e "$app/Contents/Frameworks/CTranscribe.framework" ]] && found=1
+  entitlements=$(codesign -d --entitlements - --xml "$app" 2>/dev/null || true)
+  [[ $entitlements == *com.apple.security.device.audio-input* ]] && entitled=1
+  /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$app/Contents/Info.plist" >/dev/null 2>&1 && described=1
+  if [[ "$found$entitled$described" != "$PREVIEW$PREVIEW$PREVIEW" ]]; then
+    echo "$app: engine $found, audio-input entitlement $entitled, microphone text $described; expected $PREVIEW for each (OOPS_PREVIEW=$PREVIEW)." >&2
+    return 1
+  fi
+  [[ $PREVIEW == 1 ]] || return 0
+  local engine="$app/Contents/Frameworks/CTranscribe.framework/Versions/A"
+  if [[ "$(lipo -archs "$engine/CTranscribe")" != arm64 || -e "$engine/Headers" || -e "$engine/Modules" ]] ||
+    ! codesign --verify --strict "$engine/../.."; then
+    echo "$app: CTranscribe.framework is not thinned to arm64, trimmed and signed." >&2
+    return 1
+  fi
+}
+verify_preview "$DIST_APP"
 # Run outside Documents/iCloud: File Provider can reattach prohibited FinderInfo
 # metadata to signed bundles even after a successful local signing step.
 RUN_APP="$HOME/Library/Application Support/oops/Development/oops.app"
