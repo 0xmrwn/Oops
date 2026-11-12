@@ -87,8 +87,10 @@ typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
     }
     private func clearRegistrations() {
         refs.forEach { UnregisterEventHotKey($0) }; refs = []; failed = []
-        ShortcutSettings.shared.down = nil; router.reset()
+        ShortcutSettings.shared.down = nil; let cut = router.reset()
         KeyboardGate.heldShortcuts.withLock { $0 = [] }
         if let handler { RemoveEventHandler(handler) }; handler = nil
+        // A chord that was down loses its release with its registration: told here, so nothing waits on it.
+        cut.forEach { invoke?($0.action, $0.phase) }
     }
 }

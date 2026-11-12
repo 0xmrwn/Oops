@@ -16,6 +16,7 @@ extension EditorAccess {
         try await KeyboardGate.waitForModifierRelease()
         // Waiting for the shortcut's keys to be let go gave focus time to move: copy only from the captured editor.
         try assertFocus(element: opaque.element, pid: opaque.pid, hostPID: opaque.hostPID, role: opaque.role)
+        insertClipboard.settle()
         let lease = try ClipboardLease()
         defer { lease.restoreIfOwned() }
         if opaque.rejectCopiedLine {

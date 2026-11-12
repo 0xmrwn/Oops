@@ -49,4 +49,14 @@ final class HotkeyRouterTests: XCTestCase {
         XCTAssertNil(router.route(identity: 1, pressed: false))
         XCTAssertEqual(router.route(identity: 1, pressed: true), Event(action: .fix, phase: .pressed))
     }
+
+    func testResettingOwesEachHeldActionItsRelease() {
+        var router = HotkeyRouter<Action>([.fix, .dictate])
+        XCTAssertNotNil(router.route(identity: 2, pressed: true))
+        XCTAssertEqual(router.reset(), [Event(action: .dictate, phase: .released)])
+        XCTAssertTrue(router.held.isEmpty)
+        // The release the old registration sends late is not told twice.
+        XCTAssertNil(router.route(identity: 2, pressed: false))
+        XCTAssertEqual(router.reset(), [])
+    }
 }

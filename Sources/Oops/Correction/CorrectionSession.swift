@@ -291,12 +291,16 @@ import OopsCore
         activeAttempt?.cancelFixture(generation: generation)
         preferences.providers.activeCorrection?.cancel()
         generation = UUID(); task?.cancel(); task = nil; activeAttempt = nil; testEditor.cancelled()
-        capsule.hide()
+        if holdsDrop { capsule.hide() }
     }
+
+    /// Whether the drop is Fix's to change: one another feature holds stays as it is.
+    private var holdsDrop: Bool { drop.holder.map { $0 == .fix } ?? true }
 
     func copyPending() {
         guard let pendingCorrection else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(pendingCorrection, forType: .string)
+        guard holdsDrop else { return }
         if capsule.isShown, capsule.model.phase == .pending { capsule.confirmCopy() } else { capsule.hide() }
     }
 

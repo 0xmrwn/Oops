@@ -97,7 +97,7 @@ extension CorrectionSession {
                 Task { [snapshot] in
                     await self.flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0,
                                                style: restoring ? .restore : .correction, remounted: remounted, patient: true) {
-                        self.generation == id && self.capsule.isShown
+                        self.generation == id && self.capsule.isShown && self.drop.holder == .fix
                     }
                     // A newer press holds the same switch and turns it off itself.
                     if fullAccessibility, self.generation == id { await self.editor.disableFullAccessibility(for: snapshot) }

@@ -22,7 +22,8 @@ struct PartialReplacement: LocalizedError {
 /// swap returns the snapshot with the element it ended on.
 extension EditorAccess {
     func prepareClipboard() throws -> ClipboardLease {
-        try ClipboardLease()
+        insertClipboard.settle()
+        return try ClipboardLease()
     }
 
     /// Returns the snapshot and the correction as applied, both moved onto the draft as the editor

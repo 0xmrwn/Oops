@@ -31,6 +31,10 @@ public struct HotkeyRouter<Action: Hashable & Sendable>: Sendable {
         return held.remove(action) != nil ? Event(action: action, phase: .released) : nil
     }
 
-    /// Forgets what is held: the registrations it was heard through are gone.
-    public mutating func reset() { held = [] }
+    /// Forgets what is held: the registrations it was heard through are gone, and no release will come
+    /// through them. Returns the release each held action is owed, for the caller to tell.
+    @discardableResult public mutating func reset() -> [Event] {
+        defer { held = [] }
+        return actions.filter(held.contains).map { Event(action: $0, phase: .released) }
+    }
 }

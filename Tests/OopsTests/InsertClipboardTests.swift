@@ -33,7 +33,7 @@ import Testing
     @Test func `inserted text is marked for clipboard managers`() throws {
         try withBoard { board in
             let clipboard = InsertClipboard(board: board.name)
-            _ = try clipboard.write("dictated text", through: clipboard.prepare())
+            _ = try clipboard.paste("dictated text")
             #expect(board.pasteboardItems?.count == 1)
             let types = board.pasteboardItems?.first?.types.map(\.rawValue) ?? []
             for marker in Self.markers { #expect(types.contains(marker), "\(marker) missing from \(types)") }
@@ -48,7 +48,7 @@ import Testing
                    [("dev.oops.fixture.image", Data([1, 2, 3, 4]))]], to: board)
             let before = contents(board)
             let clipboard = InsertClipboard(board: board.name)
-            let generation = try clipboard.write("dictated text", through: clipboard.prepare())
+            let generation = try clipboard.paste("dictated text")
             #expect(contents(board) != before)
             clipboard.restore(generation)
             #expect(contents(board) == before)
@@ -61,8 +61,8 @@ import Testing
             write([[("public.png", Data([1, 2, 3]))]], to: board)
             let before = contents(board)
             let clipboard = InsertClipboard(board: board.name)
-            let first = try clipboard.write("first", through: clipboard.prepare())
-            let second = try clipboard.write("second", through: clipboard.prepare())
+            let first = try clipboard.paste("first")
+            let second = try clipboard.paste("second")
             #expect(board.string(forType: .string) == "second")
             // The first insert's restore fires while the second's text is still needed: it stands down.
             clipboard.restore(first)
@@ -76,24 +76,28 @@ import Testing
         try withBoard { board in
             write([[("public.utf8-plain-text", Data("before".utf8))]], to: board)
             let clipboard = InsertClipboard(board: board.name)
-            let generation = try clipboard.write("dictated text", through: clipboard.prepare())
+            let generation = try clipboard.paste("dictated text")
             write([[("public.utf8-plain-text", Data("copied meanwhile".utf8))]], to: board)
             clipboard.restore(generation)
             #expect(board.string(forType: .string) == "copied meanwhile")
             // The next insert saves and gives back the newer content, not the older.
-            let next = try clipboard.write("more", through: clipboard.prepare())
+            let next = try clipboard.paste("more")
             clipboard.restore(next)
             #expect(board.string(forType: .string) == "copied meanwhile")
         }
     }
 
-    @Test func `a clipboard that changes after it is saved is not overwritten`() throws {
-        try withBoard { board in
+    @Test func `a clipboard that changes after it is saved is not overwritten`() {
+        withBoard { board in
             write([[("public.utf8-plain-text", Data("before".utf8))]], to: board)
             let clipboard = InsertClipboard(board: board.name)
-            let prepared = try clipboard.prepare()
-            write([[("public.utf8-plain-text", Data("copied meanwhile".utf8))]], to: board)
-            #expect(throws: (any Error).self) { try clipboard.write("dictated text", through: prepared) }
+            // Copied after the insert saved the clipboard, before it writes.
+            #expect(throws: (any Error).self) {
+                try clipboard.paste("dictated text") {
+                    write([[("public.utf8-plain-text", Data("copied meanwhile".utf8))]], to: board)
+                    return true
+                }
+            }
             #expect(board.string(forType: .string) == "copied meanwhile")
         }
     }
@@ -102,9 +106,41 @@ import Testing
         try withBoard { board in
             board.clearContents()
             let clipboard = InsertClipboard(board: board.name)
-            let generation = try clipboard.write("dictated text", through: clipboard.prepare())
+            let generation = try clipboard.paste("dictated text")
             clipboard.restore(generation)
             #expect(board.pasteboardItems?.isEmpty != false)
+        }
+    }
+
+    @Test func `the last insert's restore waits for an insert under way`() throws {
+        try withBoard { board in
+            write([[("public.utf8-plain-text", Data("before".utf8))]], to: board)
+            let clipboard = InsertClipboard(board: board.name)
+            let first = try clipboard.paste("first")
+            let restored = DispatchSemaphore(value: 0)
+            let second = try clipboard.paste("second") {
+                // The first insert's timer fires while the second is between saving the clipboard and writing.
+                DispatchQueue.global().async { clipboard.restore(first); restored.signal() }
+                #expect(restored.wait(timeout: .now() + 0.2) == .timedOut)
+                return true
+            }
+            #expect(restored.wait(timeout: .now() + 5) == .success)
+            #expect(board.string(forType: .string) == "second")
+            clipboard.restore(second)
+            #expect(board.string(forType: .string) == "before")
+        }
+    }
+
+    @Test func `a correction right after an insert saves the person's clipboard`() throws {
+        try withBoard { board in
+            write([[("public.utf8-plain-text", Data("before".utf8))]], to: board)
+            let clipboard = InsertClipboard(board: board.name)
+            let generation = try clipboard.paste("dictated text")
+            // Fix settles the insert before it saves the clipboard for its own paste.
+            clipboard.settle()
+            #expect(board.string(forType: .string) == "before")
+            clipboard.restore(generation)
+            #expect(board.string(forType: .string) == "before")
         }
     }
 }

@@ -55,14 +55,12 @@ extension EditorAccess {
         var refusal = InsertRefusal.clipboard
         let generation: UInt64
         do {
-            generation = try PasteSequence.commitPrepared(prepare: { try clipboard.prepare() }, commit: {
+            generation = try clipboard.paste(text) {
                 // Waiting for the keys gave focus time to move: paste only into the field that was checked.
                 if Task.isCancelled { refusal = .cancelled; return false }
-                if (try? assertFocus(element: target.element, pid: target.pid, hostPID: target.hostPID, role: target.role)) == nil {
-                    refusal = .focusMoved; return false
-                }
+                do { try assertStillFocused(target) } catch { refusal = error as? InsertRefusal ?? .focusMoved; return false }
                 return true
-            }, paste: { try clipboard.write(text, through: $0) })
+            }
         } catch { throw refusal }
         try PasteSequence.complete(post: { KeyboardGate.postCommand("v") },
                                    scheduleRestore: { clipboard.scheduleRestore(generation) },
@@ -77,6 +75,26 @@ extension EditorAccess {
             if let now = self.text(target.element, strategy), sameText(now, expected) { return .inserted }
         }
         return .unconfirmed
+    }
+
+    /// The field that was checked still has focus. One that can be read compares equal across reads, so
+    /// nothing stands in for it: its window holds other fields of its role, a password field among them.
+    /// An editor that exposes nothing may come back as another element, which is checked for a secret again.
+    private func assertStillFocused(_ target: InsertTarget) throws {
+        guard target.strategy == nil else {
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.hostPID ?? target.pid,
+                  let front = try? focused(), pid(of: front) == target.pid,
+                  CFEqual(front, target.element) || caretHolder(front).map({ CFEqual($0, target.element) }) == true
+            else { throw InsertRefusal.focusMoved }
+            return
+        }
+        do { try assertFocus(element: target.element, pid: target.pid, hostPID: target.hostPID, role: target.role) }
+        catch { throw InsertRefusal.focusMoved }
+        guard let front = try? focused() else { throw InsertRefusal.focusMoved }
+        let field = CFEqual(front, target.element) ? front : caretHolder(front) ?? front
+        guard !TextInsertion.holdsSecret(role: target.role, subrole: attribute(field, kAXSubroleAttribute) as? String,
+                                         descriptions: descriptions(field), value: nil, readable: false)
+        else { throw InsertRefusal.secureField }
     }
 
     /// The focused field, once the app and the field pass the rules a draft is read under.
