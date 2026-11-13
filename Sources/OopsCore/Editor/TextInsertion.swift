@@ -8,7 +8,7 @@ public enum InsertRefusal: String, Error, Equatable, Sendable {
     case permission
     /// Nothing that takes text has focus.
     case noEditor
-    /// A terminal or a password manager (`EditorApplicationPolicy.denied`).
+    /// An app the policy denies the writing feature (`EditorApplicationPolicy.denied(for:)`).
     case appDenied
     /// An app turned off in Settings.
     case appTurnedOff
@@ -37,7 +37,7 @@ public enum InsertOutcome: Equatable, Sendable {
 
 /// The rules of writing text at the caret that need no editor to check.
 public enum TextInsertion {
-    /// Insert follows Fix's application scope.
+    /// Insert follows the application scope it was given (dictation's, from `EditorApplicationPolicy`).
     public static func refusal(for verdict: EditorApplicationPolicy.Verdict) -> InsertRefusal? {
         switch verdict {
         case .accepted: nil
@@ -55,6 +55,12 @@ public enum TextInsertion {
         guard readable else { return SensitiveField.matches(descriptions) }
         guard role != "AXTextArea" else { return false }
         return SensitiveField.matches(descriptions) || value.map(SensitiveField.isMasked) == true
+    }
+
+    /// `text` as a terminal gets it: each line break, with the blank space around it, becomes one space. A
+    /// program that didn't ask for bracketed paste reads a pasted line break as Return, which would run the line.
+    public static func oneLine(_ text: String) -> String {
+        text.replacingOccurrences(of: #"[ \t]*\R\s*"#, with: " ", options: .regularExpression)
     }
 
     /// The field's text once `text` replaces `selection` (a caret when empty), in UTF-16 units; nil when

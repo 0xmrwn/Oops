@@ -392,10 +392,34 @@ INSERTS = [
         expect="inserted",
         final="Merci beaucoup 🙏\nà demain",
     ),
+    # Hex's spacing: one space after a word, none before punctuation.
+    dict(
+        name="insert-after-word",
+        text="Hello",
+        selection="5,0",
+        insert="there",
+        expect="inserted",
+        final="Hello there",
+    ),
+    dict(
+        name="insert-before-punctuation",
+        text="Hello",
+        selection="5,0",
+        insert=", world.",
+        expect="inserted",
+        final="Hello, world.",
+    ),
     # The field's text must stay as it was.
     dict(name="insert-secure", scenario="e2e-secure", insert="hunter3", expect="refused", reason="secureField"),
 ]
-WEB_INSERTS = ["insert-empty", "insert-placeholder", "insert-caret", "insert-selection"]
+WEB_INSERTS = [
+    "insert-empty",
+    "insert-placeholder",
+    "insert-caret",
+    "insert-selection",
+    "insert-after-word",
+    "insert-before-punctuation",
+]
 SCENARIOS += INSERTS + [
     dict(c, name=f"webkit:textarea:{c['name']}", host="webkit", scenario="web-textarea")
     for c in INSERTS

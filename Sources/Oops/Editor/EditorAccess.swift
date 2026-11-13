@@ -79,6 +79,9 @@ actor EditorAccess {
     var geckoChecked: Set<pid_t> = []
     /// The clipboard inserts go through, kept between them: rapid inserts give back what was there before the first.
     let insertClipboard = InsertClipboard()
+    /// The text the last insert pasted, which the next one joins when the field's text before the caret still
+    /// ends with it (Hex's continuation).
+    var lastInsert: String?
     init() {
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 0.25)
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: nil) { [weak self] note in
