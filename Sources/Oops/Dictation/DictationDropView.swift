@@ -43,9 +43,8 @@ struct DictationDropView: View {
                 Color.clear.glassEffect(.clear, in: .capsule)
             }
             HStack(spacing: Self.spacing) {
-                DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: model.loudness?.level ?? 0,
-                                        isDark: scheme == .dark, reduceMotion: reduceMotion)
-                    .backdropInk(inked, tones: .voice(model.visualizer, state: model.state, increasedContrast: increasedContrast))
+                DropVoice(model: model, isDark: scheme == .dark, reduceMotion: reduceMotion)
+                    .voiceInk(inked, kind: model.visualizer, state: model.state, increasedContrast: increasedContrast)
                 Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
                     .foregroundStyle(ink).modifier(Halo(color: halo))
                     .backdropInk(inked)
@@ -67,5 +66,24 @@ struct DictationDropView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.state.text)
         .accessibilityHidden(!capsule.presented)
+    }
+}
+
+/// The drop's voice. It reads the level here, so each frame's change redraws the voice and not the drop around it.
+private struct DropVoice: View {
+    let model: DictationDropModel
+    let isDark: Bool
+    let reduceMotion: Bool
+
+    /// Hex draws on its own display link and reads the level there, so nothing here changes per frame.
+    private var live: (@MainActor () -> Float)? {
+        guard model.visualizer == .hex, let feed = model.loudness else { return nil }
+        return { @MainActor in feed.level }
+    }
+
+    var body: some View {
+        let live = live
+        DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: live == nil ? model.loudness?.level ?? 0 : 0,
+                                live: live, isDark: isDark, reduceMotion: reduceMotion)
     }
 }

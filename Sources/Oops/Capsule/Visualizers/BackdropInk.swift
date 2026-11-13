@@ -18,13 +18,14 @@ struct BackdropInk: NSViewRepresentable {
     struct Tones: Equatable {
         let light: SIMD3<Float>, dark: SIMD3<Float>
 
-        /// A voice's own colours: Hex keeps its palettes, warm while it listens and cool for its shimmer. The
-        /// others, and everything under Increase Contrast, take plain ink.
-        static func voice(_ kind: DictationVisualizer, state: DictationDropState, increasedContrast: Bool = false) -> Tones? {
-            guard kind == .hex, state.isLive, !increasedContrast else { return nil }
-            let cool = state != .recording, saturation = DotScopeTuning.hud.saturation
-            return Tones(light: DotScopePalette.tone(isDark: false, cool: cool, saturation: saturation),
-                         dark: DotScopePalette.tone(isDark: true, cool: cool, saturation: saturation))
+        /// Hex's own palettes: warm while it listens (`cool` 0), cool for its shimmer (1).
+        static func hex(cool: Float) -> Tones {
+            func tone(_ isDark: Bool) -> SIMD3<Float> {
+                let saturation = DotScopeTuning.hud.saturation
+                let warm = DotScopePalette.tone(isDark: isDark, cool: false, saturation: saturation)
+                return warm + (DotScopePalette.tone(isDark: isDark, cool: true, saturation: saturation) - warm) * cool
+            }
+            return Tones(light: tone(false), dark: tone(true))
         }
     }
 
@@ -102,12 +103,31 @@ final class BackdropInkView: NSView {
     }
 }
 
+/// A voice in the drop's ink. Hex keeps its colours, gliding from warm to cool with the drop's own animation
+/// as the scope does; the others, and everything under Increase Contrast, take plain ink.
+private struct VoiceInked: ViewModifier, Animatable {
+    let on: Bool, coloured: Bool
+    var cool: Float
+    var animatableData: Float {
+        get { cool }
+        set { cool = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.backdropInk(on, tones: coloured ? .hex(cool: cool) : nil)
+    }
+}
+
 extension EnvironmentValues {
     /// Whether the drop's marks are drawn in `BackdropInk`, and so need no halo.
     @Entry var backdropInked = false
 }
 
 extension View {
+    func voiceInk(_ on: Bool, kind: DictationVisualizer, state: DictationDropState, increasedContrast: Bool = false) -> some View {
+        modifier(VoiceInked(on: on, coloured: kind == .hex && state.isLive && !increasedContrast, cool: state == .recording ? 0 : 1))
+    }
+
     /// Recolours what this view draws with `BackdropInk` when `on`, keeping its shape and opacity.
     @ViewBuilder func backdropInk(_ on: Bool, tones: BackdropInk.Tones? = nil) -> some View {
         if on {
