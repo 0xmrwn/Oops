@@ -100,6 +100,9 @@ import XCTest
         let run = try DictationSessionRun(self, mode: .holdOnly)
         run.press(0)
         try await run.until { run.drop.states == [.recording] }
+        // The drop shows as the recording starts; the file's speech takes a moment more to be drained, and an
+        // input lost before any of it was heard would rightly write nothing.
+        try await Task.sleep(for: .milliseconds(500))
         run.source.lose()
         try await run.until { run.drop.states.last == .left }
         XCTAssertEqual(run.drop.states, [.recording, .transcribing, .left])
