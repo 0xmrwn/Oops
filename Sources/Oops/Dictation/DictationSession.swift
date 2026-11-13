@@ -203,10 +203,16 @@ import OSLog
         guard !holdsDrop, !activation.isRecording, let text = lastTranscript else {
             return Self.log.notice("paste last refused busy=\(self.holdsDrop, privacy: .public) kept=\(self.lastTranscript != nil, privacy: .public)")
         }
+        // Held as a dictation holds it, so Fix can't start on the draft this is about to change, nor this
+        // write into one Fix is working on.
+        guard drop.claim(busy: { [weak self] in self?.holdsDrop == true }) else {
+            status(CorrectionSession.dropTaken)
+            return Self.log.notice("paste last refused=dropHeld")
+        }
+        holdsDrop = true
         let ending = Self.ending(await insert(text))
-        // Written: nothing to show. Otherwise the drop says why, as after a dictation, when it is free.
-        guard ending != .done, drop.claim(busy: { false }) else { return }
-        conclude(ending)
+        // Written: nothing to show. Otherwise the drop says why, as after a dictation.
+        if ending == .done { holdsDrop = false } else { conclude(ending) }
     }
 
     /// Registers Escape for the recording under way, with the held shortcut's modifiers, or unregisters it.
