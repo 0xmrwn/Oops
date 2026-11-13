@@ -152,6 +152,19 @@ import XCTest
         XCTAssertEqual(run.inserts.texts, ["Hello", "Hello"])
     }
 
+    func testPasteLastWritesNothingWhileAnotherFeatureHoldsTheDrop() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly)
+        run.press(0)
+        run.release(1_200)
+        try await run.until { run.drop.states.last == .left }
+        run.drop.available = false
+        run.session.pasteLast()
+        try await run.settle()
+        XCTAssertEqual(run.inserts.texts, ["Hello"])
+        XCTAssertEqual(run.status, [CorrectionSession.dropTaken])
+        XCTAssertFalse(run.session.holdsDrop)
+    }
+
     func testPasteLastWithNothingKeptWritesNothing() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly)
         run.session.pasteLast()
