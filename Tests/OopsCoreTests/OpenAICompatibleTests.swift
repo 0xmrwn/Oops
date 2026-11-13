@@ -4,7 +4,7 @@ import XCTest
 final class OpenAICompatibleTests: XCTestCase {
     private let gemini = URL(string: "https://generativelanguage.googleapis.com/v1beta/openai")!
     private func wire(_ configuration: APIConfiguration) throws -> [String: Any] {
-        try JSONSerialization.jsonObject(with: XCTUnwrap(configuration.request(for: "a").httpBody)) as! [String: Any]
+        try JSONSerialization.jsonObject(with: XCTUnwrap(configuration.request(for: "a", instructions: CorrectionPolicy.instructions).httpBody)) as! [String: Any]
     }
 
     func testReasoningEffortIsSentOnlyWhenSet() throws {

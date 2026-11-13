@@ -6,6 +6,8 @@ import OopsCore
 /// choice stays in `ProviderStore` under the key it has always used (`ModelFeature.fix.preferenceKey`).
 @Observable @MainActor final class FeatureModels {
     fileprivate(set) var dictate = DictateSelection()
+    /// The model dictation's Clean up rewrites with; nil until one is chosen.
+    fileprivate(set) var cleanup: ModelSelection.Choice?
     fileprivate(set) var answers = CapabilityAnswers()
     fileprivate(set) var feed: ModelsDevFeed?
     /// Oops's own catalog (step 1): the speech models it manages on this Mac.
@@ -19,6 +21,7 @@ import OopsCore
     @ObservationIgnored let preview: Bool
 
     static let answersKey = "modelCapabilityAnswers"
+    static let cleanupKey = "cleanupSelection"
     static let modelsDevDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("oops/ModelsDev", isDirectory: true)
 
@@ -29,6 +32,7 @@ import OopsCore
         if let data = defaults.data(forKey: ModelFeature.dictate.preferenceKey),
            let saved = try? decoder.decode(DictateSelection.self, from: data) { dictate = saved }
         if let data = defaults.data(forKey: Self.answersKey), let saved = try? decoder.decode(CapabilityAnswers.self, from: data) { answers = saved }
+        if let data = defaults.data(forKey: Self.cleanupKey) { cleanup = try? decoder.decode(ModelSelection.Choice.self, from: data) }
         feed = client.cached()
     }
 
@@ -37,6 +41,7 @@ import OopsCore
         let encoder = JSONEncoder()
         defaults.set(try? encoder.encode(dictate), forKey: ModelFeature.dictate.preferenceKey)
         defaults.set(try? encoder.encode(answers), forKey: Self.answersKey)
+        defaults.set(cleanup.flatMap { try? encoder.encode($0) }, forKey: Self.cleanupKey)
     }
 }
 
@@ -52,6 +57,12 @@ extension ProviderStore {
     /// nil is Automatic.
     func selectDictate(language: String?) {
         features.dictate.language = language
+        features.save()
+    }
+
+    /// Clean up's own model, apart from Fix's.
+    func selectCleanup(_ choice: ModelSelection.Choice) {
+        features.cleanup = choice
         features.save()
     }
 

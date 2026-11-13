@@ -3,36 +3,53 @@ import SwiftUI
 
 // Dictate and Actions as they are planned, drawn with the controls they will use and every one not yet
 // wired disabled. The dictation work replaces each control's constant with its setting: the shortcut and
-// the mode are live, as are the drop's visualizer and position; Actions comes with the action library.
+// the mode are live, as are the drop's visualizer and position, Clean up and the vocabulary; Actions comes
+// with the action library.
 
-/// Dictate's settings: the shortcut and the mode, then the planned speech model, cleanup, drop and vocabulary.
+/// Dictate's settings: the shortcut and the mode, the speech model, cleanup, the drop and the vocabulary, with the
+/// planned microphone and live words.
 struct DictatePage: View {
     let store: ProviderStore
     var local = LocalModels.shared
     var keyboards = KeyboardModelDriver.shared
     /// The keyboards to map; this Mac's enabled ones unless a snapshot passes others.
     var sources: [KeyboardInputSource]?
+    @State private var vocabulary = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        ZStack(alignment: .top) {
+            if vocabulary {
+                VStack(alignment: .leading, spacing: 20) {
+                    DrillHeader(title: "Vocabulary", parent: "Dictate", back: { vocabulary = false }) {
+                        Image(systemName: "character.book.closed").font(.system(size: 18, weight: .medium))
+                    }
+                    VocabularyPage()
+                }
+                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+            } else {
+                dictate.transition(PaneSlideTransition(edge: -1, reduceMotion: reduceMotion))
+            }
+        }
+        .animation(SettingsMotion.drill(reduceMotion), value: vocabulary)
+    }
+
+    private var dictate: some View {
         VStack(alignment: .leading, spacing: 20) {
             DictateShortcutCard()
             DictateModelCard(store: store, local: local, keyboards: keyboards)
             DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
             DictateDropCard()
-            planned.disabled(true)
-        }
-    }
-
-    private var planned: some View {
-        VStack(alignment: .leading, spacing: 20) {
             SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("Microphone", ["System default"]) }
-                .settingsSurface()
-            SettingRow(symbol: "wand.and.sparkles", title: "Clean up") { choice("Clean up", ["Off", "Button", "Always"]) }
-                .settingsSurface()
+                .settingsSurface().disabled(true)
+            DictateCleanupCard(store: store)
             SettingRow(symbol: "text.bubble", title: "Live words") { choice("Live words", ["In the drop", "Over the text"]) }
-                .settingsSurface()
-            SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }
-                .settingsSurface()
+                .settingsSurface().disabled(true)
+            Button { vocabulary = true } label: {
+                SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }.contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .settingsSurface()
         }
     }
 

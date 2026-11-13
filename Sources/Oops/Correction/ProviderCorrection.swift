@@ -33,9 +33,9 @@ import OopsCore
         store.activeCorrection = self
         let backend = Result { try store.backend() }
         self.backend = backend
-        preparation = Task {
+        preparation = Task { [instructions] in
             guard !Task.isCancelled, let backend = try? backend.get() else { return }
-            await backend.prepare()
+            await backend.prepare(instructions: instructions)
         }
     }
 
@@ -49,7 +49,8 @@ import OopsCore
         try checkCurrent()
         guard let backend else { throw CancellationError() }
         let selected = try backend.get()
-        let task = Task { try Task.checkCancellation(); return try await selected.complete(text) }
+        let instructions = instructions
+        let task = Task { try Task.checkCancellation(); return try await selected.complete(text, instructions: instructions) }
         operation = task
         defer { operation = nil }
         return try await withTaskCancellationHandler {

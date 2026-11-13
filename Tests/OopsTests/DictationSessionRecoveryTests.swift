@@ -126,7 +126,8 @@ import XCTest
         try await run.until { run.drop.states.count == 3 }
         XCTAssertEqual(run.drop.states, [.recording, .transcribing, .kept])
         XCTAssertNil(run.board.string(forType: .string))
-        run.session.copyLast()
+        XCTAssertEqual(run.drop.action?.label, "Copy dictation")
+        run.drop.action?.perform()
         XCTAssertEqual(run.board.string(forType: .string), "Hello")
         XCTAssertEqual(run.drop.states.last, .copied)
     }

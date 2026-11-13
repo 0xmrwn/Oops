@@ -22,7 +22,7 @@ extension DictationSession {
         do {
             // A load or warm-up that failed gets one more try, now that a recording needs it.
             do { try await loading?.value } catch { try await engine.load(model: model) }
-            text = try await engine.transcribe(samples, language: language)
+            text = try await engine.transcribe(samples, language: language, vocabulary: plan.engineVocabulary)
         } catch {
             // Loaded afresh by the next start.
             loadedModel = nil; loading = nil
@@ -32,9 +32,13 @@ extension DictationSession {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         Self.log.notice("transcribed length=\(trimmed.utf16.count, privacy: .public) ms=\(DebugLog.milliseconds(since: began), privacy: .public)")
         guard !trimmed.isEmpty else { return .done }
-        let outcome = await insert(trimmed)
+        let polished = await polish(trimmed)
+        guard !polished.isEmpty else { return .done }
+        let outcome = await insert(polished)
         // A cancelled insert leaves the last transcript alone, as Hex's cancelled jobs do.
-        if outcome != .refused(.cancelled) { lastTranscript = trimmed }
+        if outcome != .refused(.cancelled) { lastTranscript = polished }
+        // Clean up's button replaces the text later, so only a field that read the text back offers it.
+        if outcome == .inserted, plan.mode == .button { return .offer(polished) }
         return Self.ending(outcome)
     }
 

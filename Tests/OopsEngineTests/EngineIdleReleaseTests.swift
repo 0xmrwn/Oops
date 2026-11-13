@@ -122,7 +122,7 @@ private final class StandIn: LoadedModel {
 
     deinit { models.free() }
 
-    func run(_ samples: [Float], language: String?) throws(SpeechEngineError) -> String {
+    func run(_ samples: [Float], language: String?, vocabulary: VocabularyDelivery?) throws(SpeechEngineError) -> String {
         models.run(samples.count)
         return "\(samples.count) samples"
     }

@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The dictation drop: Fix's clear glass capsule at its height, holding its visualizer and a word or two in the
 /// drop's type, with the same halo instead of a backing shape. It enters and leaves as Fix's drop does, on
-/// the panel's `presented`. Its one action, when a transcript was kept, is Fix's button: Copy.
+/// the panel's `presented`. Its one action, when a state offers one, sits in the trailing cap as Fix's does;
+/// without one it has nothing to press and lets clicks through.
 struct DictationDropView: View {
     let model: DictationDropModel
     /// The panel's model, read only for the entrance, the corner and the drop's width.
@@ -15,6 +16,8 @@ struct DictationDropView: View {
 
     private static let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
     private static let spacing: CGFloat = 7, padding: CGFloat = 16
+    /// Between the label and the action's cap, as in Fix's drop.
+    private static let gap: CGFloat = 6
 
     private var increasedContrast: Bool { contrast == .increased }
     private var ink: Color { scheme == .dark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09) }
@@ -25,10 +28,8 @@ struct DictationDropView: View {
     /// Computed rather than measured, so the glass and the pointer's hold area agree.
     private var width: CGFloat {
         let text = (model.state.text as NSString).size(withAttributes: [.font: Self.font]).width.rounded(.up)
-        return lead + voice.width + Self.spacing + text + (offersCopy ? Self.spacing + EyesDropView.drop : Self.padding)
+        return lead + voice.width + Self.spacing + text + (model.action == nil ? Self.padding : Self.gap + EyesDropView.drop)
     }
-
-    private var offersCopy: Bool { model.state == .kept }
 
     private var voice: CGSize { DictationVisualizerView.size(model.visualizer, phase: model.state) }
     /// The ripple sits centred in the drop's leading cap, as Fix's eyes do; the strips sit a little into it.
@@ -44,21 +45,25 @@ struct DictationDropView: View {
             GlassEffectContainer {
                 Color.clear.glassEffect(.clear, in: .capsule)
             }
-            HStack(spacing: Self.spacing) {
-                DropVoice(model: model, isDark: scheme == .dark, reduceMotion: reduceMotion)
-                    .voiceInk(inked, kind: model.visualizer, state: model.state, increasedContrast: increasedContrast)
-                Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
-                    .foregroundStyle(ink).modifier(Halo(color: halo))
-                    .backdropInk(inked)
-                if offersCopy {
-                    DropActionButton(symbol: model.copied ? "checkmark" : "doc.on.doc", label: "Copy dictation") {
-                        if !model.copied { model.copy?() }
+            HStack(spacing: 0) {
+                HStack(spacing: Self.spacing) {
+                    DropVoice(model: model, isDark: scheme == .dark, reduceMotion: reduceMotion)
+                        .voiceInk(inked, kind: model.visualizer, state: model.state, increasedContrast: increasedContrast)
+                    Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
+                        .foregroundStyle(ink).modifier(Halo(color: halo))
+                        .backdropInk(inked)
+                }
+                if let action = model.action {
+                    Color.clear.frame(width: Self.gap)
+                    // Once pressed, Copy's icon turns into a check, and pressing again does nothing.
+                    DropActionButton(symbol: model.copied ? "checkmark" : action.symbol, label: action.label) {
+                        if !model.copied { action.perform() }
                     }
-                    .foregroundStyle(ink)
+                        .foregroundStyle(ink).help(action.label)
                 }
             }
             .environment(\.backdropInked, inked)
-            .padding(.leading, lead).padding(.trailing, offersCopy ? 0 : Self.padding)
+            .padding(.leading, lead).padding(.trailing, model.action == nil ? Self.padding : 0)
         }
         .frame(width: width, height: height)
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.12), value: model.state)
@@ -70,14 +75,12 @@ struct DictationDropView: View {
         .onAppear { capsule.width = width }
         .onChange(of: model.state) { capsule.width = self.width }
         .onChange(of: model.visualizer) { capsule.width = self.width }
-        // Only the copy button is there to press.
-        .allowsHitTesting(offersCopy)
+        .onChange(of: model.action?.label) { capsule.width = self.width }
+        .allowsHitTesting(model.action != nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.state.text)
+        .accessibilityActions { if let action = model.action, !model.copied { Button(action.label) { action.perform() } } }
         .accessibilityHidden(!capsule.presented)
-        .accessibilityActions {
-            if offersCopy, !model.copied { Button("Copy dictation") { model.copy?() } }
-        }
     }
 }
 

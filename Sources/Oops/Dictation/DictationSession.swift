@@ -14,7 +14,8 @@ import OSLog
 /// transcribed as far as it got. The last transcript is kept for Paste last dictation and the drop's Copy.
 @MainActor final class DictationSession {
     enum Event {
-        case key(HotkeyPhase, CaptureInstant, ContinuousClock.Instant)
+        /// A key went down or up; `cleanUp` for the "Dictate and clean up" shortcut.
+        case key(HotkeyPhase, CaptureInstant, ContinuousClock.Instant, cleanUp: Bool)
         /// The activation's deadline passed.
         case timer(ContinuousClock.Instant)
         /// A transcription is written or abandoned.
@@ -33,6 +34,8 @@ import OSLog
     enum Ending: Equatable {
         /// Written, or nothing worth writing (no speech, an empty transcript): the drop just leaves.
         case done
+        /// Written as `text`, with Clean up on Button: the drop offers to clean it up.
+        case offer(String)
         case failed(DictationFailure)
         /// No text field had focus: the transcript is kept, and the drop offers to copy it.
         case kept
@@ -43,7 +46,9 @@ import OSLog
 
     private(set) var activation = DictationActivation()
     /// Held from a start until its outcome shows or the drop leaves.
-    private(set) var holdsDrop = false
+    var holdsDrop = false
+    /// Counts the drop's turns (a recording, a cleanup), so work that ends late knows a newer one has the drop.
+    var turn = 0
     let recorder: DictationRecorder?
     /// The loudness of the recording, for the drop's visualizer; 0 when nothing records.
     let loudness: DictationLoudnessFeed
@@ -53,6 +58,10 @@ import OSLog
     private let mode: @MainActor () -> DictationMode
     let insert: @MainActor (String) async -> InsertOutcome
     let drop: any DictationDrop
+    /// What happens to the transcript before and after it's written (`DictationSession+Cleanup`).
+    let cleanup: Cleanup
+    /// The current recording's cleanup steps, read at its start.
+    var plan = CleanupPlan()
     private let status: @MainActor (String) -> Void
     private let askMicrophone: @MainActor () async -> Bool
     /// The system's microphone prompt is up, or its answer is on its way to the drop.
@@ -66,6 +75,8 @@ import OSLog
     private var lastPress: CaptureInstant?
     /// The last key-up, which a release deferred by the activation's grace still ends the recording at.
     private var lastRelease: CaptureInstant?
+    /// The last key-down came from "Dictate and clean up".
+    private var lastPressCleans = false
     /// The model this session loaded, or is loading or warming up, and that work.
     var loadedModel: URL?
     var loading: Task<Void, any Error>?
@@ -75,7 +86,7 @@ import OSLog
     /// and the kept drop copies it.
     var lastTranscript: String?
     private let escape: @MainActor ([UInt32]) -> Void
-    private let shortcutModifiers: @MainActor () -> UInt32?
+    private let shortcutModifiers: @MainActor (_ cleanUp: Bool) -> UInt32?
     let copy: @MainActor (String) -> Void
     /// The Escape chords registered now, as `escape` was last told.
     private(set) var escapeChords: [UInt32] = []
@@ -85,18 +96,19 @@ import OSLog
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
     /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
     /// start; `askMicrophone` shows the system's prompt and answers whether access was given. `escape` registers
-    /// the Escape chords given (none: unregisters them), `shortcutModifiers` are the Dictate shortcut's, and
+    /// the Escape chords given (none: unregisters them), `shortcutModifiers` are the held shortcut's (Dictate's, or
+    /// "Dictate and clean up"'s when `cleanUp`), and
     /// `copy` puts a transcript on the clipboard.
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
          language: @escaping @MainActor () -> String? = { nil },
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
          drop: any DictationDrop, loudness: DictationLoudnessFeed = DictationLoudnessFeed(),
-         status: @escaping @MainActor (String) -> Void,
+         status: @escaping @MainActor (String) -> Void, cleanup: Cleanup = .none,
          askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() },
-         escape: @escaping @MainActor ([UInt32]) -> Void = { _ in }, shortcutModifiers: @escaping @MainActor () -> UInt32? = { nil },
+         escape: @escaping @MainActor ([UInt32]) -> Void = { _ in }, shortcutModifiers: @escaping @MainActor (_ cleanUp: Bool) -> UInt32? = { _ in nil },
          copy: @escaping @MainActor (String) -> Void = { DictationSession.copyToClipboard($0) }) {
         self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
-        self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status
+        self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status; self.cleanup = cleanup
         self.askMicrophone = askMicrophone; self.escape = escape; self.shortcutModifiers = shortcutModifiers; self.copy = copy
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
@@ -106,9 +118,10 @@ import OSLog
         }
     }
 
-    /// The Dictate shortcut went down or up, at the instants the hotkey event was taken.
-    func shortcut(_ phase: HotkeyPhase, at capture: CaptureInstant, now: ContinuousClock.Instant) {
-        events.yield(.key(phase, capture, now))
+    /// The Dictate shortcut, or "Dictate and clean up" (`cleanUp`), went down or up, at the instants the hotkey
+    /// event was taken.
+    func shortcut(_ phase: HotkeyPhase, at capture: CaptureInstant, now: ContinuousClock.Instant, cleanUp: Bool = false) {
+        events.yield(.key(phase, capture, now, cleanUp: cleanUp))
     }
 
     /// Escape: cancels the recording under way, if any.
@@ -144,15 +157,15 @@ import OSLog
     private func handle(_ event: Event) async {
         // A slow start can hold a release and the next press in the queue past the release's deadline, whose
         // timer comes after them: what was due before the key went down or up is settled first, at the release.
-        if case let .key(_, _, now) = event, let deadline = activation.deadline, deadline <= now {
+        if case let .key(_, _, now, _) = event, let deadline = activation.deadline, deadline <= now {
             await perform(activation.timerFired(at: deadline), stoppingAt: lastRelease)
         }
         switch event {
-        case let .key(.pressed, capture, now):
+        case let .key(.pressed, capture, now, cleanUp):
             activation.mode = mode()
-            lastPress = capture
+            lastPress = capture; lastPressCleans = cleanUp
             await perform(activation.pressed(at: now), stoppingAt: capture)
-        case let .key(.released, capture, now):
+        case let .key(.released, capture, now, _):
             lastRelease = capture
             await perform(activation.released(at: now), stoppingAt: capture)
         case let .timer(deadline):
@@ -204,7 +217,7 @@ import OSLog
 
     /// Registers Escape for the recording under way, with the held shortcut's modifiers, or unregisters it.
     private func armEscape() {
-        let chords = DictationEscape.modifiers(shortcut: shortcutModifiers(), recording: activation.isRecording && holdsDrop,
+        let chords = DictationEscape.modifiers(shortcut: shortcutModifiers(lastPressCleans), recording: activation.isRecording && holdsDrop,
                                                locked: activation.isRecordingLocked)
         guard chords != escapeChords else { return }
         escapeChords = chords
@@ -232,10 +245,10 @@ import OSLog
             Self.log.notice("start refused=dropHeld")
             return
         }
-        holdsDrop = true
+        holdsDrop = true; turn += 1
         guard let engine, let recorder else { return refuse(.notInBuild) }
         guard let model = Self.modelURL(modelPath()) else { return refuse(.noModel) }
-        language = languageHint()
+        language = languageHint(); plan = planCleanup(forced: lastPressCleans)
         if loadedModel != model {
             loadedModel = model
             loading = Task.detached(priority: .userInitiated) { try await engine.load(model: model) }
@@ -287,11 +300,12 @@ import OSLog
     }
 
     /// The drop leaves, or shows why nothing was written and leaves by itself; either way dictation lets it go.
-    private func conclude(_ ending: Ending) {
+    func conclude(_ ending: Ending) {
         switch ending {
         case .done: drop.leave()
+        case .offer(let text): offer(text)
         case .failed(let failure): drop.show(.failed(failure))
-        case .kept: drop.show(.kept)
+        case .kept: drop.show(.kept, action: DropAction(symbol: "doc.on.doc", label: "Copy dictation") { [weak self] in self?.copyLast() })
         }
         holdsDrop = false
         if warmUpDeferred { warmUpDeferred = false; warmUp() }

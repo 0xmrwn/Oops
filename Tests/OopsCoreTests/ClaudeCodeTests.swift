@@ -7,7 +7,7 @@ final class ClaudeCodeTests: XCTestCase {
     }
 
     func testCorrectionArgumentsKeepOopsPromptAndDisableTools() throws {
-        let arguments = ClaudeCode.correctionArguments(model: "haiku", effort: "low")
+        let arguments = ClaudeCode.correctionArguments(model: "haiku", effort: "low", instructions: CorrectionPolicy.instructions)
         XCTAssertEqual(Array(arguments.prefix(2)), ["--safe-mode", "-p"])
         XCTAssertFalse(arguments.contains("--bare"), "bare mode skips subscription sign-in")
         func value(_ flag: String) -> String? { arguments.firstIndex(of: flag).map { arguments[$0 + 1] } }
@@ -18,7 +18,7 @@ final class ClaudeCodeTests: XCTestCase {
         XCTAssertEqual(value("--output-format"), "stream-json")
         let schema = try object(XCTUnwrap(value("--json-schema")))
         XCTAssertEqual(schema["required"] as? [String], ["text"])
-        XCTAssertNil(ClaudeCode.correctionArguments(model: "claude-haiku-4-5", effort: nil).firstIndex(of: "--effort"))
+        XCTAssertNil(ClaudeCode.correctionArguments(model: "claude-haiku-4-5", effort: nil, instructions: CorrectionPolicy.instructions).firstIndex(of: "--effort"))
     }
 
     func testStatusReadsSignInWithoutTrustingOtherShapes() {
@@ -94,7 +94,7 @@ final class ClaudeCodeTests: XCTestCase {
         """#.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         let backend = ClaudeCodeBackend(runtime: .init(executable: script, directory: folder), model: "haiku", effort: "low")
-        await backend.prepare()
+        await backend.prepare(instructions: CorrectionPolicy.instructions)
         let started = ContinuousClock.now
         let corrected = try await backend.correct("ths works")
         XCTAssertEqual(corrected, "this works")
@@ -110,7 +110,7 @@ final class ClaudeCodeTests: XCTestCase {
         guard case .signedIn = status else { return XCTFail("Claude Code is not signed in") }
         XCTAssertTrue(models.contains { $0.value == "haiku" })
         let backend = ClaudeCodeBackend(runtime: runtime, model: "haiku", effort: "low")
-        await backend.prepare()
+        await backend.prepare(instructions: CorrectionPolicy.instructions)
         let corrected = try await backend.correct("ths is a smal test.")
         XCTAssertEqual(corrected.lowercased(), "this is a small test.")
         // Haiku turns CRLF into LF; decode puts the draft's line endings back.

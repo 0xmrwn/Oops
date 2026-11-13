@@ -44,6 +44,7 @@ extension EditorAccess {
     }
 
     private func write(_ text: String) async throws -> InsertOutcome {
+        lastInsert = nil
         guard !text.isEmpty else { throw InsertRefusal.empty }
         guard AXIsProcessTrusted() else { throw InsertRefusal.permission }
         let target = try insertTarget()
@@ -53,16 +54,17 @@ extension EditorAccess {
         catch is CancellationError { throw CancellationError() }
         catch { throw InsertRefusal.keysHeld }
         let shaped = target.terminal ? TextInsertion.oneLine(text)
-            : InsertSpacing.shaped(text, in: target.before?.text, selection: target.before?.selection, previous: lastInsert,
+            : InsertSpacing.shaped(text, in: target.before?.text, selection: target.before?.selection, previous: lastPasted,
                                    placeholders: target.placeholders)
-        let outcome = try paste(shaped, into: target)
-        lastInsert = shaped
+        let outcome = try paste(shaped, into: target, as: text)
+        lastPasted = shaped
         return outcome
     }
 
     /// Hex's order (`PasteSequence`): save the clipboard, commit, write the text, ⌘V, schedule the
-    /// clipboard's return, settle. Then the field is read back, where it can be.
-    private func paste(_ text: String, into target: InsertTarget) throws -> InsertOutcome {
+    /// clipboard's return, settle. Then the field is read back, where it can be. `original` is the text before its
+    /// spacing, which a cleanup later asks for (`replaceInserted`).
+    private func paste(_ text: String, into target: InsertTarget, as original: String) throws -> InsertOutcome {
         let clipboard = insertClipboard
         var refusal = InsertRefusal.clipboard
         let generation: UInt64
@@ -84,7 +86,14 @@ extension EditorAccess {
         // Most editors show the paste within the settle; a slow one gets a moment more.
         for attempt in 0..<16 {
             if attempt > 0 { Thread.sleep(forTimeInterval: 0.025) }
-            if let now = self.text(target.element, strategy), sameText(now, expected) { return .inserted }
+            if let now = self.text(target.element, strategy), sameText(now, expected) {
+                // The cleanup replaces the dictated text, not the space that joined it to what came before.
+                let lead = text.hasPrefix(" ") && !original.hasPrefix(" ") ? 1 : 0
+                let location = (CorrectionPolicy.isPlaceholder(before.text, hints: target.placeholders) ? 0 : before.selection.location) + lead
+                lastInsert = InsertedText(element: target.element, pid: target.pid, text: original, field: expected,
+                                          range: NSRange(location: location, length: text.utf16.count - lead))
+                return .inserted
+            }
         }
         return .unconfirmed
     }

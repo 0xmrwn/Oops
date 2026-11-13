@@ -9,7 +9,7 @@ final class ChatGPTUnsentRefreshTests: XCTestCase {
         let backend = backend(store)
         let preparation = Task {
             withUnsafeCurrentTask { $0?.cancel() }
-            await backend.prepare()
+            await backend.prepare(instructions: CorrectionPolicy.instructions)
         }
         await preparation.value
         XCTAssertFalse(entered.value)
@@ -29,7 +29,7 @@ final class ChatGPTUnsentRefreshTests: XCTestCase {
             FakeIssuer.route(request, body) { _ in FakeIssuer.tokens(access: "fake-access-2") } ?? StubResponse(status: 404)
         }
         let backend = backend(store)
-        let preparation = Task { await backend.prepare() }
+        let preparation = Task { await backend.prepare(instructions: CorrectionPolicy.instructions) }
         await fulfillment(of: [waiting], timeout: 5)
         preparation.cancel()
         continuation.finish()
@@ -61,9 +61,9 @@ final class ChatGPTUnsentRefreshTests: XCTestCase {
             } ?? StubResponse(status: 404)
         }
         let backend = backend(store)
-        let first = Task { await backend.prepare() }
+        let first = Task { await backend.prepare(instructions: CorrectionPolicy.instructions) }
         await fulfillment(of: [firstEnteredStore], timeout: 5)
-        let waiter = Task { await backend.prepare() }
+        let waiter = Task { await backend.prepare(instructions: CorrectionPolicy.instructions) }
         defer { waiter.cancel() }
         try await withDeadline(.seconds(5), orThrow: QueueWaitTimeout()) {
             while await backend.auth.queuedRefreshes() == 0 {
@@ -101,7 +101,7 @@ final class ChatGPTUnsentRefreshTests: XCTestCase {
             return FakeIssuer.route(request, body) { _ in FakeIssuer.tokens(access: "fake-access-2") } ?? StubResponse(status: 404)
         }
         let backend = backend(store)
-        let preparation = Task { await backend.prepare() }
+        let preparation = Task { await backend.prepare(instructions: CorrectionPolicy.instructions) }
         await fulfillment(of: [discoveryStarted], timeout: 5)
         preparation.cancel()
         releaseDiscovery.signal()
@@ -125,7 +125,7 @@ final class ChatGPTUnsentRefreshTests: XCTestCase {
             } ?? StubResponse(status: 404)
         }
         let backend = backend(store)
-        let preparation = Task { await backend.prepare() }
+        let preparation = Task { await backend.prepare(instructions: CorrectionPolicy.instructions) }
         await fulfillment(of: [verificationStarted], timeout: 5)
         XCTAssertEqual(store.savedCredentials?.pending?.tokens.refreshToken, "fake-refresh-2")
         preparation.cancel()

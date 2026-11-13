@@ -37,9 +37,18 @@ under its own terms.
   `Resources/Shaders/DotScopeShader.metal`) and its tests (`Tests/OopsCoreTests/DotScopeTests.swift`,
   `Tests/OopsTests/DotScopeHostTests.swift`) are ported from its `ios/HEXShared/DotScope.swift`,
   `ios/HEXShared/DotScopeShader.metal` and `ios/HEXMobileTests/DotScopeTests.swift` (v3.4.0), from UIKit to AppKit.
+  The small transcript cleanups (`Sources/OopsCore/Dictation/Cleanup/FillerWords.swift`, `SpokenFormatting.swift`,
+  `SpokenSymbols.swift`, `SpokenText.swift`) and their tests (`Tests/OopsCoreTests/Cleanup*Tests.swift`) are ported
+  from its `src/dictation/filler_words.rs`, `spoken_formatting.rs` and `spoken_symbols.rs` (v3.4.0); the vocabulary
+  (`Sources/OopsCore/Dictation/Vocabulary/VocabularyEntry.swift`, `VocabularyBias.swift`) and its tests from its
+  `src/dictation/vocabulary.rs` (revision 1b82cc0).
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
-  `src-tauri/src/transcription_coordinator.rs` (revision 73cc857).
+  `src-tauri/src/transcription_coordinator.rs`; the vocabulary's fuzzy replacement
+  (`Sources/OopsCore/Dictation/Vocabulary/FuzzyReplacement.swift`) and its tests from
+  `src-tauri/src/audio_toolkit/text.rs`; the cleanup's fallback to the transcript as heard
+  (`Sources/OopsCore/Dictation/Cleanup/CleanupPrompt.swift`) follows `post_process_transcription` in
+  `src-tauri/src/actions.rs` (revision 73cc857).
 - **transcribe.cpp** 0.4.1, Copyright (c) 2026 The transcribe.cpp authors, MIT. Speech to text for dictation
   (`Sources/OopsEngine/`), linked as `CTranscribe.framework`, built from our fork
   ([0xmrwn/transcribe.cpp](https://github.com/0xmrwn/transcribe.cpp), branch `oops`). Embedded only in preview

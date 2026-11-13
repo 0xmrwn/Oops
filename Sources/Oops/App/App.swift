@@ -48,6 +48,7 @@ import OopsCore
             case (.pasteLast, .pressed): self?.dictation?.pasteLast()
             case (.correct, .released), (.pasteLast, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
+            case (.dictateAndCleanUp, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock, cleanUp: true)
             }
         }
         shortcuts.cancel = { [weak self] in self?.dictation?.cancel() }

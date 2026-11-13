@@ -11,7 +11,9 @@ public protocol SpeechEngine: Sendable {
     func warmUp(model url: URL) async throws
     /// One shot over 16 kHz mono samples. `language` is a hint in the model's own code
     /// (`SpeechModel.runtimeLanguageHint(for:)`); nil lets the model detect it, or use its only language.
-    func transcribe(_ samples: [Float], language: String?) async throws -> String
+    /// `vocabulary` is the user's list as this model's mechanism takes it (`VocabularyRouting`): a Parakeet bias or
+    /// a context prompt reaches the engine; nil, or any other delivery, sends it nothing.
+    func transcribe(_ samples: [Float], language: String?, vocabulary: VocabularyDelivery?) async throws -> String
     /// Frees the model and what it holds on the GPU.
     func unload() async
 }

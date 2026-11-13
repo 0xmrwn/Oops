@@ -85,7 +85,8 @@ actor APILane: Lane {
     private func once(_ text: String) async -> (Answer, Refusal?) {
         let effort = efforts[effortIndex], surface = Self.modes[mode] ?? "chat-completions"
         var request: URLRequest
-        do { request = try APIConfiguration(baseURL: baseURL, model: model, apiKey: key, reasoningEffort: effort).request(for: text) }
+        let configuration = APIConfiguration(baseURL: baseURL, model: model, apiKey: key, reasoningEffort: effort)
+        do { request = try configuration.request(for: text, instructions: CorrectionPolicy.instructions) }
         catch { return (Answer(error: "request: \(error.localizedDescription)", surface: surface, effort: effort), nil) }
         if mode != .off, let body = request.httpBody, var object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
             object["stream"] = true

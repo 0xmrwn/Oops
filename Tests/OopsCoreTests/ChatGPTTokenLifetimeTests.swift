@@ -20,7 +20,7 @@ final class ChatGPTTokenLifetimeTests: XCTestCase {
 
     func testAFreshlyReadTokenReachesTheRequestHeader() async throws {
         let header = try await auth().withAccessToken { token in
-            try ChatGPTBackend.request(model: "gpt", effort: nil, serviceTier: nil, text: "teh", token: token).value(forHTTPHeaderField: "Authorization")
+            try ChatGPTBackend.request(model: "gpt", effort: nil, serviceTier: nil, instructions: CorrectionPolicy.instructions, text: "teh", token: token).value(forHTTPHeaderField: "Authorization")
         }
         XCTAssertEqual(header, "Bearer " + access)
     }

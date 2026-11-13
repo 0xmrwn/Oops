@@ -94,6 +94,16 @@ public enum SpeechModelVocabularyUse: Sendable, Equatable {
     case none
 }
 
+public extension SpeechModelArchitecture {
+    var vocabularyUse: SpeechModelVocabularyUse {
+        switch self {
+        case .parakeet: .bias
+        case .whisper, .qwen3ASR: .prompt
+        default: .none
+        }
+    }
+}
+
 /// A model's streaming context in milliseconds: the audio it buffers before, at and after each chunk.
 public struct SpeechModelStreamingChunk: Sendable, Equatable {
     public let leftMilliseconds: Int
@@ -133,13 +143,7 @@ public struct SpeechModel: Sendable, Identifiable, Equatable {
 
     public var isSingleLanguage: Bool { languages.isSingleLanguage }
 
-    public var vocabularyUse: SpeechModelVocabularyUse {
-        switch architecture {
-        case .parakeet: .bias
-        case .whisper, .qwen3ASR: .prompt
-        default: .none
-        }
-    }
+    public var vocabularyUse: SpeechModelVocabularyUse { architecture.vocabularyUse }
 
     public func supports(language code: String) -> Bool {
         code == SpeechLanguage.auto ? supportsLanguageDetection : languages.supports(code)

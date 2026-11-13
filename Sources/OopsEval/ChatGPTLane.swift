@@ -43,7 +43,8 @@ struct ChatGPTLane: Lane {
     }
 
     private func stream(_ text: String, token: String) async throws -> Answer {
-        let request = try ChatGPTBackend.request(model: model, effort: effort, serviceTier: nil, text: text, token: token)
+        let request = try ChatGPTBackend.request(model: model, effort: effort, serviceTier: nil, instructions: CorrectionPolicy.instructions,
+                                                 text: text, token: token)
         let started = ContinuousClock.now
         let (bytes, response) = try await session.bytes(for: request, delegate: NoRedirect.shared)
         guard let http = response as? HTTPURLResponse else { throw ChatGPTError("network_error", "No response.", retryable: true) }
