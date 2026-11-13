@@ -47,6 +47,9 @@ final class CleanupPromptTests: XCTestCase {
         XCTAssertEqual(CleanupPrompt.decode(#"{"text":"  Hi.\n"}"#), "Hi.")
         XCTAssertEqual(CleanupPrompt.decode(#"{"text":"<transcript>\nHi.\n</transcript>"}"#), "Hi.")
         XCTAssertEqual(CleanupPrompt.decode("{\"text\":\"H\u{200B}i\u{FEFF}.\"}"), "Hi.")
+        let joined = "\u{0645}\u{06CC}\u{200C}\u{0631}\u{0648}\u{0645} \u{1F469}\u{200D}\u{1F4BB}"
+        XCTAssertEqual(CleanupPrompt.decode(String(decoding: try JSONSerialization.data(withJSONObject: ["text": joined]), as: UTF8.self)),
+                       joined, "the joiners of Persian spelling and compound emoji are kept")
         XCTAssertEqual(CleanupPrompt.decode(#"{"text":"Line one\nLine two"}"#), "Line one\nLine two")
         for raw in [#"{"text":"   "}"#, #"{"text":""}"#, "not json", #"{"other":"x"}"#, #"{"text":3}"#, ""] {
             XCTAssertNil(CleanupPrompt.decode(raw), raw)

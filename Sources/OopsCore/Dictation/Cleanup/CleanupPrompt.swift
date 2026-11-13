@@ -43,8 +43,9 @@ public enum CleanupPrompt {
     public static func decode(_ raw: String) -> String? {
         guard let data = raw.data(using: .utf8), let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let text = object["text"] as? String else { return nil }
-        // Some models insert invisible characters, or echo the delimiters back around the answer.
-        var cleaned = text.replacingOccurrences(of: "[\u{200B}\u{200C}\u{200D}\u{FEFF}]", with: "", options: .regularExpression)
+        // Some models insert zero-width spaces or a byte-order mark, or echo the delimiters back around the
+        // answer. The zero-width joiners stay: Persian spelling and compound emoji are made of them.
+        var cleaned = text.replacingOccurrences(of: "[\u{200B}\u{FEFF}]", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.hasPrefix("<transcript>"), cleaned.hasSuffix("</transcript>") {
             cleaned = String(cleaned.dropFirst("<transcript>".count).dropLast("</transcript>".count))
