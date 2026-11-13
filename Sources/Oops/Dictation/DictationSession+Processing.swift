@@ -21,7 +21,7 @@ extension DictationSession {
         do {
             // A load or warm-up that failed gets one more try, now that a recording needs it.
             do { try await loading?.value } catch { try await engine.load(model: model) }
-            text = try await engine.transcribe(samples)
+            text = try await engine.transcribe(samples, language: language)
         } catch {
             // Loaded afresh by the next start.
             loadedModel = nil; loading = nil

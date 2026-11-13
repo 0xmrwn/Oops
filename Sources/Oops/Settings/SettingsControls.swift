@@ -57,6 +57,8 @@ struct GlassMenu<Value: Hashable>: View {
     let title: String
     let choices: [(value: Value, label: String)]
     @Binding var selection: Value
+    /// Shown while the selection is none of the choices.
+    var placeholder = ""
     @State private var anchor = MenuAnchor()
 
     var body: some View {
@@ -65,7 +67,7 @@ struct GlassMenu<Value: Hashable>: View {
             anchor.popUp(choices.map(\.label), checked: current) { selection = choices[$0].value }
         } label: {
             HStack(spacing: 6) {
-                Text(current.map { choices[$0].label } ?? "").fontWeight(.medium)
+                Text(current.map { choices[$0].label } ?? placeholder).fontWeight(.medium)
                 Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
@@ -75,7 +77,7 @@ struct GlassMenu<Value: Hashable>: View {
         .fixedSize()
         .background { MenuAnchorView(anchor: anchor) }
         .accessibilityLabel(title)
-        .accessibilityValue(current.map { choices[$0].label } ?? "")
+        .accessibilityValue(current.map { choices[$0].label } ?? placeholder)
     }
 }
 

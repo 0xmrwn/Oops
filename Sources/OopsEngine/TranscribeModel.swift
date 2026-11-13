@@ -4,7 +4,7 @@ import OopsCore
 
 /// A loaded model, freed with its last reference: what the engine holds between uses.
 protocol LoadedModel: AnyObject {
-    func run(_ samples: [Float]) throws(SpeechEngineError) -> String
+    func run(_ samples: [Float], language: String?) throws(SpeechEngineError) -> String
 }
 
 /// One transcribe.cpp session over the C API, which owns the model it opened. Three calls are all Oops needs;
@@ -31,10 +31,19 @@ final class TranscribeModel: LoadedModel {
 
     deinit { transcribe_session_free(session) }
 
-    func run(_ samples: [Float]) throws(SpeechEngineError) -> String {
+    func run(_ samples: [Float], language: String?) throws(SpeechEngineError) -> String {
         guard !samples.isEmpty else { return "" }
         guard let count = Int32(exactly: samples.count) else { throw .transcriptionFailed("recording too long") }
-        let status = samples.withUnsafeBufferPointer { transcribe_run(session, $0.baseAddress, count, nil) }
+        // Without a language, the defaults (nil params) are what Oops always ran; the library copies the string.
+        let status = samples.withUnsafeBufferPointer { buffer in
+            guard let language else { return transcribe_run(session, buffer.baseAddress, count, nil) }
+            return language.withCString { code in
+                var params = transcribe_run_params()
+                transcribe_run_params_init(&params)
+                params.language = code
+                return transcribe_run(session, buffer.baseAddress, count, &params)
+            }
+        }
         guard status == TRANSCRIBE_OK else { throw .transcriptionFailed(Self.reason(status)) }
         guard let text = transcribe_full_text(session) else { return "" }
         return String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines)

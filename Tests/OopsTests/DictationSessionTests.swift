@@ -19,6 +19,16 @@ import XCTest
         XCTAssertFalse(run.session.holdsDrop)
     }
 
+    func testTheChosenLanguageReachesTheEngine() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly, language: "fr")
+        run.press(0)
+        try await run.until { run.drop.states == [.recording] }
+        run.release(1_200)
+        try await run.until { run.drop.states.last == .left }
+        let languages = await run.engine?.languages
+        XCTAssertEqual(languages, ["fr"])
+    }
+
     func testSilenceWritesNothingAndNeverCallsTheEngine() async throws {
         let quiet = (0 ..< 48_000).map { Float(0.000_7) * sin(2 * Float.pi * 220 * Float($0) / 16_000) }
         let run = try DictationSessionRun(self, mode: .holdOnly, audio: quiet)
@@ -145,7 +155,7 @@ import XCTest
     private(set) var session: DictationSession!
 
     init(_ test: XCTestCase, mode: DictationMode, audio: [Float]? = nil, engine: FakeSpeechEngine? = FakeSpeechEngine(text: "Hello"),
-         modelPath: String?? = nil) throws {
+         modelPath: String?? = nil, language: String? = nil) throws {
         self.mode = mode
         self.engine = engine
         let url = try test.wavFile(float: audio ?? Self.speech(), rate: 16_000)
@@ -153,7 +163,8 @@ import XCTest
         let recorder = DictationRecorder(source: source, keepAliveSleep: { _ in try await Task.sleep(for: .seconds(3_600)) })
         let path = try modelPath ?? Self.modelFile(test)
         let inserts = inserts
-        session = DictationSession(recorder: recorder, engine: engine, modelPath: { path }, mode: { [weak self] in self?.mode ?? .holdOrTap },
+        session = DictationSession(recorder: recorder, engine: engine, modelPath: { path }, language: { language },
+                                   mode: { [weak self] in self?.mode ?? .holdOrTap },
                                    insert: { await inserts.insert($0) }, drop: drop, status: { [weak self] in self?.status.append($0) })
     }
 
@@ -241,6 +252,7 @@ actor FakeSpeechEngine: SpeechEngine {
     private var error: SpeechEngineError?
     private(set) var transcribed = 0
     private(set) var loads: [URL] = []
+    private(set) var languages: [String?] = []
     private var held = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
@@ -258,8 +270,9 @@ actor FakeSpeechEngine: SpeechEngine {
     func load(model url: URL) async throws { loads.append(url) }
     func warmUp(model url: URL) async throws { loads.append(url) }
 
-    func transcribe(_ samples: [Float]) async throws -> String {
+    func transcribe(_ samples: [Float], language: String?) async throws -> String {
         transcribed += 1
+        languages.append(language)
         if held { await withCheckedContinuation { waiting.append($0) } }
         if let error { throw error }
         return text

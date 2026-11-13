@@ -34,6 +34,7 @@ import OSLog
     let recorder: DictationRecorder?
     let engine: any SpeechEngine?
     private let modelPath: @MainActor () -> String?
+    private let languageHint: @MainActor () -> String?
     private let mode: @MainActor () -> DictationMode
     let insert: @MainActor (String) async -> InsertOutcome
     private let drop: any DictationDrop
@@ -50,13 +51,16 @@ import OSLog
     /// The model this session loaded, or is loading or warming up, and that work.
     var loadedModel: URL?
     var loading: Task<Void, any Error>?
+    /// The language hint read at the last start, for its transcription.
+    var language: String?
 
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
-    /// microphone. `modelPath` and `mode` are read at each start and press; `status` hears a refused start.
+    /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused start.
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
+         language: @escaping @MainActor () -> String? = { nil },
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
          drop: any DictationDrop, status: @escaping @MainActor (String) -> Void) {
-        self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.mode = mode
+        self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
         self.insert = insert; self.drop = drop; self.status = status
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
@@ -71,9 +75,9 @@ import OSLog
     }
 
     /// Loads the model and runs it once at low priority, away from the main actor, so the first dictation
-    /// doesn't wait for it. A failure is ignored: the first dictation loads it again.
+    /// doesn't wait for it, again when another model is chosen. A failure is ignored: the first dictation loads it again.
     func warmUp() {
-        guard let engine, loadedModel == nil, let model = Self.modelURL(modelPath()) else { return }
+        guard let engine, let model = Self.modelURL(modelPath()), loadedModel != model else { return }
         loadedModel = model
         loading = Task.detached(priority: .background) { try await engine.warmUp(model: model) }
     }
@@ -132,6 +136,7 @@ import OSLog
         holdsDrop = true
         guard let engine, let recorder else { return refuse(.notInBuild) }
         guard let model = Self.modelURL(modelPath()) else { return refuse(.noModel) }
+        language = languageHint()
         if loadedModel != model {
             loadedModel = model
             loading = Task.detached(priority: .userInitiated) { try await engine.load(model: model) }

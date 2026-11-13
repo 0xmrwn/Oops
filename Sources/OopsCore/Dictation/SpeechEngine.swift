@@ -9,8 +9,9 @@ public protocol SpeechEngine: Sendable {
     /// Loads the model and runs it once, in the background after launch, so the first dictation never waits for
     /// the GPU's one-time setup (seconds on the first launch of each new build).
     func warmUp(model url: URL) async throws
-    /// One shot over 16 kHz mono samples.
-    func transcribe(_ samples: [Float]) async throws -> String
+    /// One shot over 16 kHz mono samples. `language` is a hint in the model's own code
+    /// (`SpeechModel.runtimeLanguageHint(for:)`); nil lets the model detect it, or use its only language.
+    func transcribe(_ samples: [Float], language: String?) async throws -> String
     /// Frees the model and what it holds on the GPU.
     func unload() async
 }
