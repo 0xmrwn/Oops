@@ -24,7 +24,13 @@ under its own terms.
   (`Sources/Oops/Dictation/DictationAudioFile.swift`) follows its `src/audio/fixture.rs`. The hold-or-double-tap
   shortcut mode (`Sources/OopsCore/Dictation/DictationDoubleTap.swift`) and its tests
   (`Tests/OopsCoreTests/DictationActivationHexTests.swift`) are ported from its `src/suppression/hotkey.rs`,
-  `src/suppression.rs`, `src/suppression/tests.rs` and the short-tap rule of `src/dictation.rs` (v3.4.0).
+  `src/suppression.rs`, `src/suppression/tests.rs` and the short-tap rule of `src/dictation.rs` (v3.4.0). The
+  speech model catalog and its language rules (`Sources/OopsCore/Dictation/Models/SpeechModel*.swift` and
+  `SpeechLanguage.swift`) and their tests (`Tests/OopsCoreTests/ModelCatalog*Tests.swift`) are ported from its
+  `src/transcription/models.rs`, `src/transcription/artifacts.rs` and `src/transcription/languages.rs`; the
+  keyboard model switching policy (`Sources/OopsCore/Dictation/Models/KeyboardModelSwitching.swift`) and its tests
+  from `src/transcription/keyboard_model_switching.rs`; the input-source observer
+  (`Sources/Oops/Dictation/KeyboardInputSources.swift`) from `src/keyboard_input_sources/macos.rs` (v3.4.0).
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
   `src-tauri/src/transcription_coordinator.rs` (revision 73cc857).
