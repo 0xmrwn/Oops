@@ -82,7 +82,7 @@ struct Shortcut: Codable, Equatable {
     private(set) var custom: [Action: Shortcut] = [:]
     /// The action whose chord is down, as the hotkeys report it: a registered chord's key never
     /// reaches the app as a keyDown, and Try it lights it from here.
-    fileprivate(set) var down: Action?
+    var down: Action?
     /// Set by the hotkey owner: re-registers the shortcuts, or throws without changing them.
     @ObservationIgnored weak var hotkeys: HyperShortcuts?
 
@@ -132,96 +132,17 @@ struct Shortcut: Codable, Equatable {
     private func key(_ action: Action) -> String { "Shortcut." + action.rawValue }
 }
 
-/// Registers only the configured chords; no always-on typing event tap.
-@MainActor final class HyperShortcuts {
-    private var handler: EventHandlerRef?
-    private var refs: [EventHotKeyRef] = []
-    private var layoutObserver: NSObjectProtocol?
-    var invoke: (() -> Void)?
-    var registrationFailed: ((String) -> Void)?
-    func register() throws {
-        // Keep observing even when the current layout cannot bind the shortcuts.
-        if layoutObserver == nil {
-            layoutObserver = DistributedNotificationCenter.default().addObserver(
-                forName: Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    do { try self.register() } catch { self.registrationFailed?(error.localizedDescription) }
-                }
-            }
-        }
-        clearRegistrations()
-        let settings = ShortcutSettings.shared
-        settings.hotkeys = self
-        // Actions run on the press, so the draft is read while the keys are still down; anything that
-        // types waits for them to come up. A held chord repeats its press: one action per press.
-        var specs = [kEventHotKeyPressed, kEventHotKeyReleased].map { EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32($0)) }
-        let context = Unmanaged.passUnretained(self).toOpaque()
-        let status = InstallEventHandler(GetEventDispatcherTarget(), { _, event, userData in
-            guard let event, let userData else { return noErr }
-            var id = EventHotKeyID()
-            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
-                              MemoryLayout<EventHotKeyID>.size, nil, &id)
-            let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed)
-            let owner = Unmanaged<HyperShortcuts>.fromOpaque(userData).takeUnretainedValue()
-            KeyboardGate.shortcutHeld.withLock { $0 = pressed }
-            DispatchQueue.main.async {
-                guard pressed else { ShortcutSettings.shared.down = nil; return }
-                guard ShortcutSettings.shared.down != .correct else { return }
-                ShortcutSettings.shared.down = .correct
-                owner.invoke?()
-            }
-            return noErr
-        }, specs.count, &specs, context, &handler)
-        guard status == noErr else { throw CorrectionError.message("Could not register keyboard shortcut handler.") }
-        var problems: [String] = []
-        for action in ShortcutSettings.Action.allCases {
-            guard let shortcut = settings.shortcut(action) else {
-                failed.insert(action)
-                problems.append("This keyboard layout has no W key for the default shortcut. Choose one in Settings.")
-                continue
-            }
-            var ref: EventHotKeyRef?
-            let status = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers,
-                                            EventHotKeyID(signature: 0x53545854, id: 1), GetEventDispatcherTarget(), 0, &ref)
-            if status == noErr, let ref { refs.append(ref) } else {
-                failed.insert(action)
-                problems.append(Self.taken(shortcut))
-            }
-        }
-        if !problems.isEmpty { throw CorrectionError.message(problems.joined(separator: " ")) }
-    }
-    /// Actions whose shortcut did not register in the last `register()`.
-    private(set) var failed: Set<ShortcutSettings.Action> = []
-    static func taken(_ shortcut: Shortcut) -> String {
-        "\(shortcut.label) is already in use by another app. Choose another shortcut, or free that one."
-    }
-    /// Stops the shortcuts until the next `register()`.
-    func suspend() { clearRegistrations() }
-    func unregister() {
-        if let layoutObserver { DistributedNotificationCenter.default().removeObserver(layoutObserver) }; layoutObserver = nil
-        clearRegistrations()
-    }
-    private func clearRegistrations() {
-        refs.forEach { UnregisterEventHotKey($0) }; refs = []; failed = []
-        ShortcutSettings.shared.down = nil
-        KeyboardGate.shortcutHeld.withLock { $0 = false }
-        if let handler { RemoveEventHandler(handler) }; handler = nil
-    }
-}
-
 /// Bounded input gate only during the final selection/paste/readback, not inference.
 /// Replay physical key/click events afterward so typing cannot land in our temporary selection.
 /// The swap asks `isActive` from the Accessibility queue: its state is behind `lock`, and the tap, its
 /// source and the watchdog are set in `init` and torn down in `release`, both on the main thread.
 final class KeyboardGate: @unchecked Sendable {
     private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Keyboard")
-    /// Between the shortcut's press and its release, as the hotkey handler reports them.
-    static let shortcutHeld = OSAllocatedUnfairLock(initialState: false)
+    /// The hotkeys between their press and their release, by identity, as the hotkey handler reports them.
+    static let heldShortcuts = OSAllocatedUnfairLock(initialState: Set<UInt32>())
     static func waitForModifierRelease() async throws {
         let blocking: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
-        let waits = try await ModifierRelease.wait(shortcutHeld: { shortcutHeld.withLock { $0 } }, isReleased: {
+        let waits = try await ModifierRelease.wait(shortcutHeld: { heldShortcuts.withLock { !$0.isEmpty } }, isReleased: {
             CGEventSource.flagsState(.combinedSessionState).isDisjoint(with: blocking)
         }, keyboardReleased: {
             CGEventSource.flagsState(.hidSystemState).isDisjoint(with: blocking)

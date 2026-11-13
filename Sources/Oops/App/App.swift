@@ -7,7 +7,9 @@ import OopsCore
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let preferences = Preferences()
     let testEditor = TestEditorModel()
-    private(set) lazy var session = CorrectionSession(preferences: preferences, testEditor: testEditor)
+    /// The drop and the flash over the draft, which one feature holds at a time.
+    let drop = DropOwner()
+    private(set) lazy var session = CorrectionSession(preferences: preferences, testEditor: testEditor, drop: drop)
     private(set) lazy var settings = SettingsWindow(preferences: preferences, testEditor: testEditor, session: session)
     private(set) var menuBar: MenuBar?
     private let shortcuts = HyperShortcuts()
@@ -35,7 +37,13 @@ import OopsCore
         testEditor.onCorrect = { [weak self] in self?.correctInTry() }
         testEditor.onRestore = { [weak self] in self?.restoreInTry() }
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
-        shortcuts.invoke = { [weak self] in self?.session.correct() }
+        // Fix runs on its press; its release ends nothing.
+        shortcuts.invoke = { [weak self] action, phase in
+            switch (action, phase) {
+            case (.correct, .pressed): self?.session.correct()
+            case (.correct, .released): break
+            }
+        }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }
         do { try shortcuts.register() } catch { preferences.status = error.localizedDescription }
         // Onboarding asks for Accessibility in its own step; closed without it (skipped), Settings asks. Updates

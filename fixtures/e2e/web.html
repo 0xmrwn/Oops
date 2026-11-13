@@ -17,7 +17,7 @@
   web-image (an inline image between words; the text reports it as U+FFFC) and web-rtl-combobox (a
   right-to-left textarea announced as a combobox, as Grok's and HuggingChat's composers are: Chromium
   reads its markers and selected text in display order, and leaves its value stale after an edit).
-  `append` types at the end of the draft, as a user would.
+  `append` types at the end of the draft, as a user would; variant `placeholder` gives a textarea a placeholder.
 -->
 <style>
   :root { color-scheme: light dark; }
@@ -161,6 +161,7 @@
       if (control.scenario === 'web-textarea' || control.scenario === 'web-readonly' || control.scenario === 'web-rtl-combobox') {
         editor = Object.assign(document.createElement('textarea'), { className: 'editor', value: draft });
         editor.readOnly = control.scenario === 'web-readonly';
+        if (control.variant === 'placeholder') editor.placeholder = 'Type a message';
         if (control.scenario === 'web-rtl-combobox') {
           editor.dir = 'rtl'; editor.setAttribute('role', 'combobox'); editor.setAttribute('aria-autocomplete', 'list');
         }

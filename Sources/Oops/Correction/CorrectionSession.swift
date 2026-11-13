@@ -1,5 +1,6 @@
 import AppKit
 import OSLog
+import SwiftUI
 import OopsCore
 
 /// One correction or revert at a time: capture the draft, ask the provider, validate, swap the text
@@ -8,11 +9,14 @@ import OopsCore
 /// text restores it, then re-applies the fix (D10). Originals stay in memory only, five minutes.
 @MainActor final class CorrectionSession {
     static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Correction")
+    static let dropTaken = "Oops is busy with something else. Try again in a moment."
     let preferences: Preferences
     let testEditor: TestEditorModel
-    let capsule = CapsulePanel()
+    /// The drop and the flash, shared with the other features: Fix shows in them while it holds them.
+    let drop: DropOwner
+    var capsule: CapsulePanel { drop.panel }
+    var highlight: HighlightOverlay { drop.highlight }
     let editor = EditorAccess()
-    let highlight = HighlightOverlay()
 
     /// Opens Settings (on the Providers page when asked first); Try's own retry; the Try surface in
     /// front, if any (Settings' Try page or onboarding's Try it), which hears how its draft went.
@@ -34,16 +38,22 @@ import OopsCore
 
     var isBusy: Bool { task != nil }
 
-    init(preferences: Preferences, testEditor: TestEditorModel) {
+    init(preferences: Preferences, testEditor: TestEditorModel, drop: DropOwner) {
         self.preferences = preferences
         self.testEditor = testEditor
+        self.drop = drop
+        // The drop's view exists from launch, so the first press builds nothing.
+        _ = holdDrop()
         capsule.model.cancel = { [weak self] in self?.cancel() }
         capsule.model.revert = { [weak self] in self?.revert() }
         capsule.model.copy = { [weak self] in self?.copyPending() }
         capsule.model.dismiss = { [weak self] in self?.capsule.hide() }
-        // The flash never outlives the drop it belongs to.
-        capsule.onHide = { [weak self] in self?.highlight.clear() }
         preferences.providers.correctionChanged = { [weak self] in self?.cancel() }
+    }
+
+    /// Takes the drop for Fix, with its own view in it; false while another feature holds it.
+    func holdDrop() -> Bool {
+        drop.claim(.fix, busy: { [weak self] in self?.isBusy == true }) { [model = drop.panel.model] in AnyView(EyesDropView(model: model)) }
     }
 
     enum Stage { case capture, provider, apply }
@@ -87,6 +97,7 @@ import OopsCore
     func correct(inTryOnly: Bool = false) {
         preferences.status = "Correction requested."
         if task != nil { cancel(); return }
+        guard holdDrop() else { preferences.status = Self.dropTaken; return }
         capsule.cancelTimedHide(); pendingCorrection = nil
         // A new correction makes the last one's flash stale.
         highlight.clear()
@@ -280,12 +291,16 @@ import OopsCore
         activeAttempt?.cancelFixture(generation: generation)
         preferences.providers.activeCorrection?.cancel()
         generation = UUID(); task?.cancel(); task = nil; activeAttempt = nil; testEditor.cancelled()
-        capsule.hide()
+        if holdsDrop { capsule.hide() }
     }
+
+    /// Whether the drop is Fix's to change: one another feature holds stays as it is.
+    private var holdsDrop: Bool { drop.holder.map { $0 == .fix } ?? true }
 
     func copyPending() {
         guard let pendingCorrection else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(pendingCorrection, forType: .string)
+        guard holdsDrop else { return }
         if capsule.isShown, capsule.model.phase == .pending { capsule.confirmCopy() } else { capsule.hide() }
     }
 
@@ -308,6 +323,7 @@ import OopsCore
 
     /// Debug tools → Capsule → Play: the busy and done animation, without sending any text.
     func preview(geometry: CapsulePlacement.Geometry? = nil) {
+        guard holdDrop() else { return }
         Sounds.warm()
         capsule.show(.invoked, label: "", geometry: geometry)
         Task { [weak self] in

@@ -73,30 +73,42 @@ private final class PassivePanel: NSPanel {
         if let appearance = DebugFlags.capsuleAppearance {
             panel.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
         }
+    }
+    /// What the panel shows: the view of the feature that holds the drop (`DropOwner`). It reads
+    /// `model` for its entrance, exit and corner, and sets its width there.
+    func setContent(_ content: AnyView) {
+        // An exit still playing belongs to the content it replaces.
+        if let hiding { hiding.cancel(); remove() }
         // The initial icon-only phase has a smaller ideal width. Keep hosting
         // geometry stable so AppKit does not compress later status text away.
-        panel.contentView = FirstClickHostingView(rootView: CapsuleRoot(model: model, size: Self.size))
+        panel.contentView = FirstClickHostingView(rootView: CapsuleRoot(model: model, size: Self.size, content: content))
     }
     /// `spoken` replaces the label in the VoiceOver announcement, for labels that read badly aloud.
     func show(_ phase: CapsulePhase, label: String, detail: String = "", remedy: CapsuleModel.Remedy? = nil,
               spoken: String? = nil, geometry: CapsulePlacement.Geometry? = nil) {
-        if let geometry { self.geometry = geometry; neutral = false }
         let entering = !panel.isVisible || hiding != nil
         let previous = entering ? nil : DropState(model.phase)
-        hiding?.cancel(); hiding = nil; lingering?.cancel(); lingering = nil
         model.phase = phase; model.label = label; model.detail = detail; model.remedy = remedy
         // An entering drop presents one frame later (below), so its cue waits that frame too.
         if let played = SoundCues.cue(from: previous, to: DropState(phase), reduceMotion: Self.reduceMotion) {
             Sounds.play(played.cue, after: played.delay + (entering ? 0.016 : 0))
         }
         if phase != .copied { model.copied = false }
-        position(); panel.orderFrontRegardless(); trackPointer()
-        // One frame later, so the drop's small, transparent start state is rendered before it pops in.
-        if entering, !model.presented { DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { self.model.presented = true } } else { model.presented = true }
+        present(geometry: geometry)
         if phase != .invoked, phase != .working {
             NSAccessibility.post(element: panel, notification: .announcementRequested,
                                  userInfo: [.announcement: spoken ?? label, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
         }
+    }
+    /// Brings the panel up with the content it holds, at the draft when `geometry` says where it is:
+    /// the part of showing that any feature's content shares.
+    func present(geometry: CapsulePlacement.Geometry? = nil) {
+        if let geometry { self.geometry = geometry; neutral = false }
+        let entering = !panel.isVisible || hiding != nil
+        hiding?.cancel(); hiding = nil; lingering?.cancel(); lingering = nil
+        position(); panel.orderFrontRegardless(); trackPointer()
+        // One frame later, so the drop's small, transparent start state is rendered before it pops in.
+        if entering, !model.presented { DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { self.model.presented = true } } else { model.presented = true }
     }
     /// Re-anchors while visible when the editor's window moves or resizes; drags are coalesced.
     /// A pending drop can outlive draft recovery, so its sampler only needs the element.
@@ -211,13 +223,14 @@ private final class PassivePanel: NSPanel {
         tracker.stop(); cancelResample(); lingering?.cancel(); lingering = nil
         guard panel.isVisible, hiding == nil else { return }
         model.presented = false
-        let removal = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.panel.orderOut(nil); self.geometry = nil; self.hiding = nil; self.neutral = false; self.panel.alphaValue = 1
-            self.pointer?.invalidate(); self.pointer = nil; self.model.hovering = false; self.leftAt = nil
-        }
+        let removal = DispatchWorkItem { [weak self] in self?.remove() }
         hiding = removal
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: removal)
+    }
+    /// Takes the panel off screen, once its exit has played.
+    private func remove() {
+        panel.orderOut(nil); geometry = nil; hiding = nil; neutral = false; panel.alphaValue = 1
+        pointer?.invalidate(); pointer = nil; model.hovering = false; leftAt = nil
     }
     /// The engine works in AX coordinates (top-left, global, primary display); AppKit is bottom-left.
     private func position() {
@@ -247,12 +260,13 @@ private final class PassivePanel: NSPanel {
     }
 }
 
-/// Keeps the capsule hugging the placement's corner inside the fixed-size panel.
+/// Keeps the drop's content hugging the placement's corner inside the fixed-size panel.
 private struct CapsuleRoot: View {
     @ObservedObject var model: CapsuleModel
     let size: CGSize
+    let content: AnyView
     var body: some View {
-        EyesDropView(model: model)
+        content
             .frame(width: size.width, height: size.height, alignment: model.alignment)
     }
 }

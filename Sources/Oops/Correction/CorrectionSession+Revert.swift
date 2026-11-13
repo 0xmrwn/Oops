@@ -8,6 +8,7 @@ extension CorrectionSession {
     /// again, the drop's button or the menu.
     func revert() {
         guard task == nil else { return }
+        guard holdDrop() else { preferences.status = Self.dropTaken; return }
         guard let record = lastCorrection, record.toggle.canRestore() else {
             capsule.show(.failed, label: "Nothing to revert", detail: "There is no recent correction to revert.")
             capsule.hide(after: 1.5); return
@@ -17,7 +18,7 @@ extension CorrectionSession {
 
     /// Puts the fix back after a revert, without asking the provider: Fix text pressed on the restored draft.
     func reapply() {
-        guard task == nil, let record = lastCorrection, record.toggle.state == .restored else { return }
+        guard task == nil, let record = lastCorrection, record.toggle.state == .restored, holdDrop() else { return }
         swapBack(record, restoring: false)
     }
 
@@ -96,7 +97,7 @@ extension CorrectionSession {
                 Task { [snapshot] in
                     await self.flashHighlights(diff.afterRanges, in: snapshot, holding: to, offset: 0,
                                                style: restoring ? .restore : .correction, remounted: remounted, patient: true) {
-                        self.generation == id && self.capsule.isShown
+                        self.generation == id && self.capsule.isShown && self.drop.holder == .fix
                     }
                     // A newer press holds the same switch and turns it off itself.
                     if fullAccessibility, self.generation == id { await self.editor.disableFullAccessibility(for: snapshot) }
