@@ -98,6 +98,14 @@ public struct DictationCapture: Sendable {
         ring.append(samples)
     }
 
+    /// The active recording's samples from `offset` on, for a stream that hears it as it grows: they are only ever
+    /// appended, so what was read before stays in place, and `finish` cuts only past the release tail. Empty when
+    /// nothing records or nothing is new.
+    public func recordedSamples(from offset: Int) -> ArraySlice<Float> {
+        guard let samples = recording?.samples else { return [] }
+        return samples[min(max(offset, 0), samples.count)...]
+    }
+
     /// Drops the active recording.
     public mutating func cancel() { recording = nil }
 

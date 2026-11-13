@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import OopsCore
 
 /// The Try page's flash, over another app's draft: a click-through panel laid over the editor,
 /// with a glowing pill on each changed word where Accessibility says the editor drew it. Unlike
@@ -14,6 +15,8 @@ import ApplicationServices
     private var generation = 0
     private var observers: [NSObjectProtocol] = []
     private var watch: Task<Void, Never>?
+    /// The live words' pill and line, while a dictation shows them at the caret.
+    private var words: (pill: CALayer, text: CATextLayer)?
 
     init() {
         panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -119,10 +122,65 @@ import ApplicationServices
     }
 
     func clear() {
+        words?.pill.removeFromSuperlayer(); words?.text.removeFromSuperlayer(); words = nil
         tracker.stop()
         observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }; observers = []
         watch?.cancel(); watch = nil
         content.subviews.forEach { $0.removeFromSuperview() }
         if panel.isVisible { panel.orderOut(nil) }
+    }
+
+    /// A dictation's words so far, in one line from the caret (AX points) for at most `width`, over one pill in the
+    /// correction's tint. Updated in place, with no fade: the words change as fast as speech. The pill belongs to the
+    /// app in front, so another app or Space coming forward takes it away, as it does a flash.
+    func showWords(_ live: LiveWords, at caret: CGRect, width: CGFloat) {
+        if words == nil {
+            clear()
+            let host = NSWorkspace.shared.frontmostApplication?.processIdentifier, center = NSWorkspace.shared.notificationCenter
+            for name in [NSWorkspace.didActivateApplicationNotification, NSWorkspace.activeSpaceDidChangeNotification] {
+                observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        if NSWorkspace.shared.frontmostApplication?.processIdentifier != host { self?.clearWords() }
+                    }
+                })
+            }
+            let pill = CALayer(), text = CATextLayer()
+            pill.cornerCurve = .continuous
+            content.layer?.addSublayer(pill); content.layer?.addSublayer(text)
+            words = (pill, text)
+        }
+        guard let (pill, text) = words else { return }
+        let font = NSFont.systemFont(ofSize: min(max(caret.height * 0.78, 11), 28)), inset: CGFloat = 4
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+        let fitted = live.tail(fitting: width - 2 * inset) { ($0 as NSString).size(withAttributes: attributes).width }
+        // Resolved for the panel's appearance: layers keep a fixed colour.
+        var tint = NSColor.clear.cgColor, ink = tint, faint = tint
+        panel.effectiveAppearance.performAsCurrentDrawingAppearance {
+            let dark = panel.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            tint = NSColor.controlAccentColor.withAlphaComponent(dark ? 0.38 : 0.24).cgColor
+            ink = NSColor.labelColor.cgColor; faint = NSColor.secondaryLabelColor.cgColor
+        }
+        // Core Text's own colour key: a text layer draws through it and ignores AppKit's.
+        let color = NSAttributedString.Key(kCTForegroundColorAttributeName as String)
+        let line = NSMutableAttributedString(string: fitted.stable, attributes: [.font: font, color: ink])
+        line.append(NSAttributedString(string: fitted.changing, attributes: [.font: font, color: faint]))
+        let size = line.size(), height = max(caret.height, ceil(size.height) + 2)
+        let frame = CGRect(x: caret.maxX + 1, y: caret.midY - height / 2, width: ceil(size.width) + 2 * inset, height: height)
+        let primary = NSScreen.screens.first?.frame.maxY ?? 900
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        panel.setFrame(NSRect(x: frame.minX, y: primary - frame.maxY, width: frame.width, height: frame.height), display: false)
+        pill.frame = CGRect(origin: .zero, size: frame.size)
+        pill.cornerRadius = min(frame.height / 2, 6)
+        pill.backgroundColor = tint
+        text.frame = CGRect(x: inset, y: (frame.height - ceil(size.height)) / 2, width: frame.width - 2 * inset, height: ceil(size.height))
+        text.contentsScale = panel.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        text.string = line
+        CATransaction.commit()
+        panel.orderFrontRegardless()
+    }
+
+    /// Takes the live words away, and nothing else: a flash never shows beside them.
+    func clearWords() {
+        if words != nil { clear() }
     }
 }

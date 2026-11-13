@@ -29,11 +29,12 @@ struct DropFeature: Hashable, Sendable {
         return claimed.feature
     }
 
-    /// Gives the drop to `feature`, with `content` in the panel unless its view is already there.
-    /// False while another feature holds it: the caller shows nothing. `busy` says whether the
+    /// Gives the drop to `feature`, with `content` in the panel unless its view is already there, in a panel of
+    /// `size`. False while another feature holds it: the caller shows nothing. `busy` says whether the
     /// feature is still at work, which holds the drop while it has yet to show.
-    func claim(_ feature: DropFeature, busy: @escaping () -> Bool, content: () -> AnyView) -> Bool {
+    func claim(_ feature: DropFeature, busy: @escaping () -> Bool, size: CGSize = CapsulePanel.standard, content: () -> AnyView) -> Bool {
         if let holder, holder != feature { return false }
+        panel.resize(size)
         if shown != feature {
             highlight.clear()
             panel.setContent(content())

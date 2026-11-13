@@ -53,6 +53,10 @@ import OSLog
     /// The loudness of the recording, for the drop's visualizer; 0 when nothing records.
     let loudness: DictationLoudnessFeed
     let engine: any SpeechEngine?
+    /// The hosted engine when the chosen model is one, read at each press; it needs no model file.
+    private let hostedEngine: @MainActor () -> (any SpeechEngine)?
+    /// The live words of the recording under way, from its press until its release hands them to `process`.
+    var live: LiveDictation?
     private let modelPath: @MainActor () -> String?
     private let languageHint: @MainActor () -> String?
     private let mode: @MainActor () -> DictationMode
@@ -98,8 +102,10 @@ import OSLog
     /// start; `askMicrophone` shows the system's prompt and answers whether access was given. `escape` registers
     /// the Escape chords given (none: unregisters them), `shortcutModifiers` are the held shortcut's (Dictate's, or
     /// "Dictate and clean up"'s when `cleanUp`), and
-    /// `copy` puts a transcript on the clipboard.
-    init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
+    /// `copy` puts a transcript on the clipboard. `hostedEngine` is read at each press: non-nil, that dictation streams
+    /// through it and needs no model file.
+    init(recorder: DictationRecorder?, engine: any SpeechEngine?, hostedEngine: @escaping @MainActor () -> (any SpeechEngine)? = { nil },
+         modelPath: @escaping @MainActor () -> String?,
          language: @escaping @MainActor () -> String? = { nil },
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
          drop: any DictationDrop, loudness: DictationLoudnessFeed = DictationLoudnessFeed(),
@@ -107,7 +113,7 @@ import OSLog
          askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() },
          escape: @escaping @MainActor ([UInt32]) -> Void = { _ in }, shortcutModifiers: @escaping @MainActor (_ cleanUp: Bool) -> UInt32? = { _ in nil },
          copy: @escaping @MainActor (String) -> Void = { DictationSession.copyToClipboard($0) }) {
-        self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
+        self.recorder = recorder; self.engine = engine; self.hostedEngine = hostedEngine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
         self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status; self.cleanup = cleanup
         self.askMicrophone = askMicrophone; self.escape = escape; self.shortcutModifiers = shortcutModifiers; self.copy = copy
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
@@ -180,6 +186,7 @@ import OSLog
         case .cancel:
             guard activation.isRecording else { break }
             activation.cancel(recordingWasActive: true)
+            endLive()
             loudness.stop()
             await recorder?.cancel(closingSource: true)
             Self.log.notice("cancelled")
@@ -231,6 +238,7 @@ import OSLog
         case .start?: await start(at: lastPress)
         case .stop?: stop(at: instant)
         case .discard?:
+            endLive()
             loudness.stop()
             await recorder?.cancel()
             conclude(.done)
@@ -246,13 +254,16 @@ import OSLog
             return
         }
         holdsDrop = true; turn += 1
-        guard let engine, let recorder else { return refuse(.notInBuild) }
-        guard let model = Self.modelURL(modelPath()) else { return refuse(.noModel) }
-        language = languageHint(); plan = planCleanup(forced: lastPressCleans)
-        if loadedModel != model {
-            loadedModel = model
-            loading = Task.detached(priority: .userInitiated) { try await engine.load(model: model) }
+        let hosted = hostedEngine()
+        guard let engine = hosted ?? self.engine, let recorder else { return refuse(.notInBuild) }
+        if hosted == nil {
+            guard let model = Self.modelURL(modelPath()) else { return refuse(.noModel) }
+            if loadedModel != model {
+                loadedModel = model
+                loading = Task.detached(priority: .userInitiated) { try await engine.load(model: model) }
+            }
         }
+        language = languageHint(); plan = planCleanup(forced: lastPressCleans)
         do { try await recorder.start(at: pressed) } catch {
             if case .microphoneAccess(.undetermined) = error { return ask() }
             return refuse(Self.failure(error))
@@ -261,6 +272,7 @@ import OSLog
         Self.log.notice("recording mode=\(self.activation.sessionMode.rawValue, privacy: .public)")
         loudness.start { recorder.inputLevel }
         drop.show(.recording)
+        beginLive(engine: engine, hosted: hosted != nil)
     }
 
     private func refuse(_ failure: DictationFailure) {
@@ -292,15 +304,19 @@ import OSLog
     private func stop(at released: CaptureInstant?) {
         loudness.stop()
         drop.show(.transcribing)
+        // A press during the transcription starts the next recording with live words of its own.
+        let live = live
+        self.live = nil
         Task { [weak self] in
             guard let self else { return }
-            let ending = await process(released: released)
+            let ending = await process(released: released, live: live)
             events.yield(.processed(ending))
         }
     }
 
     /// The drop leaves, or shows why nothing was written and leaves by itself; either way dictation lets it go.
     func conclude(_ ending: Ending) {
+        drop.showWords(nil)
         switch ending {
         case .done: drop.leave()
         case .offer(let text): offer(text)

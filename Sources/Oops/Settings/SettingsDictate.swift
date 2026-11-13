@@ -60,13 +60,18 @@ struct DictateShortcutCard: View {
     }
 }
 
-/// How the dictation drop looks and where it sits; both apply to the next dictation.
+/// How the dictation drop looks, where it sits and where the words show while speaking; each applies to the next
+/// dictation.
 struct DictateDropCard: View {
+    let store: ProviderStore
+    let local: LocalModels
     @AppStorage(DictationVisualizer.defaultsKey) private var visualizer = DictationVisualizer.standard
     @AppStorage(DictationDropPosition.key) private var position = DictationDropPosition.anchored
+    @AppStorage(DictationLiveWordsPlace.key) private var place = DictationLiveWordsPlace.drop
 
     private static let visualizers: [(value: DictationVisualizer, label: String)] = [(.hex, "Hex"), (.wave, "Wave"), (.ripple, "Ripple")]
     private static let positions: [(value: DictationDropPosition, label: String)] = [(.anchored, "By the text"), (.top, "Top"), (.bottom, "Bottom")]
+    private static let places: [(value: DictationLiveWordsPlace, label: String)] = [(.drop, "In the drop"), (.text, "Over the text")]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,6 +81,15 @@ struct DictateDropCard: View {
             Divider()
             SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
                 GlassChoice(title: "Position", choices: Self.positions, selection: $position)
+            }
+            Divider()
+            SettingRow(symbol: "text.bubble", title: "Live words") {
+                // A model that only transcribes once the recording ends has no words to show while speaking.
+                if store.dictateOption(local)?.streams == false {
+                    Text("Unavailable").fontWeight(.medium).secondaryText()
+                } else {
+                    GlassChoice(title: "Live words", choices: Self.places, selection: $place)
+                }
             }
         }
         .padding(.vertical, -6)
