@@ -31,7 +31,7 @@ extension AppDelegate {
             small: { SmallCleanups.saved }, language: { providers.dictationCleanupLanguage(local, override: DebugFlags.dictationModel) },
             mode: { DictationCleanupMode.saved },
             backend: { try providers.cleanupBackend() }, replace: { await Self.replace($0, with: $1, in: editor) })
-        return DictationSession(recorder: recorder, engine: engine, hostedEngine: { nil },
+        return DictationSession(recorder: recorder, engine: engine, hostedEngine: { providers.dictationHostedEngine(local) },
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
