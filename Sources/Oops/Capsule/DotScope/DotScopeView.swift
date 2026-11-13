@@ -20,12 +20,18 @@ struct DotScopeView: NSViewRepresentable {
     /// Off: the scope sits directly on the capsule's glass. On draws the original's pill, rim and shadow.
     var drawPlate: Bool = false
 
+    /// The scope reads it on the main thread, from its display link.
+    private var provider: () -> Float {
+        if let liveLoudness { return { MainActor.assumeIsolated { liveLoudness() } } }
+        return { [loudness] in loudness }
+    }
+
     func makeNSView(context: Context) -> DotScopeHostView {
         let view = DotScopeHostView(tuning: tuning)
         view.reduceMotion = reduceMotion
         view.isDark = isDark
         view.drawPlate = drawPlate
-        view.loudnessProvider = liveLoudness ?? { [loudness] in loudness }
+        view.loudnessProvider = provider
         view.phase = phase
         return view
     }
@@ -33,7 +39,7 @@ struct DotScopeView: NSViewRepresentable {
     func updateNSView(_ nsView: DotScopeHostView, context: Context) {
         nsView.reduceMotion = reduceMotion
         nsView.isDark = isDark
-        nsView.loudnessProvider = liveLoudness ?? { [loudness] in loudness }
+        nsView.loudnessProvider = provider
         nsView.updateTuning(tuning)
         nsView.drawPlate = drawPlate
         nsView.phase = phase
