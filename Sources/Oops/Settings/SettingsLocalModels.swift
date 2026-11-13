@@ -89,6 +89,7 @@ private struct LocalModelRow: View {
         switch state {
         case .notInstalled, .failed:
             Button { local.download(model) } label: { Label("Download", systemImage: "arrow.down.circle") }
+                .accessibilityLabel("Download \(model.name)")
                 .buttonStyle(.settingsGlass)
         case .downloading(let fraction):
             HStack(spacing: 8) {
@@ -97,7 +98,7 @@ private struct LocalModelRow: View {
                 Text("\(Int(fraction * 100))%").font(.callout.monospacedDigit()).secondaryText()
                 Button { local.cancel(model) } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)) }
                     .buttonStyle(.settingsGlass).buttonBorderShape(.circle)
-                    .help("Cancel").accessibilityLabel("Cancel download")
+                    .help("Cancel").accessibilityLabel("Cancel download of \(model.name)")
             }
         case .verifying:
             HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Verifying").secondaryText() }

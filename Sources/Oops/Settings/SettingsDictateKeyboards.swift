@@ -7,13 +7,13 @@ struct DictateKeyboardsCard: View {
     let local: LocalModels
     let keyboards: KeyboardModelDriver
     let sources: [KeyboardInputSource]?
-    @State private var system: [KeyboardInputSource] = []
+    /// Read as the card is made: a task on a card that shows nothing yet would never run.
+    @State private var system = KeyboardInputSources.shared.enabled()
 
     private var listed: [KeyboardInputSource] { sources ?? system }
 
     var body: some View {
-        Group {
-            if !listed.isEmpty, !local.installed.isEmpty || !keyboards.settings.mappings.isEmpty {
+        if !listed.isEmpty, !local.installed.isEmpty || !keyboards.settings.mappings.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Label { Text("Keyboards").font(.headline) } icon: {
                         Image(systemName: "keyboard").font(.system(size: 15, weight: .medium)).secondaryText()
@@ -26,8 +26,6 @@ struct DictateKeyboardsCard: View {
                 }
                 .settingsSurface()
             }
-        }
-        .task { if sources == nil { system = KeyboardInputSources.shared.enabled() } }
     }
 }
 
