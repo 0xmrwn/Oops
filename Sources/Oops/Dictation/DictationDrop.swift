@@ -5,12 +5,15 @@ import SwiftUI
 enum DictationDropState: Equatable, Sendable {
     case recording
     case transcribing
+    /// The microphone was just allowed, at a press that recorded nothing.
+    case ready
     case failed(DictationFailure)
 
     var symbol: String {
         switch self {
         case .recording: "mic.fill"
         case .transcribing: "waveform"
+        case .ready: "mic"
         case .failed: "exclamationmark.triangle.fill"
         }
     }
@@ -19,6 +22,7 @@ enum DictationDropState: Equatable, Sendable {
         switch self {
         case .recording: "Listening"
         case .transcribing: "Transcribing"
+        case .ready: "Ready, press again"
         case .failed(let failure): failure.message
         }
     }
@@ -28,7 +32,7 @@ enum DictationDropState: Equatable, Sendable {
 enum DictationFailure: Equatable, Sendable {
     /// No model path, or no file at it.
     case noModel
-    /// Microphone access denied, or never asked (only Settings asks).
+    /// Microphone access denied.
     case microphoneAccess
     /// No input device, or it failed to start.
     case noMicrophone
@@ -56,7 +60,8 @@ enum DictationFailure: Equatable, Sendable {
     /// Takes the drop for dictation; false while another feature holds it. `busy` keeps it held while the
     /// dictation is at work and its drop has yet to show.
     func claim(busy: @escaping () -> Bool) -> Bool
-    /// Shows `state`; a failure leaves by itself after the time results stay.
+    /// Shows `state`; a failure, and the word that the microphone is ready, leave by themselves after the
+    /// time results stay.
     func show(_ state: DictationDropState)
     /// The drop leaves.
     func leave()
@@ -105,8 +110,11 @@ enum DictationFailure: Equatable, Sendable {
         panel.hide()
     }
 
-    /// A failure stays as long as Fix's results do, then leaves.
+    /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves.
     private func settle() {
-        if case .failed = model.state { panel.hide(after: ResultTiming.seconds) }
+        switch model.state {
+        case .failed, .ready: panel.hide(after: ResultTiming.seconds)
+        case .recording, .transcribing: break
+        }
     }
 }
