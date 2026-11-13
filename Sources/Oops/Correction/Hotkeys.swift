@@ -6,10 +6,19 @@ typealias HotkeyPhase = HotkeyRouter<ShortcutSettings.Action>.Phase
 /// When a hotkey event happened, on the clock microphone timestamps share and on the one activation timing uses.
 typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Instant)
 
-/// Registers only the configured chords; no always-on typing event tap.
+/// Registers only the configured chords; no always-on typing event tap. Carbon hotkeys keep firing while
+/// another app holds secure keyboard input, where an event tap stops seeing key presses.
 @MainActor final class HyperShortcuts {
     private var handler: EventHandlerRef?
     private var refs: [EventHotKeyRef] = []
+    /// Escape while a recording runs, apart from the actions: it comes and goes without touching them.
+    private var cancelRefs: [EventHotKeyRef] = []
+    /// The modifier sets Escape is registered with, kept across re-registration.
+    private var cancelChords: [UInt32] = []
+    /// Escape's identity, beyond any action's.
+    nonisolated static let cancelIdentity: UInt32 = 0xE5C
+    /// Told when Escape is pressed while it is registered.
+    var cancel: (() -> Void)?
     private var layoutObserver: NSObjectProtocol?
     /// Each action under its own hotkey identity, so the handler knows which one fired.
     private var router = HotkeyRouter(ShortcutSettings.Action.allCases)
@@ -44,6 +53,10 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
             let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed), identity = id.id
             let instant: HotkeyInstant = (CaptureInstant.now(), ContinuousClock.now)
             let owner = Unmanaged<HyperShortcuts>.fromOpaque(userData).takeUnretainedValue()
+            if identity == HyperShortcuts.cancelIdentity {
+                if pressed { DispatchQueue.main.async { owner.cancel?() } }
+                return noErr
+            }
             KeyboardGate.heldShortcuts.withLock { held in
                 if pressed { held.insert(identity) } else { held.remove(identity) }
             }
@@ -71,7 +84,30 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
                 problems.append(Self.taken(shortcut))
             }
         }
+        registerCancel()
         if !problems.isEmpty { throw CorrectionError.message(problems.joined(separator: " ")) }
+    }
+
+    /// Registers Escape with each of `chords` (Carbon modifier sets), replacing the last ones; none removes it.
+    /// Only while the shortcuts are registered: `register()` brings back the chords last asked for.
+    func armCancel(_ chords: [UInt32]) {
+        cancelChords = chords
+        unregisterCancel()
+        if handler != nil { registerCancel() }
+    }
+
+    private func registerCancel() {
+        for modifiers in cancelChords {
+            var ref: EventHotKeyRef?
+            let status = RegisterEventHotKey(DictationEscape.keyCode, modifiers, EventHotKeyID(signature: 0x53545854, id: Self.cancelIdentity),
+                                             GetEventDispatcherTarget(), 0, &ref)
+            if status == noErr, let ref { cancelRefs.append(ref) }
+        }
+    }
+
+    private func unregisterCancel() {
+        cancelRefs.forEach { UnregisterEventHotKey($0) }
+        cancelRefs = []
     }
     /// One hotkey event, on the main thread: the action it belongs to, pressed or released.
     private func deliver(identity: UInt32, pressed: Bool, at instant: HotkeyInstant) {
@@ -95,7 +131,7 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
         clearRegistrations()
     }
     private func clearRegistrations() {
-        refs.forEach { UnregisterEventHotKey($0) }; refs = []; failed = []
+        refs.forEach { UnregisterEventHotKey($0) }; refs = []; failed = []; unregisterCancel()
         ShortcutSettings.shared.down = nil; let cut = router.reset()
         KeyboardGate.heldShortcuts.withLock { $0 = [] }
         if let handler { RemoveEventHandler(handler) }; handler = nil

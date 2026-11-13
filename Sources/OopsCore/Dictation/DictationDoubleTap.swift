@@ -136,6 +136,14 @@ struct DictationDoubleTap: Sendable {
         if !started, isRecording { stage = .idle(lastRelease: nil) }
     }
 
+    /// Not Hex's: the recording's input went away. It is transcribed whatever its length; a release that comes
+    /// later finds the pipeline busy.
+    mutating func inputLost() -> DictationActivation.Effect? {
+        guard isRecording else { return nil }
+        stage = .processing(lastRelease: nil)
+        return .stop
+    }
+
     /// Ends a recording at once; a transcription under way still finishes, without the press remembered for it.
     mutating func cancel() {
         pendingPress = nil

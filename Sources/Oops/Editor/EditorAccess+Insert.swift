@@ -5,8 +5,9 @@ import OopsCore
 
 /// Writing new text at the caret, for a feature that has text of its own to put in (dictation). Unlike
 /// a correction it needs no draft: the field may be empty or show only its placeholder. The text is
-/// pasted through the editor's own input path, over the selection when there is one, under Fix's
-/// application and secret-field rules.
+/// pasted through the editor's own input path, over the selection when there is one, spaced against the
+/// text before the caret (Hex's rules, `InsertSpacing`), under dictation's application policy and Fix's
+/// secret-field rules. A terminal takes it blind, on one line, and nothing presses Return.
 extension EditorAccess {
     static let insertLog = Logger(subsystem: "dev.0xmrwn.oops", category: "Insert")
 
@@ -26,6 +27,8 @@ extension EditorAccess {
         let placeholders: [String]
         /// Whether the app's accessibility switch was Oops's already, and so isn't this insert's to turn off.
         let heldSwitch: Bool
+        /// A terminal: no text to read, so no spacing and no confirmation.
+        let terminal: Bool
     }
 
     /// Writes `text` at the caret of the focused field, replacing its selection, and says whether it
@@ -49,7 +52,12 @@ extension EditorAccess {
         do { try await KeyboardGate.waitForModifierRelease() }
         catch is CancellationError { throw CancellationError() }
         catch { throw InsertRefusal.keysHeld }
-        return try paste(text, into: target)
+        let shaped = target.terminal ? TextInsertion.oneLine(text)
+            : InsertSpacing.shaped(text, in: target.before?.text, selection: target.before?.selection, previous: lastInsert,
+                                   placeholders: target.placeholders)
+        let outcome = try paste(shaped, into: target)
+        lastInsert = shaped
+        return outcome
     }
 
     /// Hex's order (`PasteSequence`): save the clipboard, commit, write the text, ⌘V, schedule the
@@ -106,23 +114,25 @@ extension EditorAccess {
         var element: AXUIElement
         do { element = try focusedWaking() } catch is CancellationError { throw CancellationError() } catch { throw InsertRefusal.noEditor }
         let pid = self.pid(of: element)
-        guard let scope = scope(of: pid) else { throw InsertRefusal.noEditor }
+        guard let scope = scope(of: pid, for: .dictate) else { throw InsertRefusal.noEditor }
         if let refusal = TextInsertion.refusal(for: scope.verdict) { throw refusal }
         guard case .accepted(let owner, let nested) = scope.verdict else { throw InsertRefusal.noEditor }
         let heldSwitch = switches.attribute(for: pid) != nil
         var kept = false
         defer { if !kept, !heldSwitch { restoreFullAccessibility(pid: pid) } }
-        let woken = try wakingField(&element, pid: pid)
+        // A terminal shows no text to read: there is nothing to wake, and its prompt takes a paste whatever it exposes.
+        let terminal = EditorApplicationPolicy.terminals.contains(owner)
+        let woken = terminal ? (field: nil, awakeDocument: false) : try wakingField(&element, pid: pid)
         let role = woken.field?.role ?? attribute(element, kAXRoleAttribute) as? String ?? ""
         let subrole = woken.field?.subrole ?? attribute(element, kAXSubroleAttribute) as? String
         let webContent = isWebContent(element)
-        if woken.field == nil {
+        if woken.field == nil, !terminal {
             // An editor that exposes no text takes a paste all the same, but only where text could go:
             // never a list, a table or the Finder, where ⌘V pastes files or rows.
             guard [kAXTextAreaRole, kAXTextFieldRole, kAXComboBoxRole, "AXWebArea", kAXGroupRole, kAXUnknownRole].contains(role)
                 || role == kAXStaticTextRole && webContent, owner != "com.apple.finder" else { throw InsertRefusal.noEditor }
         }
-        let strategy: CaptureStrategy? = woken.field != nil ? .value : woken.awakeDocument || supportsMarkers(element) ? .markers : nil
+        let strategy: CaptureStrategy? = terminal ? nil : woken.field != nil ? .value : woken.awakeDocument || supportsMarkers(element) ? .markers : nil
         let value = woken.field != nil && subrole != kAXSecureTextFieldSubrole ? self.text(element, .value) : nil
         guard !TextInsertion.holdsSecret(role: role, subrole: subrole, descriptions: descriptions(element), value: value,
                                          readable: woken.field != nil) else { throw InsertRefusal.secureField }
@@ -139,6 +149,6 @@ extension EditorAccess {
                             strategy: readable, identifiable: strategy != nil, before: before,
                             placeholders: [kAXPlaceholderValueAttribute, kAXDescriptionAttribute, kAXTitleAttribute]
                                 .compactMap { attribute(element, $0) as? String },
-                            heldSwitch: heldSwitch)
+                            heldSwitch: heldSwitch, terminal: terminal)
     }
 }

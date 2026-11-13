@@ -9,6 +9,9 @@ import OSLog
 /// Events are handled strictly in order, one at a time, by one task reading a queue: a release that comes
 /// while a start is still opening the microphone waits for that start to finish. The transcription runs
 /// beside the queue, so presses meanwhile reach the activation, and its end comes back through the queue.
+///
+/// While a recording runs, Escape cancels it (`DictationEscape`); a recording whose microphone goes away is
+/// transcribed as far as it got. The last transcript is kept for Paste last dictation and the drop's Copy.
 @MainActor final class DictationSession {
     enum Event {
         case key(HotkeyPhase, CaptureInstant, ContinuousClock.Instant)
@@ -16,6 +19,12 @@ import OSLog
         case timer(ContinuousClock.Instant)
         /// A transcription is written or abandoned.
         case processed(Ending)
+        /// Escape, while a recording runs.
+        case cancel
+        /// The recording's microphone went away.
+        case inputLost
+        /// Paste last dictation, from the menu or its shortcut.
+        case pasteLast
         /// Dictate lost its shortcut.
         case off
     }
@@ -25,6 +34,8 @@ import OSLog
         /// Written, or nothing worth writing (no speech, an empty transcript): the drop just leaves.
         case done
         case failed(DictationFailure)
+        /// No text field had focus: the transcript is kept, and the drop offers to copy it.
+        case kept
     }
 
     /// What each dictation came to, in numbers only: never what was said.
@@ -41,7 +52,7 @@ import OSLog
     private let languageHint: @MainActor () -> String?
     private let mode: @MainActor () -> DictationMode
     let insert: @MainActor (String) async -> InsertOutcome
-    private let drop: any DictationDrop
+    let drop: any DictationDrop
     private let status: @MainActor (String) -> Void
     private let askMicrophone: @MainActor () async -> Bool
     /// The system's microphone prompt is up, or its answer is on its way to the drop.
@@ -60,24 +71,37 @@ import OSLog
     var loading: Task<Void, any Error>?
     /// The language hint read at the last start, for its transcription.
     var language: String?
+    /// The most recent transcript, written or not, held in memory only: Paste last dictation writes it again,
+    /// and the kept drop copies it.
+    var lastTranscript: String?
+    private let escape: @MainActor ([UInt32]) -> Void
+    private let shortcutModifiers: @MainActor () -> UInt32?
+    let copy: @MainActor (String) -> Void
+    /// The Escape chords registered now, as `escape` was last told.
+    private(set) var escapeChords: [UInt32] = []
     /// Another model was chosen while a dictation held the drop: it warms once that dictation is over.
     private var warmUpDeferred = false
 
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
     /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
-    /// start; `askMicrophone` shows the system's prompt and answers whether access was given.
+    /// start; `askMicrophone` shows the system's prompt and answers whether access was given. `escape` registers
+    /// the Escape chords given (none: unregisters them), `shortcutModifiers` are the Dictate shortcut's, and
+    /// `copy` puts a transcript on the clipboard.
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
          language: @escaping @MainActor () -> String? = { nil },
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
          drop: any DictationDrop, loudness: DictationLoudnessFeed = DictationLoudnessFeed(),
          status: @escaping @MainActor (String) -> Void,
-         askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() }) {
+         askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() },
+         escape: @escaping @MainActor ([UInt32]) -> Void = { _ in }, shortcutModifiers: @escaping @MainActor () -> UInt32? = { nil },
+         copy: @escaping @MainActor (String) -> Void = { DictationSession.copyToClipboard($0) }) {
         self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
         self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status
-        self.askMicrophone = askMicrophone
+        self.askMicrophone = askMicrophone; self.escape = escape; self.shortcutModifiers = shortcutModifiers; self.copy = copy
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
         consumer = Task { [weak self] in
+            await recorder?.onInputLost { continuation.yield(.inputLost) }
             for await event in stream { await self?.handle(event) }
         }
     }
@@ -87,6 +111,11 @@ import OSLog
         events.yield(.key(phase, capture, now))
     }
 
+    /// Escape: cancels the recording under way, if any.
+    func cancel() { events.yield(.cancel) }
+
+    /// Writes the last transcript again at the caret, once no dictation is under way.
+    func pasteLast() { events.yield(.pasteLast) }
     /// Dictate lost its shortcut: a recording under way, which no key could end now, is discarded, and a press
     /// remembered for later is forgotten. A transcription already running still writes.
     func turnedOff() {
@@ -135,12 +164,51 @@ import OSLog
             // A press made meanwhile takes the drop straight over; otherwise the outcome shows.
             if next != .start { conclude(ending) }
             await perform(next, stoppingAt: nil)
+        case .cancel:
+            guard activation.isRecording else { break }
+            activation.cancel(recordingWasActive: true)
+            loudness.stop()
+            await recorder?.cancel(closingSource: true)
+            Self.log.notice("cancelled")
+            conclude(.done)
+        case .inputLost:
+            Self.log.notice("input lost recording=\(self.activation.isRecording, privacy: .public)")
+            await perform(activation.inputLost(), stoppingAt: nil)
+        case .pasteLast:
+            await writeLast()
         case .off:
             let recording = activation.isRecording
             activation.cancel(recordingWasActive: recording)
             if recording { await perform(.discard, stoppingAt: nil) }
         }
         armTimer()
+        armEscape()
+    }
+
+    /// Paste last dictation, as Hex's recovery: never past a dictation under way, and with nothing kept, nothing.
+    private func writeLast() async {
+        guard !holdsDrop, !activation.isRecording, let text = lastTranscript else {
+            return Self.log.notice("paste last refused busy=\(self.holdsDrop, privacy: .public) kept=\(self.lastTranscript != nil, privacy: .public)")
+        }
+        // Held as a dictation holds it, so Fix can't start on the draft this is about to change, nor this
+        // write into one Fix is working on.
+        guard drop.claim(busy: { [weak self] in self?.holdsDrop == true }) else {
+            status(CorrectionSession.dropTaken)
+            return Self.log.notice("paste last refused=dropHeld")
+        }
+        holdsDrop = true
+        let ending = Self.ending(await insert(text))
+        // Written: nothing to show. Otherwise the drop says why, as after a dictation.
+        if ending == .done { holdsDrop = false } else { conclude(ending) }
+    }
+
+    /// Registers Escape for the recording under way, with the held shortcut's modifiers, or unregisters it.
+    private func armEscape() {
+        let chords = DictationEscape.modifiers(shortcut: shortcutModifiers(), recording: activation.isRecording && holdsDrop,
+                                               locked: activation.isRecordingLocked)
+        guard chords != escapeChords else { return }
+        escapeChords = chords
+        escape(chords)
     }
 
     /// `stoppingAt` is the key event a stop ends the recording at: the release, or the press that ends a
@@ -223,6 +291,7 @@ import OSLog
         switch ending {
         case .done: drop.leave()
         case .failed(let failure): drop.show(.failed(failure))
+        case .kept: drop.show(.kept)
         }
         holdsDrop = false
         if warmUpDeferred { warmUpDeferred = false; warmUp() }

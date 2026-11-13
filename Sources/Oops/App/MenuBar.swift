@@ -4,10 +4,12 @@ import OopsCore
 import SwiftUI
 
 /// The menu bar eyes and their menu: a status line, Fix text (or Cancel), Restore last correction,
-/// the copy fallbacks, Settings and Quit.
+/// the copy fallbacks, Paste last dictation while Dictate is on, Settings and Quit.
 @MainActor final class MenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let preferences: Preferences
     private let session: CorrectionSession
+    /// The dictation session, while dictation is switched on.
+    private let dictation: () -> DictationSession?
     private let openSettings: () -> Void
     private let quit: () -> Void
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -15,8 +17,9 @@ import SwiftUI
     private let status = StatusLine()
     private var menuOpen = false
 
-    init(preferences: Preferences, session: CorrectionSession, openSettings: @escaping () -> Void, quit: @escaping () -> Void) {
-        self.preferences = preferences; self.session = session; self.openSettings = openSettings; self.quit = quit
+    init(preferences: Preferences, session: CorrectionSession, dictation: @escaping () -> DictationSession? = { nil },
+         openSettings: @escaping () -> Void, quit: @escaping () -> Void) {
+        self.preferences = preferences; self.session = session; self.dictation = dictation; self.openSettings = openSettings; self.quit = quit
         super.init()
         let menu = NSMenu()
         menu.delegate = self
@@ -31,6 +34,8 @@ import SwiftUI
         menu.addItem(withTitle: "Copy pending correction", action: #selector(copyPending), keyEquivalent: "").image = Self.symbol("doc.on.doc")
         menu.addItem(withTitle: "Copy original draft", action: #selector(copyOriginal), keyEquivalent: "").image = Self.symbol("doc.on.doc")
         menu.addItem(withTitle: "Turn off", action: #selector(toggleApp), keyEquivalent: "")
+        menu.addItem(withTitle: ShortcutSettings.Action.pasteLast.title, action: #selector(pasteLast), keyEquivalent: "").image =
+            Self.symbol(ShortcutSettings.Action.pasteLast.symbol)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").image = Self.symbol("gearshape")
         menu.addItem(.separator())
@@ -49,6 +54,8 @@ import SwiftUI
     @objc private func restore() { Task { await Task.yield(); session.revert() } }
     @objc private func copyPending() { session.copyPending() }
     @objc private func copyOriginal() { session.copyOriginal() }
+    // Lets the menu close, and focus return to the field, before the paste.
+    @objc private func pasteLast() { Task { await Task.yield(); dictation()?.pasteLast() } }
     @objc private func settings() { openSettings() }
     @objc private func toggleApp() {
         guard let app = targetApp else { return }
@@ -68,6 +75,7 @@ import SwiftUI
         case #selector(copyPending): session.pendingCorrection != nil
         case #selector(restore): session.canRestore
         case #selector(copyOriginal): session.originalForRecovery != nil
+        case #selector(pasteLast): dictation()?.lastTranscript != nil
         default: true
         }
     }
@@ -90,6 +98,10 @@ import SwiftUI
             case #selector(fix):
                 item.title = session.isBusy ? "Cancel correction" : "Fix text"
                 showChord(.correct, on: item)
+            case #selector(pasteLast):
+                // Dictate's shortcut is its switch: without one, dictation is off and so is this.
+                item.isHidden = dictation() == nil || ShortcutSettings.shared.shortcut(.dictate) == nil
+                showChord(.pasteLast, on: item)
             default: break
             }
         }

@@ -37,6 +37,42 @@ final class EditorApplicationPolicyTests: XCTestCase {
                                foregroundID: "com.1password.1password", foregroundURL: onePassword), .denied)
     }
 
+    func testDictationWritesInTheTerminalsFixDenies() {
+        for terminal in EditorApplicationPolicy.terminals {
+            let url = URL(fileURLWithPath: "/Applications/\(terminal).app")
+            XCTAssertEqual(verdict(terminal, url, foregroundID: terminal, foregroundURL: url), .denied, terminal)
+            XCTAssertEqual(EditorApplicationPolicy.verdict(bundleID: terminal, bundleURL: url, foregroundBundleID: terminal,
+                                                           foregroundBundleURL: url, turnedOff: [], for: .dictate),
+                           .accepted(bundleID: terminal, nested: false), terminal)
+        }
+        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        XCTAssertEqual(EditorApplicationPolicy.verdict(bundleID: "com.apple.Terminal", bundleURL: terminal, foregroundBundleID: "com.apple.Terminal",
+                                                       foregroundBundleURL: terminal, turnedOff: ["com.apple.Terminal"], for: .dictate),
+                       .turnedOff, "an app turned off in Settings stays off")
+    }
+
+    func testPasswordManagersStayDeniedForBoth() {
+        for manager in EditorApplicationPolicy.passwordManagers {
+            let url = URL(fileURLWithPath: "/Applications/\(manager).app")
+            for feature in [EditorApplicationPolicy.Feature.fix, .dictate] {
+                XCTAssertEqual(EditorApplicationPolicy.verdict(bundleID: manager, bundleURL: url, foregroundBundleID: manager,
+                                                               foregroundBundleURL: url, turnedOff: [], for: feature), .denied, manager)
+            }
+        }
+        XCTAssertTrue(EditorApplicationPolicy.terminals.isDisjoint(with: EditorApplicationPolicy.passwordManagers))
+        XCTAssertEqual(EditorApplicationPolicy.denied, EditorApplicationPolicy.terminals.union(EditorApplicationPolicy.passwordManagers))
+    }
+
+    func testSecureFieldsStayDeniedForBoth() {
+        // Fix and dictation read a field under the same secret checks, whatever the app: a terminal included.
+        XCTAssertTrue(TextInsertion.holdsSecret(role: "AXTextField", subrole: "AXSecureTextField", descriptions: [], value: nil, readable: true))
+        XCTAssertTrue(TextInsertion.holdsSecret(role: "AXTextField", subrole: nil, descriptions: ["Password"], value: "", readable: true))
+        XCTAssertEqual(TextInsertion.refusal(for: EditorApplicationPolicy.verdict(bundleID: "com.1password.1password", bundleURL: nil,
+                                                                                  foregroundBundleID: "com.1password.1password",
+                                                                                  foregroundBundleURL: nil, turnedOff: [], for: .dictate)),
+                       .appDenied)
+    }
+
     func testMaskedValuesAreSecrets() {
         XCTAssertTrue(SensitiveField.isMasked("••••••"))
         XCTAssertTrue(SensitiveField.isMasked("●●●● "))

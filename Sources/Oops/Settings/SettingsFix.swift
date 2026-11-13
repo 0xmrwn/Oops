@@ -231,7 +231,7 @@ private struct ShortcutRecorder: View {
         .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in stop() }
         // General's Turn on, for the feature this shortcut switches on.
         .onReceive(NotificationCenter.default.publisher(for: .settingsRecordShortcut)) { note in
-            if note.object as? SettingsTab == action.tab, !recording { start() }
+            if note.object as? SettingsTab == action.tab, action.isSwitch, !recording { start() }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
         .onDisappear { stop() }
