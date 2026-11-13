@@ -53,16 +53,17 @@ public actor TranscribeEngine: SpeechEngine {
     public func warmUp(model url: URL) throws(SpeechEngineError) {
         try load(model: url)
         // A second of silence: whatever it says (or refuses), the first run's setup is done.
-        _ = try? model?.run([Float](repeating: 0, count: 16000), language: nil)
+        _ = try? model?.run([Float](repeating: 0, count: 16000), language: nil, vocabulary: nil)
     }
 
-    public func transcribe(_ samples: [Float], language: String? = nil) throws(SpeechEngineError) -> String {
+    public func transcribe(_ samples: [Float], language: String? = nil,
+                           vocabulary: VocabularyDelivery? = nil) throws(SpeechEngineError) -> String {
         guard let modelURL else { throw .notLoaded }
         defer { releaseWhenIdle() }
         let model: any LoadedModel
         if let held = self.model { model = held } else { model = try open(modelURL) }
         self.model = model
-        return try model.run(samples, language: language)
+        return try model.run(samples, language: language, vocabulary: vocabulary)
     }
 
     public func unload() {
