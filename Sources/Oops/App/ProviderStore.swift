@@ -24,6 +24,8 @@ import OopsCore
     /// Set by General's picker to ask Settings for the Providers tab. A flag rather than a closure, so
     /// the General page keeps only comparable inputs and is skipped on tab switches.
     var wantsProvidersPage = false
+    /// Dictate's model and language, and what models can do (`ProviderStore+Dictate`).
+    let features: FeatureModels
 
     @ObservationIgnored let preview: Bool
     @ObservationIgnored let chatGPT: ChatGPTAuth
@@ -55,6 +57,7 @@ import OopsCore
         self.makeBackend = makeBackend
         self.chatGPT = chatGPT
         self.preview = preview
+        features = FeatureModels(defaults: defaults, preview: preview)
         if preview { loadPreview(); return }
         let decoder = JSONDecoder()
         if let data = defaults.data(forKey: "providers"), let list = try? decoder.decode([Provider].self, from: data),
@@ -106,25 +109,6 @@ import OopsCore
         providers.compactMap { provider in
             let models = (catalogs[provider.id] ?? []).filter { provider.shownModels.contains($0.id) }
             return models.isEmpty ? nil : (provider, models)
-        }
-    }
-
-    /// A few words when a provider can't correct right now; nil when it can.
-    func problem(_ id: String) -> String? {
-        switch health[id] {
-        case .signedOut: "Signed out"
-        case .notInstalled: "Not installed"
-        case .unreachable: "Can’t connect"
-        default: nil
-        }
-    }
-
-    func status(_ id: String) -> Status {
-        if let problem = problem(id) { return Status(text: problem, ok: false, busy: false) }
-        switch (health[id] ?? .checking, provider(id)?.kind) {
-        case (.ready, .api?): return Status(text: "Connected", ok: true, busy: false)
-        case (.ready, _): return Status(text: "Signed in", ok: true, busy: false)
-        default: return Status(text: "Checking", ok: true, busy: true)
         }
     }
 
@@ -267,7 +251,7 @@ import OopsCore
     /// Refreshes everything that can be refreshed without bothering anyone; called when Providers or
     /// Settings becomes visible.
     func refresh() {
-        refreshClaude()
+        refreshClaude(); refreshModelsDev()
         for provider in providers { if case .api = provider.kind { refreshAPI(provider.id) } }
     }
 
