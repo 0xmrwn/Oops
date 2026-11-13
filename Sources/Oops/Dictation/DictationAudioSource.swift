@@ -12,7 +12,7 @@ protocol DictationAudioSource: AnyObject, Sendable {
 }
 
 enum DictationAudioError: Error, Equatable, Sendable {
-    /// Microphone access is not granted. Starting never asks: Settings does, in its own time.
+    /// Microphone access is not granted. The source never asks: the session does, at a press that finds access never asked.
     case microphoneAccess(DictationMicrophoneAccess)
     /// No input device, or one whose format cannot be read.
     case noInput
