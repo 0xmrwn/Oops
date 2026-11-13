@@ -50,7 +50,7 @@ struct RippleFrame {
             emitter.step(time: time, level: 0)
             guard case .transcribing(let start) = mode else { return RippleFrame(rings: [], time: time, live: 0, mode: .still) }
             return RippleFrame(rings: emitter.rings, time: time, live: 0, mode: .transcribing(since: time - start))
-        case .ready, .failed:
+        case .ready, .written, .cleaningUp, .failed:
             mode = .still
             return RippleFrame(rings: [], time: time, live: 0, mode: .still)
         }

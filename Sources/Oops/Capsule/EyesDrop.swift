@@ -236,20 +236,9 @@ struct EyesDropView: View {
         default: EmptyView()
         }
     }
-    /// The action mirrors the eyes: centred in the right cap as the eyes are in the left one, on a
-    /// glass disc concentric with the cap (7 pt of rim all round), so it reads as something to press
-    /// rather than a status glyph. The disc is the button's own surface, not a plate under text.
+
     private func button(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 13 * scale, weight: .semibold))
-                .contentTransition(.symbolEffect(.replace))
-                .frame(width: 32 * scale, height: 32 * scale)
-                .glassEffect(.regular.interactive(), in: .circle)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .frame(width: drop, height: drop)
-        .accessibilityLabel(label)
+        DropActionButton(symbol: symbol, label: label, scale: scale, action: action)
     }
 }
 

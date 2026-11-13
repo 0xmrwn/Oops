@@ -7,6 +7,10 @@ enum DictationDropState: Equatable, Sendable {
     case transcribing
     /// The microphone was just allowed, at a press that recorded nothing.
     case ready
+    /// The transcript is in the field, as heard.
+    case written
+    /// The transcript is being rewritten by the cleanup model.
+    case cleaningUp
     case failed(DictationFailure)
 
     var symbol: String {
@@ -14,6 +18,8 @@ enum DictationDropState: Equatable, Sendable {
         case .recording: "mic.fill"
         case .transcribing: "waveform"
         case .ready: "mic"
+        case .written: "checkmark"
+        case .cleaningUp: "wand.and.sparkles"
         case .failed: "exclamationmark.triangle.fill"
         }
     }
@@ -23,6 +29,8 @@ enum DictationDropState: Equatable, Sendable {
         case .recording: "Listening"
         case .transcribing: "Transcribing"
         case .ready: "Ready, press again"
+        case .written: "Written"
+        case .cleaningUp: "Cleaning up"
         case .failed(let failure): failure.message
         }
     }
@@ -42,6 +50,10 @@ enum DictationFailure: Equatable, Sendable {
     case transcription
     /// The insert was refused.
     case cannotWrite
+    /// The cleanup model failed, took too long or answered nothing: the text stays as heard.
+    case cleanup
+    /// The field no longer reads what dictation wrote, so its cleanup replaced nothing.
+    case textChanged
 
     var message: String {
         switch self {
@@ -51,8 +63,19 @@ enum DictationFailure: Equatable, Sendable {
         case .notInBuild: "Dictation isn’t in this build"
         case .transcription: "Couldn’t transcribe"
         case .cannotWrite: "Can’t write here"
+        case .cleanup: "Couldn’t clean up"
+        case .textChanged: "Text changed, nothing replaced"
         }
     }
+}
+
+/// Something the drop offers to do beside what it says: one at most, pressed in the drop's trailing cap.
+struct DropAction {
+    /// The button's SF Symbol.
+    let symbol: String
+    /// What it does, for its tooltip and assistive tech.
+    let label: String
+    let perform: @MainActor () -> Void
 }
 
 /// The drop as a dictation sees it: claimed for the recording, told each state, and let go.
@@ -60,11 +83,16 @@ enum DictationFailure: Equatable, Sendable {
     /// Takes the drop for dictation; false while another feature holds it. `busy` keeps it held while the
     /// dictation is at work and its drop has yet to show.
     func claim(busy: @escaping () -> Bool) -> Bool
-    /// Shows `state`; a failure, and the word that the microphone is ready, leave by themselves after the
-    /// time results stay.
-    func show(_ state: DictationDropState)
+    /// Shows `state`, with `action` to press beside it or none; a state that isn't work under way (a failure, the
+    /// word that the microphone is ready, a written transcript) leaves by itself after the time results stay.
+    func show(_ state: DictationDropState, action: DropAction?)
     /// The drop leaves.
     func leave()
+}
+
+extension DictationDrop {
+    /// Shows `state` with nothing to press.
+    func show(_ state: DictationDropState) { show(state, action: nil) }
 }
 
 extension DictationDropPosition {
@@ -77,6 +105,8 @@ extension DictationDropPosition {
 /// What the dictation drop shows, apart from Fix's model.
 @MainActor @Observable final class DictationDropModel {
     var state = DictationDropState.recording
+    /// What the drop offers to press with this state; nil has nothing, and the drop lets clicks through.
+    var action: DropAction?
     /// Read as the drop comes up, so a change in Settings applies to the next dictation.
     var visualizer = DictationVisualizer.standard
     /// The recording's loudness, which the visualizer follows; nil where nothing records.
@@ -103,8 +133,9 @@ extension DictationDropPosition {
         owner.claim(.dictate, busy: busy) { [model, capsule = owner.panel.model] in AnyView(DictationDropView(model: model, capsule: capsule)) }
     }
 
-    func show(_ state: DictationDropState) {
+    func show(_ state: DictationDropState, action: DropAction?) {
         model.state = state
+        model.action = action
         if locating != nil { return }
         // Already up: it keeps its spot, and a new state stops a failure's timed exit.
         if panel.isShown { panel.present(); settle(); return }
@@ -128,8 +159,8 @@ extension DictationDropPosition {
     /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves.
     private func settle() {
         switch model.state {
-        case .failed, .ready: panel.hide(after: ResultTiming.seconds)
-        case .recording, .transcribing: break
+        case .failed, .ready, .written: panel.hide(after: ResultTiming.seconds)
+        case .recording, .transcribing, .cleaningUp: break
         }
     }
 }
