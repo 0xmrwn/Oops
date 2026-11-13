@@ -95,6 +95,11 @@ def options():
             "--signing-identity",
             help="Developer ID Application certificate fingerprint; absent means local ad-hoc signing",
         )
+        command.add_argument(
+            "--preview",
+            action="store_true",
+            help="OOPS_PREVIEW=1: embed the speech engine and ask for the microphone; for this Mac only, never distributed",
+        )
     command = sub.add_parser(
         "verify", help="Verify an existing local Release artifact against its hashes and this checkout"
     )
@@ -153,7 +158,7 @@ def build(args):
     if args.jobs < 1:
         raise ValueError("jobs must be positive")
     fingerprint = validate_identity(args.signing_identity, run) if args.signing_identity else None
-    output = ROOT / "dist/release" / f"oops-{version}-{args.build_number}"
+    output = ROOT / "dist/release" / f"oops-{version}-{args.build_number}{'-preview' if args.preview else ''}"
     metadata = {
         "version": version,
         "build_number": args.build_number,
@@ -169,6 +174,7 @@ def build(args):
         "signing": DISTRIBUTION_SIGNING if fingerprint else LOCAL_SIGNING,
         "signing_identity": fingerprint,
         "distributable": False,
+        "preview": args.preview,
     }
     if args.command == "plan" or args.dry_run:
         return metadata
@@ -176,16 +182,16 @@ def build(args):
         raise ValueError(f"artifact already exists: {output}; use verify or choose a new build number")
     if (ROOT / "dist").is_symlink() or output.parent.is_symlink():
         raise ValueError("Release output directories must not be symlinks")
-    binary = compile_release(args.jobs)
+    binary = compile_release(args.jobs, args.preview)
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".stage-", dir=output.parent) as directory:
         stage = Path(directory)
         app = stage / "Oops.app"
-        assemble(ROOT, app, binary, version, args.build_number, run)
+        assemble(ROOT, app, binary, version, args.build_number, run, preview=args.preview)
         run(["xattr", "-cr", str(app)])
-        sign(app, fingerprint, run)
-        metadata["verification"] = verify(ROOT, app, version, args.build_number, run, fingerprint)
-        verify_debug_flags(CACHE)
+        sign(app, fingerprint, run, args.preview)
+        metadata["verification"] = verify(ROOT, app, version, args.build_number, run, fingerprint, args.preview)
+        verify_debug_flags(CACHE, args.preview)
         if input_digest() != metadata["input_sha256"]:
             raise ValueError("build inputs changed while compiling; retry with stable inputs")
         (stage / "build-info.json").write_text(json.dumps(metadata, indent=2) + "\n")
@@ -193,14 +199,19 @@ def build(args):
     return metadata
 
 
-def compile_release(jobs):
-    """The Release executable (arm64), with Sparkle.framework beside it; also used by the update test."""
+def compile_release(jobs, preview=False):
+    """The Release executable (arm64), with Sparkle.framework beside it (and CTranscribe.framework in a preview);
+    also used by the update test."""
     # SwiftPM owns .build/debug and .build/release and replaces them with configuration symlinks.
     cache = CACHE
     if cache.is_symlink():
         raise ValueError("Release cache directory must not be a symlink")
     cache.mkdir(parents=True, exist_ok=True)
     os.environ["CLANG_MODULE_CACHE_PATH"] = str(cache / "clang-cache")
+    # Package.swift reads the option; only --preview sets it, whatever the calling shell exported.
+    os.environ.pop("OOPS_PREVIEW", None)
+    if preview:
+        os.environ["OOPS_PREVIEW"] = "1"
     binaries = []
     for arch in ARCHITECTURES:
         command = [
@@ -213,7 +224,7 @@ def compile_release(jobs):
             "--product",
             "oops",
             "--scratch-path",
-            str(cache / arch),
+            str(cache / (f"{arch}-preview" if preview else arch)),
             "--cache-path",
             str(cache / "cache"),
             "--config-path",
@@ -233,7 +244,7 @@ def compile_release(jobs):
     return binaries[0]
 
 
-def verify_debug_flags(cache):
+def verify_debug_flags(cache, preview=False):
     executable = cache / "check-debug-flags"
     run(
         [
@@ -242,6 +253,7 @@ def verify_debug_flags(cache):
             "-O",
             "-parse-as-library",
             "-warnings-as-errors",
+            *(["-D", "OOPS_PREVIEW"] if preview else []),
             str(ROOT / "Sources/Oops/Debug/DebugFlags.swift"),
             str(ROOT / "script/release_debug_check.swift"),
             "-o",
@@ -251,28 +263,39 @@ def verify_debug_flags(cache):
     run([str(executable), "--brand-review", "--hello-only", "--settings"])
 
 
+def check_artifact(artifact, command, run):
+    """An artifact's metadata, once its files match it and this checkout. Only `verify` takes a preview build:
+    every step towards users verifies without the option, so the engine or the microphone fails it."""
+    metadata = json.loads((artifact / "build-info.json").read_text())
+    if input_digest() != metadata["input_sha256"]:
+        raise ValueError("checkout build inputs differ from the artifact; verify using its source checkout")
+    preview = command == "verify" and metadata.get("preview", False)
+    if metadata.get("preview") and not preview:
+        raise ValueError(f"{command} refuses a preview build (--preview): it is for this Mac only")
+    result = verify(
+        ROOT,
+        artifact / "Oops.app",
+        metadata["version"],
+        metadata["build_number"],
+        run,
+        metadata.get("signing_identity"),
+        preview,
+    )
+    if result != metadata["verification"]:
+        raise ValueError("artifact files differ from build-info.json")
+    if metadata.get("distributable"):
+        from release_notary import verify_distribution
+
+        verify_distribution(ROOT, artifact, metadata, run)
+    return metadata
+
+
 def main():
     parser, args = options()
     try:
         if args.command in ("verify", "notarize", "appcast", "dmg"):
             artifact = args.artifact.resolve()
-            metadata = json.loads((artifact / "build-info.json").read_text())
-            if input_digest() != metadata["input_sha256"]:
-                raise ValueError("checkout build inputs differ from the artifact; verify using its source checkout")
-            result = verify(
-                ROOT,
-                artifact / "Oops.app",
-                metadata["version"],
-                metadata["build_number"],
-                run,
-                metadata.get("signing_identity"),
-            )
-            if result != metadata["verification"]:
-                raise ValueError("artifact files differ from build-info.json")
-            if metadata.get("distributable"):
-                from release_notary import verify_distribution
-
-                verify_distribution(ROOT, artifact, metadata, run)
+            metadata = check_artifact(artifact, args.command, run)
             result = {"artifact": str(artifact), "verified": True}
             if args.command == "notarize":
                 from release_notary import notarize

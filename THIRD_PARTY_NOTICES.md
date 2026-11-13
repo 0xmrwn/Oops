@@ -17,7 +17,25 @@ under its own terms.
   `Sparkle.framework`.
 - **Hex**, Copyright (c) 2026 Christopher Langton, MIT. The clipboard rules of text written at the caret
   (`Sources/OopsCore/Editor/PasteClipboard.swift`, `Sources/Oops/Editor/InsertClipboard.swift`) and their
-  tests are ported from its `src/paste.rs`.
+  tests are ported from its `src/paste.rs`. Dictation's capture timeline, release tail and silence gate
+  (`CaptureInstant.swift`, `DictationCapture*.swift`, `DictationClip.swift`, `SpeechFrames.swift` and
+  `VoiceTrack.swift` in `Sources/OopsCore/Dictation/`) and their tests are ported from its `src/dictation.rs`,
+  `src/transcription/pause_segmenter.rs` and `src/audio/instant.rs`; the WAV stand-in for the microphone
+  (`Sources/Oops/Dictation/DictationAudioFile.swift`) follows its `src/audio/fixture.rs`. The hold-or-double-tap
+  shortcut mode (`Sources/OopsCore/Dictation/DictationDoubleTap.swift`) and its tests
+  (`Tests/OopsCoreTests/DictationActivationHexTests.swift`) are ported from its `src/suppression/hotkey.rs`,
+  `src/suppression.rs`, `src/suppression/tests.rs` and the short-tap rule of `src/dictation.rs` (v3.4.0).
+- **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
+  (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
+  `src-tauri/src/transcription_coordinator.rs` (revision 73cc857).
+- **transcribe.cpp** 0.4.1, Copyright (c) 2026 The transcribe.cpp authors, MIT. Speech to text for dictation
+  (`Sources/OopsEngine/`), linked as `CTranscribe.framework`, built from our fork
+  ([0xmrwn/transcribe.cpp](https://github.com/0xmrwn/transcribe.cpp), branch `oops`). Embedded only in preview
+  builds for now. Its release archive also carries, each MIT:
+  - **ggml**, Copyright (c) 2023-2026 The ggml authors.
+  - **miniz**, Copyright 2013-2014 RAD Game Tools and Valve Software, Copyright 2010-2014 Rich Geldreich and
+    Tenacious Software LLC.
+  - **Silero VAD**, Copyright (c) 2020-present Silero Team.
 
 ## Assets
 

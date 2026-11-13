@@ -1,23 +1,21 @@
 import OopsCore
 import SwiftUI
 
-// Dictate and Actions as they are planned, drawn with the controls they will use and every one disabled:
-// nothing here is wired yet. The dictation work replaces each control's constant with its setting,
-// starting with the shortcut; Actions comes with the action library.
+// Dictate and Actions as they are planned, drawn with the controls they will use and every one not yet
+// wired disabled. The dictation work replaces each control's constant with its setting: the shortcut and
+// the mode are live; Actions comes with the action library.
 
-/// Dictate's planned settings: the shortcut, the speech model, cleanup, the drop and vocabulary.
+/// Dictate's settings: the shortcut and the mode, then the planned speech model, cleanup, drop and vocabulary.
 struct DictatePage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            VStack(spacing: 0) {
-                SettingRow(symbol: SettingsTab.dictate.symbol, title: "Dictate") {
-                    ShortcutField { ShortcutPrompt("Record shortcut") }
-                }
-                Divider()
-                SettingRow(symbol: "hand.tap", title: "Mode") { menu("Mode", ["Hold or tap", "Hold to talk", "Tap to start and stop"]) }
-            }
-            .padding(.vertical, -6)
-            .settingsSurface()
+            DictateShortcutCard()
+            planned.disabled(true)
+        }
+    }
+
+    private var planned: some View {
+        VStack(alignment: .leading, spacing: 20) {
             VStack(spacing: 0) {
                 SettingRow(symbol: "waveform", title: "Speech model") {
                     Button {} label: {
@@ -49,7 +47,6 @@ struct DictatePage: View {
             SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }
                 .settingsSurface()
         }
-        .disabled(true)
     }
 
     /// The first value is the one the setting will start with.
@@ -78,7 +75,7 @@ struct ActionsPage: View {
 }
 
 /// A page row in Fix's style: icon, name, and the control on the trailing edge.
-private struct SettingRow<Control: View>: View {
+struct SettingRow<Control: View>: View {
     let symbol: String
     let title: String
     @ViewBuilder var control: Control
