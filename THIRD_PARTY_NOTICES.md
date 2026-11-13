@@ -25,6 +25,10 @@ under its own terms.
   shortcut mode (`Sources/OopsCore/Dictation/DictationDoubleTap.swift`) and its tests
   (`Tests/OopsCoreTests/DictationActivationHexTests.swift`) are ported from its `src/suppression/hotkey.rs`,
   `src/suppression.rs`, `src/suppression/tests.rs` and the short-tap rule of `src/dictation.rs` (v3.4.0).
+  The dot scope voice visualizer (`Sources/OopsCore/Capsule/DotScope*.swift`, `Sources/Oops/Capsule/DotScope/`,
+  `Resources/Shaders/DotScopeShader.metal`) and its tests (`Tests/OopsCoreTests/DotScopeTests.swift`,
+  `Tests/OopsTests/DotScopeHostTests.swift`) are ported from its `ios/HEXShared/DotScope.swift`,
+  `ios/HEXShared/DotScopeShader.metal` and `ios/HEXMobileTests/DotScopeTests.swift` (v3.4.0), from UIKit to AppKit.
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
   `src-tauri/src/transcription_coordinator.rs` (revision 73cc857).
