@@ -2,7 +2,7 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// Dictate's speech model, from the installed ones and providers' that transcribe, and the language it hears.
+/// Dictate's speech model, from the installed ones, and the language it hears.
 struct DictateModelCard: View {
     let store: ProviderStore
     let local: LocalModels
