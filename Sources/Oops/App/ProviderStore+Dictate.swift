@@ -8,8 +8,8 @@ import OopsCore
     fileprivate(set) var dictate = DictateSelection()
     fileprivate(set) var answers = CapabilityAnswers()
     fileprivate(set) var feed: ModelsDevFeed?
-    /// Oops's own catalog (step 1), wired by the app to the speech model catalog.
-    @ObservationIgnored var catalog: CapabilityResolver.CatalogLookup = { _, _ in nil }
+    /// Oops's own catalog (step 1): the speech models it manages on this Mac.
+    @ObservationIgnored var catalog: CapabilityResolver.CatalogLookup = SpeechModelCatalog.capabilityLookup
     /// The one-time check (step 4); nil until the app can send a clip, so unknown models go to the user.
     @ObservationIgnored var probe: CapabilityProbe?
     @ObservationIgnored let client: ModelsDevClient
@@ -76,9 +76,10 @@ extension ProviderStore {
         features.save()
     }
 
-    /// Revalidates models.dev's feed, at most once an hour; offline, the copy on disk stays in use.
+    /// Revalidates models.dev's feed, at most once an hour; offline, the copy on disk stays in use. Only Dictate
+    /// reads it, so a build without dictation asks nothing.
     func refreshModelsDev() {
-        guard !features.preview else { return }
+        guard !features.preview, DebugFlags.dictation else { return }
         if let fetched = features.fetchedAt, Date().timeIntervalSince(fetched) < 3600 { return }
         features.fetchedAt = Date()
         let client = features.client
