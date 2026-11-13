@@ -62,7 +62,7 @@ final class DotScopeHostView: NSView {
 
     var reduceMotion = false
     var useDemoVoice = false
-    var loudnessProvider: (() -> Float)?
+    var loudnessProvider: (@MainActor () -> Float)?
 
     /// Exposed for unit tests to verify simulation continuity across live meter updates.
     var debugElapsedTime: Float { simulation.elapsedTime }

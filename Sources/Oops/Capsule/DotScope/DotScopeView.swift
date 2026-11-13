@@ -12,6 +12,8 @@ import SwiftUI
 struct DotScopeView: NSViewRepresentable {
     var phase: DotScopePhase
     var loudness: Float = -62.0
+    /// Read by the scope once per frame in place of `loudness`, so a caller's level need not pass through SwiftUI.
+    var liveLoudness: (@MainActor () -> Float)?
     var isDark: Bool = true
     var reduceMotion: Bool = false
     var tuning: DotScopeTuning = .hud
@@ -23,7 +25,7 @@ struct DotScopeView: NSViewRepresentable {
         view.reduceMotion = reduceMotion
         view.isDark = isDark
         view.drawPlate = drawPlate
-        view.loudnessProvider = { [loudness] in loudness }
+        view.loudnessProvider = liveLoudness ?? { [loudness] in loudness }
         view.phase = phase
         return view
     }
@@ -31,7 +33,7 @@ struct DotScopeView: NSViewRepresentable {
     func updateNSView(_ nsView: DotScopeHostView, context: Context) {
         nsView.reduceMotion = reduceMotion
         nsView.isDark = isDark
-        nsView.loudnessProvider = { [loudness] in loudness }
+        nsView.loudnessProvider = liveLoudness ?? { [loudness] in loudness }
         nsView.updateTuning(tuning)
         nsView.drawPlate = drawPlate
         nsView.phase = phase

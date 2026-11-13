@@ -8,6 +8,8 @@ struct DictationVisualizerView: View {
     let kind: DictationVisualizer
     let phase: DictationDropState
     let loudness: Float
+    /// The level read as each frame is drawn, for a voice that draws itself (Hex); `loudness` is then unused.
+    var live: (@MainActor () -> Float)?
     let isDark: Bool
     let reduceMotion: Bool
     @Environment(\.backdropInked) private var inked
@@ -34,7 +36,7 @@ struct DictationVisualizerView: View {
                     .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark, inked: inked).halo))
             } else {
                 switch kind {
-                case .hex: hexVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
+                case .hex: hexVisualizer(phase: phase, loudness: loudness, live: live, isDark: isDark, reduceMotion: reduceMotion)
                 case .wave: WaveVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
                 case .ripple: RippleVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
                 }

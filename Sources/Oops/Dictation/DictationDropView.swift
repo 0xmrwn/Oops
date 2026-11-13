@@ -75,8 +75,15 @@ private struct DropVoice: View {
     let isDark: Bool
     let reduceMotion: Bool
 
+    /// Hex draws on its own display link and reads the level there, so nothing here changes per frame.
+    private var live: (@MainActor () -> Float)? {
+        guard model.visualizer == .hex, let feed = model.loudness else { return nil }
+        return { @MainActor in feed.level }
+    }
+
     var body: some View {
-        DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: model.loudness?.level ?? 0,
-                                isDark: isDark, reduceMotion: reduceMotion)
+        let live = live
+        DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: live == nil ? model.loudness?.level ?? 0 : 0,
+                                live: live, isDark: isDark, reduceMotion: reduceMotion)
     }
 }
