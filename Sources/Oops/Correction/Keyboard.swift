@@ -142,7 +142,10 @@ struct Shortcut: Codable, Equatable {
     func label(_ action: Action) -> String { shortcut(action)?.label ?? "—" }
 
     func registration(_ action: Action) -> Registration {
-        Self.registration(action, shortcut: shortcut(action), dictation: DebugFlags.dictation)
+        // Paste last dictation goes off with Dictate, as its menu item does: only a feature's own shortcut
+        // stands without it.
+        let dictation = DebugFlags.dictation && (action.isSwitch || shortcut(.dictate) != nil)
+        return Self.registration(action, shortcut: shortcut(action), dictation: dictation)
     }
     /// Dictate and Paste last dictation only while dictation is switched on. An action with no shortcut is
     /// off, which is no failure; only Fix, whose default is missing from this layout, has something to report.
