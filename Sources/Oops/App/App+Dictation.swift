@@ -21,7 +21,8 @@ extension AppDelegate {
         let vocabulary = VocabularyStore.shared
         let cleanup = DictationSession.Cleanup(
             vocabulary: { providers.dictationVocabulary(local, override: DebugFlags.dictationModel, entries: vocabulary.entries) },
-            small: { SmallCleanups.saved }, language: { providers.dictationCleanupLanguage(local) }, mode: { DictationCleanupMode.saved },
+            small: { SmallCleanups.saved }, language: { providers.dictationCleanupLanguage(local, override: DebugFlags.dictationModel) },
+            mode: { DictationCleanupMode.saved },
             backend: { try providers.cleanupBackend() }, replace: { await Self.replace($0, with: $1, in: editor) })
         return DictationSession(recorder: recorder, engine: engine,
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },

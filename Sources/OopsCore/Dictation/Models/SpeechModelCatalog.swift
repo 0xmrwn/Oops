@@ -17,6 +17,13 @@ public enum SpeechModelCatalog {
         models.first { $0.id == id }
     }
 
+    /// The model whose pinned file `path` names, for a file loaded without a selection (the debug override); nil for
+    /// a file the catalog doesn't pin.
+    public static func model(atPath path: String) -> SpeechModel? {
+        let fileName = URL(fileURLWithPath: path).lastPathComponent
+        return models.first { $0.artifact.fileName == fileName }
+    }
+
     /// Silero VAD v6.2. Hex downloads it with every model so audio without speech is skipped: models
     /// hallucinate closing phrases such as "thank you" on silence and room noise.
     public static let speechDetector = SpeechModelArtifact(
