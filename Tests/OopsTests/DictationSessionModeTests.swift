@@ -94,4 +94,37 @@ import XCTest
         XCTAssertEqual(run.inserts.texts, ["Hello"])
         XCTAssertFalse(run.session.activation.isRecording)
     }
+
+    func testDictateTurnedOffDiscardsALatchedRecording() async throws {
+        let run = try DictationSessionRun(self, mode: .tapOnly)
+        run.press(0)
+        try await run.until { run.session.activation.isRecordingLocked }
+        run.session.turnedOff()
+        try await run.until { run.drop.states.last == .left }
+        try await run.settle()
+        XCTAssertEqual(run.drop.states, [.recording, .left])
+        XCTAssertFalse(run.session.activation.isRecording)
+        XCTAssertFalse(run.session.holdsDrop)
+        XCTAssertEqual(run.inserts.texts, [])
+        let transcribed = await run.engine?.transcribed
+        XCTAssertEqual(transcribed, 0)
+    }
+
+    func testDictateTurnedOffForgetsAPressRememberedDuringATranscription() async throws {
+        let engine = FakeSpeechEngine(text: "Hello")
+        await engine.hold()
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: engine)
+        run.press(0)
+        run.release(1_200)
+        try await run.until { await engine.transcribed == 1 }
+        run.press(2_000)
+        run.session.turnedOff()
+        try await run.settle()
+        await engine.proceed()
+        try await run.until { run.drop.states.last == .left }
+        try await run.settle()
+        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .left])
+        XCTAssertEqual(run.inserts.texts, ["Hello"])
+        XCTAssertEqual(run.source.opens, 1)
+    }
 }

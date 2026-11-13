@@ -16,6 +16,8 @@ import OSLog
         case timer(ContinuousClock.Instant)
         /// A transcription is written or abandoned.
         case processed(Ending)
+        /// Dictate lost its shortcut.
+        case off
     }
 
     /// What a stopped recording came to.
@@ -75,6 +77,12 @@ import OSLog
         events.yield(.key(phase, capture, now))
     }
 
+    /// Dictate lost its shortcut: a recording under way, which no key could end now, is discarded, and a press
+    /// remembered for later is forgotten. A transcription already running still writes.
+    func turnedOff() {
+        events.yield(.off)
+    }
+
     /// Loads the model and runs it once at low priority, away from the main actor, so the first dictation
     /// doesn't wait for it. A failure is ignored: the first dictation loads it again.
     func warmUp() {
@@ -115,6 +123,10 @@ import OSLog
             // A press made meanwhile takes the drop straight over; otherwise the outcome shows.
             if next != .start { conclude(ending) }
             await perform(next, stoppingAt: nil)
+        case .off:
+            let recording = activation.isRecording
+            activation.cancel(recordingWasActive: recording)
+            if recording { await perform(.discard, stoppingAt: nil) }
         }
         armTimer()
     }
