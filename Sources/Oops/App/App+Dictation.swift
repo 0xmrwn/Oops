@@ -16,9 +16,29 @@ extension AppDelegate {
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
         let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
-        return DictationSession(recorder: recorder, engine: engine, modelPath: { DebugFlags.dictationModel }, mode: { DictationMode.saved },
-                                insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
+        let providers = preferences.providers, local = LocalModels.shared
+        startSpeechModels(providers, local)
+        return DictationSession(recorder: recorder, engine: engine,
+                                modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
+                                language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
+                                mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
                                 status: { [weak self] in self?.preferences.status = $0 })
+    }
+
+    /// Reads which models are installed, then warms the selected one, and lets the keyboard's language switch
+    /// Dictate's model once a mapping exists.
+    private func startSpeechModels(_ providers: ProviderStore, _ local: LocalModels) {
+        Task { [weak self] in
+            await local.refresh()
+            self?.warmUpDictation()
+        }
+        let keyboards = KeyboardModelDriver.shared
+        keyboards.isInstalled = { local.isInstalled($0) }
+        keyboards.apply = { [weak self] choice in
+            providers.applyKeyboardChoice(choice)
+            self?.warmUpDictation()
+        }
+        keyboards.start()
     }
 
     /// Warms the speech model after launch when dictation can run: it is on, the engine and the model are

@@ -122,6 +122,7 @@ import OopsCore
         if let directory = DebugFlags.helloSnapshots { HelloSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.gradientSnapshots { GradientSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.setupSnapshots { SetupSnapshots.render(to: directory); exit(0) }
+        if let directory = DebugFlags.settingsSnapshots { SettingsSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.dictationVisualizerSnapshots { DictationVisualizerSnapshots.render(to: directory); exit(0) }
         if DebugFlags.dictationDropLab {
             let lab = DictationDropLab()

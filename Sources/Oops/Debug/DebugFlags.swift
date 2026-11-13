@@ -103,6 +103,8 @@ enum DebugFlags {
     static var gradientSnapshots: URL? { string("GradientSnapshots").map { URL(fileURLWithPath: $0) } }
     /// `-SetupSnapshots <dir>`: renders the Shortcut and Accessibility steps' moments to PNGs and exits (SetupSnapshots).
     static var setupSnapshots: URL? { string("SetupSnapshots").map { URL(fileURLWithPath: $0) } }
+    /// `-SettingsSnapshots <dir>`: renders the speech-model parts of Settings to PNGs and exits (SettingsSnapshots).
+    static var settingsSnapshots: URL? { string("SettingsSnapshots").map { URL(fileURLWithPath: $0) } }
     /// `--hello-only`: onboarding's window alone, without the rest of the app; quits when it closes.
     static var helloOnly: Bool { argument("--hello-only") }
     /// Isolated, deterministic live brand review, starting at the welcome wordmark.

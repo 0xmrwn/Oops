@@ -249,7 +249,7 @@ struct SettingsView: View {
             GeneralPage(hasAccessibility: hasAccessibility, tabs: tabs, store: preferences.providers, preferences: preferences,
                         detail: $generalDetail, open: open, preview: preview, previewPlacement: previewPlacement)
         case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
-        case .dictate: DictatePage()
+        case .dictate: DictatePage(store: preferences.providers)
         case .actions: ActionsPage()
         case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
         }

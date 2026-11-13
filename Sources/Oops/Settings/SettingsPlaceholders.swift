@@ -7,9 +7,17 @@ import SwiftUI
 
 /// Dictate's settings: the shortcut and the mode, then the planned speech model, cleanup, drop and vocabulary.
 struct DictatePage: View {
+    let store: ProviderStore
+    var local = LocalModels.shared
+    var keyboards = KeyboardModelDriver.shared
+    /// The keyboards to map; this Mac's enabled ones unless a snapshot passes others.
+    var sources: [KeyboardInputSource]?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             DictateShortcutCard()
+            DictateModelCard(store: store, local: local, keyboards: keyboards)
+            DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
             DictateDropCard()
             planned.disabled(true)
         }
@@ -17,23 +25,8 @@ struct DictatePage: View {
 
     private var planned: some View {
         VStack(alignment: .leading, spacing: 20) {
-            VStack(spacing: 0) {
-                SettingRow(symbol: "waveform", title: "Speech model") {
-                    Button {} label: {
-                        HStack(spacing: 6) {
-                            Text("Choose a model").fontWeight(.medium)
-                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.settingsGlass).controlSize(.large)
-                }
-                Divider()
-                SettingRow(symbol: "globe", title: "Language") { menu("Language", ["Automatic"]) }
-                Divider()
-                SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("Microphone", ["System default"]) }
-            }
-            .padding(.vertical, -6)
-            .settingsSurface()
+            SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("Microphone", ["System default"]) }
+                .settingsSurface()
             SettingRow(symbol: "wand.and.sparkles", title: "Clean up") { choice("Clean up", ["Off", "Button", "Always"]) }
                 .settingsSurface()
             SettingRow(symbol: "text.bubble", title: "Live words") { choice("Live words", ["In the drop", "Over the text"]) }
