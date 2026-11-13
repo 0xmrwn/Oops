@@ -33,7 +33,7 @@ import OSLog
     private(set) var holdsDrop = false
     let recorder: DictationRecorder?
     /// The loudness of the recording, for the drop's visualizer; 0 when nothing records.
-    let loudness = DictationLoudnessFeed()
+    let loudness: DictationLoudnessFeed
     let engine: any SpeechEngine?
     private let modelPath: @MainActor () -> String?
     private let mode: @MainActor () -> DictationMode
@@ -57,9 +57,10 @@ import OSLog
     /// microphone. `modelPath` and `mode` are read at each start and press; `status` hears a refused start.
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
-         drop: any DictationDrop, status: @escaping @MainActor (String) -> Void) {
+         drop: any DictationDrop, loudness: DictationLoudnessFeed = DictationLoudnessFeed(),
+         status: @escaping @MainActor (String) -> Void) {
         self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.mode = mode
-        self.insert = insert; self.drop = drop; self.status = status
+        self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
         consumer = Task { [weak self] in

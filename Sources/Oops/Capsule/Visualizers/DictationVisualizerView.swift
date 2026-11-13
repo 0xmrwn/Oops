@@ -17,7 +17,10 @@ struct DictationVisualizerView: View {
     static func size(_ kind: DictationVisualizer, phase: DictationDropState) -> CGSize {
         guard phase.isLive else { return CGSize(width: 18, height: 18) }
         return switch kind {
-        case .hex, .wave: CGSize(width: 64, height: 26)
+        // The scope's own widths: full while it follows the voice, narrower for its shimmer.
+        case .hex: CGSize(width: CGFloat(phase == .recording ? DotScopeTuning.hud.width : DotScopeTuning.hud.processingWidth),
+                          height: CGFloat(DotScopeTuning.hud.height))
+        case .wave: CGSize(width: 64, height: 26)
         case .ripple: CGSize(width: 40, height: 40)
         }
     }
