@@ -9,13 +9,14 @@ extension AppDelegate {
         let engine = DictationEngineProvider.engine()
         let recorder = engine.map { _ in DictationRecorder(source: DictationMicrophone()) }
         let editor = session.editor
-        let drop = DictationDropOwner(owner: drop) { try? await editor.focusedGeometry() }
+        let loudness = DictationLoudnessFeed()
+        let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
         let providers = preferences.providers, local = LocalModels.shared
         startSpeechModels(providers, local)
         return DictationSession(recorder: recorder, engine: engine,
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
-                                mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop,
+                                mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
                                 status: { [weak self] in self?.preferences.status = $0 })
     }
 

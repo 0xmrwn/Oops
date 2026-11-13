@@ -23,6 +23,9 @@ final class DictationAudioRing: @unchecked Sendable {
     private let blockRead = Atomic<Int>(0)
     private let dropped = Atomic<Int>(0)
     private let ended = Atomic<Bool>(false)
+    /// The newest block's RMS level, as `Float` bits: a single value the main actor samples at display rate,
+    /// where the blocks themselves go to the recorder.
+    private let level = Atomic<UInt32>(0)
 
     init(sampleCapacity: Int = defaultSampleCapacity, blockCapacity: Int = defaultBlockCapacity) {
         precondition(sampleCapacity.nonzeroBitCount == 1 && blockCapacity.nonzeroBitCount == 1, "ring capacities are powers of two")
@@ -46,7 +49,13 @@ final class DictationAudioRing: @unchecked Sendable {
             return false
         }
         let mask = sampleCapacity - 1
-        for index in 0 ..< frames { samples[(write + index) & mask] = sample(index) }
+        var sum: Float = 0, squares: Float = 0
+        for index in 0 ..< frames {
+            let value = sample(index)
+            samples[(write + index) & mask] = value
+            sum += value; squares += value * value
+        }
+        level.store(DictationLoudness.rms(sum: sum, sumOfSquares: squares, count: frames).bitPattern, ordering: .relaxed)
         blockFrames[block & (blockCapacity - 1)] = frames
         blockThrough[block & (blockCapacity - 1)] = capturedThrough.nanoseconds
         sampleWrite.store(write + frames, ordering: .releasing)
@@ -55,7 +64,10 @@ final class DictationAudioRing: @unchecked Sendable {
     }
 
     /// Writer: no more audio will come (a file played to its end).
-    func end() { ended.store(true, ordering: .releasing) }
+    func end() { level.store(0, ordering: .relaxed); ended.store(true, ordering: .releasing) }
+
+    /// Any thread: the newest block's RMS level (linear, full scale 1); 0 before the first block and after the end.
+    var latestLevel: Float { Float(bitPattern: level.load(ordering: .relaxed)) }
 
     /// Reader: hands over every published block, oldest first, freeing its space before `body` runs.
     func drain(_ body: ([Float], CaptureInstant) -> Void) {
@@ -88,6 +100,7 @@ final class DictationAudioRing: @unchecked Sendable {
         sampleRead.store(sampleWrite.load(ordering: .acquiring), ordering: .releasing)
         blockRead.store(blockWrite.load(ordering: .acquiring), ordering: .releasing)
         ended.store(false, ordering: .releasing)
+        level.store(0, ordering: .relaxed)
         dropped.store(0, ordering: .relaxed)
     }
 }

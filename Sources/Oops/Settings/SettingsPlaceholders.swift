@@ -3,7 +3,7 @@ import SwiftUI
 
 // Dictate and Actions as they are planned, drawn with the controls they will use and every one not yet
 // wired disabled. The dictation work replaces each control's constant with its setting: the shortcut and
-// the mode are live; Actions comes with the action library.
+// the mode are live, as are the drop's visualizer and position; Actions comes with the action library.
 
 /// Dictate's settings: the shortcut and the mode, then the planned speech model, cleanup, drop and vocabulary.
 struct DictatePage: View {
@@ -18,6 +18,7 @@ struct DictatePage: View {
             DictateShortcutCard()
             DictateModelCard(store: store, local: local, keyboards: keyboards)
             DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
+            DictateDropCard()
             planned.disabled(true)
         }
     }
@@ -28,15 +29,8 @@ struct DictatePage: View {
                 .settingsSurface()
             SettingRow(symbol: "wand.and.sparkles", title: "Clean up") { choice("Clean up", ["Off", "Button", "Always"]) }
                 .settingsSurface()
-            VStack(spacing: 0) {
-                SettingRow(symbol: "circle.grid.3x3", title: "Visualizer") { choice("Visualizer", ["Hex", "Wave", "Ripple"]) }
-                Divider()
-                SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") { choice("Position", ["By the text", "Top", "Bottom"]) }
-                Divider()
-                SettingRow(symbol: "text.bubble", title: "Live words") { choice("Live words", ["In the drop", "Over the text"]) }
-            }
-            .padding(.vertical, -6)
-            .settingsSurface()
+            SettingRow(symbol: "text.bubble", title: "Live words") { choice("Live words", ["In the drop", "Over the text"]) }
+                .settingsSurface()
             SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }
                 .settingsSurface()
         }

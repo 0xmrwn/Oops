@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The dictation drop: Fix's clear glass capsule at its height, holding one symbol and a word or two in the
+/// The dictation drop: Fix's clear glass capsule at its height, holding its visualizer and a word or two in the
 /// drop's type, with the same halo instead of a backing shape. It enters and leaves as Fix's drop does, on
 /// the panel's `presented`, and has nothing to press.
 struct DictationDropView: View {
@@ -14,7 +14,7 @@ struct DictationDropView: View {
     @Environment(\.colorScheme) private var scheme
 
     private static let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-    private static let symbolWidth: CGFloat = 18, spacing: CGFloat = 7, padding: CGFloat = 16
+    private static let spacing: CGFloat = 7, padding: CGFloat = 16
 
     private var increasedContrast: Bool { contrast == .increased }
     private var ink: Color { scheme == .dark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09) }
@@ -23,7 +23,14 @@ struct DictationDropView: View {
     /// Computed rather than measured, so the glass and the pointer's hold area agree.
     private var width: CGFloat {
         let text = (model.state.text as NSString).size(withAttributes: [.font: Self.font]).width.rounded(.up)
-        return Self.padding * 2 + Self.symbolWidth + Self.spacing + text
+        return lead + voice.width + Self.spacing + text + Self.padding
+    }
+
+    private var voice: CGSize { DictationVisualizerView.size(model.visualizer, phase: model.state) }
+    /// The ripple sits centred in the drop's leading cap, as Fix's eyes do; the strips sit a little into it.
+    private var lead: CGFloat {
+        guard model.state.isLive else { return Self.padding }
+        return model.visualizer == .ripple ? (EyesDropView.drop - voice.width) / 2 : Self.padding - 4
     }
 
     var body: some View {
@@ -34,12 +41,12 @@ struct DictationDropView: View {
                 Color.clear.glassEffect(.clear, in: .capsule)
             }
             HStack(spacing: Self.spacing) {
-                Image(systemName: model.state.symbol).font(.system(size: 13, weight: .semibold))
-                    .frame(width: Self.symbolWidth).contentTransition(.symbolEffect(.replace))
+                DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: model.loudness?.level ?? 0,
+                                        isDark: scheme == .dark, reduceMotion: reduceMotion)
                 Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
+                    .foregroundStyle(ink).modifier(Halo(color: halo))
             }
-            .foregroundStyle(ink)
-            .modifier(Halo(color: halo))
+            .padding(.leading, lead).padding(.trailing, Self.padding)
         }
         .frame(width: width, height: height)
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.12), value: model.state)
@@ -50,6 +57,7 @@ struct DictationDropView: View {
                    value: capsule.presented)
         .onAppear { capsule.width = width }
         .onChange(of: model.state) { capsule.width = self.width }
+        .onChange(of: model.visualizer) { capsule.width = self.width }
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.state.text)

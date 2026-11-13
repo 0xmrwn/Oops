@@ -64,6 +64,10 @@ actor DictationRecorder {
 
     var isRecording: Bool { capture.isRecording || pendingPress != nil }
 
+    /// The newest block's RMS level, for the loudness a recording shows (`DictationLoudnessFeed`). Reads the
+    /// ring's atomic, so any thread may call it without waiting for the actor.
+    nonisolated var inputLevel: Float { ring.latestLevel }
+
     /// Starts recording at `pressedAt` (now when nil), opening the source if it is closed. Throws
     /// `.microphoneAccess` without asking when access is denied or was never asked. Does nothing while recording.
     func start(at pressedAt: CaptureInstant? = nil) throws(DictationAudioError) {

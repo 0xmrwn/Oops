@@ -123,6 +123,12 @@ import OopsCore
         if let directory = DebugFlags.gradientSnapshots { GradientSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.setupSnapshots { SetupSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.settingsSnapshots { SettingsSnapshots.render(to: directory); exit(0) }
+        if let directory = DebugFlags.dictationVisualizerSnapshots { DictationVisualizerSnapshots.render(to: directory); exit(0) }
+        if DebugFlags.dictationDropLab {
+            let lab = DictationDropLab()
+            DispatchQueue.main.async { lab.show() }
+            withExtendedLifetime(lab) { app.run() }; return
+        }
         if DebugFlags.brandReview, DebugFlags.capsuleReview {
             let review = BrandCapsuleReview()
             DispatchQueue.main.async { review.show() }

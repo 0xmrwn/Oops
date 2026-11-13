@@ -32,6 +32,8 @@ import OSLog
     /// Held from a start until its outcome shows or the drop leaves.
     private(set) var holdsDrop = false
     let recorder: DictationRecorder?
+    /// The loudness of the recording, for the drop's visualizer; 0 when nothing records.
+    let loudness: DictationLoudnessFeed
     let engine: any SpeechEngine?
     private let modelPath: @MainActor () -> String?
     private let languageHint: @MainActor () -> String?
@@ -59,9 +61,10 @@ import OSLog
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
          language: @escaping @MainActor () -> String? = { nil },
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
-         drop: any DictationDrop, status: @escaping @MainActor (String) -> Void) {
+         drop: any DictationDrop, loudness: DictationLoudnessFeed = DictationLoudnessFeed(),
+         status: @escaping @MainActor (String) -> Void) {
         self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
-        self.insert = insert; self.drop = drop; self.status = status
+        self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
         consumer = Task { [weak self] in
@@ -120,6 +123,7 @@ import OSLog
         case .start?: await start(at: lastPress)
         case .stop?: stop(at: instant)
         case .discard?:
+            loudness.stop()
             await recorder?.cancel()
             conclude(.done)
         case nil: break
@@ -144,6 +148,7 @@ import OSLog
         do { try await recorder.start(at: pressed) } catch { return refuse(Self.failure(error)) }
         activation.startResult(started: true)
         Self.log.notice("recording mode=\(self.activation.sessionMode.rawValue, privacy: .public)")
+        loudness.start { recorder.inputLevel }
         drop.show(.recording)
     }
 
@@ -154,6 +159,7 @@ import OSLog
     }
 
     private func stop(at released: CaptureInstant?) {
+        loudness.stop()
         drop.show(.transcribing)
         Task { [weak self] in
             guard let self else { return }

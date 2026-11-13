@@ -16,7 +16,7 @@ extension DictationSession {
         }
         guard let model = loadedModel else { return .done }
         let seconds = Double(samples.count) / Double(DictationCapture.sampleRate), began = ContinuousClock.now
-        Self.log.notice("recorded seconds=\(seconds, format: .fixed(precision: 2), privacy: .public) peak_dbfs=\(Self.peak(samples), format: .fixed(precision: 1), privacy: .public)")
+        Self.log.notice("recorded seconds=\(seconds, format: .fixed(precision: 2), privacy: .public) peak_dbfs=\(Self.peak(samples), format: .fixed(precision: 1), privacy: .public) level_max=\(self.loudness.loudest, format: .fixed(precision: 2), privacy: .public) level_mean=\(self.loudness.mean, format: .fixed(precision: 2), privacy: .public)")
         let text: String
         do {
             // A load or warm-up that failed gets one more try, now that a recording needs it.
