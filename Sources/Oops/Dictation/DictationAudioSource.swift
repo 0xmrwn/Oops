@@ -9,6 +9,15 @@ protocol DictationAudioSource: AnyObject, Sendable {
     func open(into ring: DictationAudioRing) throws(DictationAudioError) -> Double
     /// Stops delivering. Once it returns, nothing more is written into the ring.
     func close()
+    /// `lost` is called, from any thread, when the open source's input goes away mid-stream (the microphone is
+    /// unplugged, or the default input changes): the source has ended its ring, and the next open uses the
+    /// current input.
+    func watchLoss(_ lost: @escaping @Sendable () -> Void)
+}
+
+extension DictationAudioSource {
+    /// A file never loses its input.
+    func watchLoss(_ lost: @escaping @Sendable () -> Void) {}
 }
 
 enum DictationAudioError: Error, Equatable, Sendable {

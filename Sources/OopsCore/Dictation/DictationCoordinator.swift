@@ -361,6 +361,15 @@ public struct DictationCoordinator: Sendable {
         }
     }
 
+    /// Not Handy's: the recording's input went away (the microphone was unplugged, or the default input
+    /// changed). The recording ends as its release would have ended it, and what was captured is transcribed;
+    /// the key's own release, when it comes, finds the pipeline busy and is ignored.
+    public mutating func onInputLost() -> Effect? {
+        guard case .recording(let id) = stage else { return nil }
+        pendingRelease = nil
+        return beginProcessing(bindingID: id, hotkeyString: id)
+    }
+
     public mutating func onProcessingFinished() -> Effect? {
         stage = .idle
         hold = nil

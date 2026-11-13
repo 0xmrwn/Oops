@@ -78,6 +78,13 @@ public struct DictationActivation: Sendable {
         doubleTap.cancel()
     }
 
+    /// The recording's input went away: it stops, as a release would, and is transcribed. Nothing when no
+    /// recording runs.
+    public mutating func inputLost() -> Effect? {
+        if sessionMode.coordinatorActivation == nil { return doubleTap.inputLost() }
+        return Effect(coordinator.onInputLost())
+    }
+
     public var isRecording: Bool {
         if case .recording = coordinator.stage { return true }
         return doubleTap.isRecording
