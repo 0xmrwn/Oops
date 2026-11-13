@@ -67,24 +67,36 @@ enum DictationFailure: Equatable, Sendable {
     func leave()
 }
 
+extension DictationDropPosition {
+    /// Where Settings keeps the position, by raw value.
+    static let key = "DictationDropPosition"
+    /// The position as saved, by the text field until one is chosen.
+    static var saved: DictationDropPosition { UserDefaults.standard.string(forKey: key).flatMap(Self.init(rawValue:)) ?? .anchored }
+}
+
 /// What the dictation drop shows, apart from Fix's model.
 @MainActor @Observable final class DictationDropModel {
     var state = DictationDropState.recording
+    /// Read as the drop comes up, so a change in Settings applies to the next dictation.
+    var visualizer = DictationVisualizer.standard
+    /// The recording's loudness, which the visualizer follows; nil where nothing records.
+    let loudness: DictationLoudnessFeed?
+    init(loudness: DictationLoudnessFeed? = nil) { self.loudness = loudness }
 }
 
 /// The dictation drop in the panel the features share (`DropOwner`), placed by the focused field when its
 /// geometry can be read, or at the neutral spot.
 @MainActor final class DictationDropOwner: DictationDrop {
     private let owner: DropOwner
-    private let model = DictationDropModel()
+    private let model: DictationDropModel
     /// The focused field's geometry, read without capturing a draft.
     private let locate: @MainActor () async -> CapsulePlacement.Geometry?
     /// The drop is on its way up, once its spot is known.
     private var locating: Task<Void, Never>?
     private var panel: CapsulePanel { owner.panel }
 
-    init(owner: DropOwner, locate: @escaping @MainActor () async -> CapsulePlacement.Geometry?) {
-        self.owner = owner; self.locate = locate
+    init(owner: DropOwner, loudness: DictationLoudnessFeed? = nil, locate: @escaping @MainActor () async -> CapsulePlacement.Geometry?) {
+        self.owner = owner; self.locate = locate; model = DictationDropModel(loudness: loudness)
     }
 
     func claim(busy: @escaping () -> Bool) -> Bool {
@@ -96,11 +108,14 @@ enum DictationFailure: Equatable, Sendable {
         if locating != nil { return }
         // Already up: it keeps its spot, and a new state stops a failure's timed exit.
         if panel.isShown { panel.present(); settle(); return }
+        model.visualizer = .stored()
         locating = Task { [weak self] in
             let geometry = await self?.locate()
             guard let self, !Task.isCancelled else { return }
             locating = nil
-            panel.present(geometry: geometry)
+            // Read at each dictation, so a change in Settings applies to the next one.
+            let position = DictationDropPosition.saved.resolved(hasAnchor: geometry?.element != nil)
+            panel.present(geometry: geometry, fixed: position == .anchored ? nil : position)
             settle()
         }
     }

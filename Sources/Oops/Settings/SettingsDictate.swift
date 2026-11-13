@@ -49,3 +49,26 @@ struct DictateShortcutCard: View {
         Task { _ = await DictationMicrophoneAccess.requestAccess() }
     }
 }
+
+/// How the dictation drop looks and where it sits; both apply to the next dictation.
+struct DictateDropCard: View {
+    @AppStorage(DictationVisualizer.defaultsKey) private var visualizer = DictationVisualizer.standard
+    @AppStorage(DictationDropPosition.key) private var position = DictationDropPosition.anchored
+
+    private static let visualizers: [(value: DictationVisualizer, label: String)] = [(.hex, "Hex"), (.wave, "Wave"), (.ripple, "Ripple")]
+    private static let positions: [(value: DictationDropPosition, label: String)] = [(.anchored, "By the text"), (.top, "Top"), (.bottom, "Bottom")]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SettingRow(symbol: "circle.grid.3x3", title: "Visualizer") {
+                GlassChoice(title: "Visualizer", choices: Self.visualizers, selection: $visualizer)
+            }
+            Divider()
+            SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
+                GlassChoice(title: "Position", choices: Self.positions, selection: $position)
+            }
+        }
+        .padding(.vertical, -6)
+        .settingsSurface()
+    }
+}

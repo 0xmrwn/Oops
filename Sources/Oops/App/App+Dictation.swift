@@ -14,9 +14,10 @@ extension AppDelegate {
         }
         let recorder = engine.map { _ in DictationRecorder(source: DictationMicrophone(access: { forced ?? .current })) }
         let editor = session.editor
-        let drop = DictationDropOwner(owner: drop) { try? await editor.focusedGeometry() }
+        let loudness = DictationLoudnessFeed()
+        let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
         return DictationSession(recorder: recorder, engine: engine, modelPath: { DebugFlags.dictationModel }, mode: { DictationMode.saved },
-                                insert: { await editor.insert($0) }, drop: drop,
+                                insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
                                 status: { [weak self] in self?.preferences.status = $0 })
     }
 

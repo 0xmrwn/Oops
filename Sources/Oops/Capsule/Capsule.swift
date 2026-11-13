@@ -102,9 +102,12 @@ private final class PassivePanel: NSPanel {
     }
     /// Brings the panel up with the content it holds, at the draft when `geometry` says where it is:
     /// the part of showing that any feature's content shares.
-    func present(geometry: CapsulePlacement.Geometry? = nil) {
+    func present(geometry: CapsulePlacement.Geometry? = nil, fixed: DictationDropPosition? = nil) {
         if let geometry { self.geometry = geometry; neutral = false }
         let entering = !panel.isVisible || hiding != nil
+        // A new drop places itself afresh, even one that comes up before the last one's exit removed the
+        // panel; a state shown within the same drop keeps the spot it was given.
+        if entering || fixed != nil { fixedPosition = fixed }
         hiding?.cancel(); hiding = nil; lingering?.cancel(); lingering = nil
         position(); panel.orderFrontRegardless(); trackPointer()
         // One frame later, so the drop's small, transparent start state is rendered before it pops in.
@@ -141,6 +144,8 @@ private final class PassivePanel: NSPanel {
     }
     /// Placed at the neutral spot instead of at the draft.
     private var neutral = false
+    /// Fixed to the top or the bottom of the screen (the dictation drop's choice), until the panel leaves.
+    private var fixedPosition: DictationDropPosition?
     /// The draft's window is no longer in front, so its spot may now be over another app: the drop
     /// leaves it for the neutral spot, low and centred on the screen the draft was on, fading across.
     func unanchor() {
@@ -229,7 +234,7 @@ private final class PassivePanel: NSPanel {
     }
     /// Takes the panel off screen, once its exit has played.
     private func remove() {
-        panel.orderOut(nil); geometry = nil; hiding = nil; neutral = false; panel.alphaValue = 1
+        panel.orderOut(nil); geometry = nil; hiding = nil; neutral = false; fixedPosition = nil; panel.alphaValue = 1
         pointer?.invalidate(); pointer = nil; model.hovering = false; leftAt = nil
     }
     /// The engine works in AX coordinates (top-left, global, primary display); AppKit is bottom-left.
@@ -238,9 +243,14 @@ private final class PassivePanel: NSPanel {
         let screens = NSScreen.screens.map { s in CGRect(x: s.visibleFrame.minX, y: primary - s.visibleFrame.maxY,
                                                          width: s.visibleFrame.width, height: s.visibleFrame.height) }
         let envelope = CGSize(width: Self.size.width - 2 * Self.inset, height: Self.size.height - 2 * Self.inset)
-        let placement = neutral
-            ? CapsulePlacement.place(nil, envelope: envelope, screens: draftScreen(in: screens).map { [$0] } ?? screens)
-            : CapsulePlacement.place(geometry, envelope: envelope, screens: screens)
+        let placement = if let fixedPosition {
+            CapsulePlacement.fixed(fixedPosition, envelope: envelope, screens: fixedScreens(primary: primary),
+                                   anchor: geometry?.window ?? geometry?.element)
+        } else if neutral {
+            CapsulePlacement.place(nil, envelope: envelope, screens: draftScreen(in: screens).map { [$0] } ?? screens)
+        } else {
+            CapsulePlacement.place(geometry, envelope: envelope, screens: screens)
+        }
         self.placement = placement
         model.alignment = switch placement.corner {
         case .bottomTrailing: .bottomTrailing
@@ -251,6 +261,12 @@ private final class PassivePanel: NSPanel {
         }
         let rect = placement.envelope.insetBy(dx: -Self.inset, dy: -Self.inset)
         panel.setFrame(NSRect(x: rect.minX, y: primary - rect.maxY, width: rect.width, height: rect.height), display: true)
+    }
+    /// Every display in the engine's coordinates, the main one first, for a drop with no window to go by.
+    private func fixedScreens(primary: CGFloat) -> [CapsulePlacement.Screen] {
+        func ax(_ r: NSRect) -> CGRect { CGRect(x: r.minX, y: primary - r.maxY, width: r.width, height: r.height) }
+        let screens = NSScreen.screens.sorted { $0 == NSScreen.main && $1 != NSScreen.main }
+        return screens.map { .init(visible: ax($0.visibleFrame), full: ax($0.frame), safeAreaTop: $0.safeAreaInsets.top) }
     }
     /// The screen most of the draft's window was on, in the engine's coordinates.
     private func draftScreen(in screens: [CGRect]) -> CGRect? {
