@@ -62,6 +62,13 @@ enum DictationFailure: Equatable, Sendable {
     func leave()
 }
 
+extension DictationDropPosition {
+    /// Where Settings keeps the position, by raw value.
+    static let key = "DictationDropPosition"
+    /// The position as saved, by the text field until one is chosen.
+    static var saved: DictationDropPosition { UserDefaults.standard.string(forKey: key).flatMap(Self.init(rawValue:)) ?? .anchored }
+}
+
 /// What the dictation drop shows, apart from Fix's model.
 @MainActor @Observable final class DictationDropModel {
     var state = DictationDropState.recording
@@ -95,7 +102,9 @@ enum DictationFailure: Equatable, Sendable {
             let geometry = await self?.locate()
             guard let self, !Task.isCancelled else { return }
             locating = nil
-            panel.present(geometry: geometry)
+            // Read at each dictation, so a change in Settings applies to the next one.
+            let position = DictationDropPosition.saved.resolved(hasAnchor: geometry?.element != nil)
+            panel.present(geometry: geometry, fixed: position == .anchored ? nil : position)
             settle()
         }
     }
