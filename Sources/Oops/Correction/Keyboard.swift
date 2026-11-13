@@ -146,8 +146,8 @@ struct Shortcut: Codable, Equatable {
     func label(_ action: Action) -> String { shortcut(action)?.label ?? "—" }
 
     func registration(_ action: Action) -> Registration {
-        // Paste last dictation goes off with Dictate, as its menu item does: only a feature's own shortcut
-        // stands without it.
+        // Paste last dictation and Dictate and clean up go off with Dictate, as Paste last dictation's menu item
+        // does: only a feature's own shortcut stands without it.
         let dictation = DebugFlags.dictation && (action.isSwitch || shortcut(.dictate) != nil)
         return Self.registration(action, shortcut: shortcut(action), dictation: dictation)
     }

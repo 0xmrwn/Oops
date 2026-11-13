@@ -42,6 +42,7 @@ import XCTest
     func testOnlyAFeaturesOwnShortcutIsItsSwitch() {
         XCTAssertTrue(ShortcutSettings.Action.dictate.isSwitch)
         XCTAssertFalse(ShortcutSettings.Action.pasteLast.isSwitch, "Turn on records Dictate's shortcut, not this one")
+        XCTAssertFalse(ShortcutSettings.Action.dictateAndCleanUp.isSwitch, "Turn on records Dictate's shortcut, not this one")
         XCTAssertEqual(ShortcutSettings.Action.pasteLast.tab, .dictate)
     }
 
