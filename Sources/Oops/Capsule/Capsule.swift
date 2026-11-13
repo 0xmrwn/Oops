@@ -104,8 +104,10 @@ private final class PassivePanel: NSPanel {
     /// the part of showing that any feature's content shares.
     func present(geometry: CapsulePlacement.Geometry? = nil, fixed: DictationDropPosition? = nil) {
         if let geometry { self.geometry = geometry; neutral = false }
-        if let fixed { fixedPosition = fixed }
         let entering = !panel.isVisible || hiding != nil
+        // A new drop places itself afresh, even one that comes up before the last one's exit removed the
+        // panel; a state shown within the same drop keeps the spot it was given.
+        if entering || fixed != nil { fixedPosition = fixed }
         hiding?.cancel(); hiding = nil; lingering?.cancel(); lingering = nil
         position(); panel.orderFrontRegardless(); trackPointer()
         // One frame later, so the drop's small, transparent start state is rendered before it pops in.
