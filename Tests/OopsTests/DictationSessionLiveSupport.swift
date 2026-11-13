@@ -13,12 +13,12 @@ import XCTest
     let source: ScriptedSource
     let recorder: DictationRecorder
     let engine: FakeStreamingEngine
-    let hosted: FakeStreamingEngine?
+    let hosted: any SpeechEngine?
     /// The words the drop showed last as each insert ran: nil once they were cleared.
     private(set) var wordsAtInsert: [LiveWords?] = []
     private(set) var session: DictationSession!
 
-    init(_ test: XCTestCase, engine: FakeStreamingEngine = FakeStreamingEngine(), hosted: FakeStreamingEngine? = nil,
+    init(_ test: XCTestCase, engine: FakeStreamingEngine = FakeStreamingEngine(), hosted: any SpeechEngine? = nil,
          modelPath: String?? = nil, audio: [Float] = DictationSessionRun.speech()) throws {
         self.engine = engine; self.hosted = hosted
         let url = try test.wavFile(float: audio, rate: 16_000)
