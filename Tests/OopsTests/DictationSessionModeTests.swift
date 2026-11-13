@@ -79,4 +79,19 @@ import XCTest
         try await run.until { run.inserts.texts.count == 2 && run.drop.states.last == .left }
         XCTAssertEqual(journal, ["recording", "transcribing", "insert Hello", "recording", "transcribing", "insert Hello", "left"])
     }
+
+    func testATapAndAPressQueuedBehindASlowStartLatchThenStop() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOrTap)
+        run.source.openDelay = 0.3
+        // Both wait behind the start: the release's 50 ms grace is long over when the press is read.
+        run.press(0)
+        run.release(50, audio: 450)
+        run.press(150, audio: 1_600)
+        run.release(250, audio: 1_700)
+        try await run.until(seconds: 5) { run.drop.states.last == .left }
+        try await run.settle()
+        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .left])
+        XCTAssertEqual(run.inserts.texts, ["Hello"])
+        XCTAssertFalse(run.session.activation.isRecording)
+    }
 }

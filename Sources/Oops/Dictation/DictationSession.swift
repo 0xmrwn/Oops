@@ -93,6 +93,11 @@ import OSLog
     }
 
     private func handle(_ event: Event) async {
+        // A slow start can hold a release and the next press in the queue past the release's deadline, whose
+        // timer comes after them: what was due before the key went down or up is settled first, at the release.
+        if case let .key(_, _, now) = event, let deadline = activation.deadline, deadline <= now {
+            await perform(activation.timerFired(at: deadline), stoppingAt: lastRelease)
+        }
         switch event {
         case let .key(.pressed, capture, now):
             activation.mode = mode()
