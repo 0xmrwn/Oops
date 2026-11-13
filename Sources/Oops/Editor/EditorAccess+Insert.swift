@@ -17,7 +17,11 @@ extension EditorAccess {
         let pid: pid_t
         let hostPID: pid_t?
         let role: String
+        /// How the field's text reads back, or nil when it can't confirm the paste.
         let strategy: CaptureStrategy?
+        /// Whether the field exposes text at all, and so compares equal across reads. An input proxy
+        /// does, though its value can't confirm the paste.
+        let identifiable: Bool
         let before: (text: String, selection: NSRange)?
         let placeholders: [String]
         /// Whether the app's accessibility switch was Oops's already, and so isn't this insert's to turn off.
@@ -81,7 +85,7 @@ extension EditorAccess {
     /// nothing stands in for it: its window holds other fields of its role, a password field among them.
     /// An editor that exposes nothing may come back as another element, which is checked for a secret again.
     private func assertStillFocused(_ target: InsertTarget) throws {
-        guard target.strategy == nil else {
+        guard !target.identifiable else {
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.hostPID ?? target.pid,
                   let front = try? focused(), pid(of: front) == target.pid,
                   CFEqual(front, target.element) || caretHolder(front).map({ CFEqual($0, target.element) }) == true
@@ -132,7 +136,7 @@ extension EditorAccess {
         }
         kept = true
         return InsertTarget(element: element, pid: pid, hostPID: nested ? scope.foreground?.processIdentifier : nil, role: role,
-                            strategy: readable, before: before,
+                            strategy: readable, identifiable: strategy != nil, before: before,
                             placeholders: [kAXPlaceholderValueAttribute, kAXDescriptionAttribute, kAXTitleAttribute]
                                 .compactMap { attribute(element, $0) as? String },
                             heldSwitch: heldSwitch)
