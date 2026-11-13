@@ -78,6 +78,41 @@ import XCTest
         XCTAssertEqual(run.inserts.texts, ["Hello"])
     }
 
+    func testAPressWithTheMicrophoneNeverAskedAsksOnceRecordsNothingAndSaysToPressAgain() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly)
+        run.source.refuse(.microphoneAccess(.undetermined))
+        run.press(0)
+        try await run.until { run.asks == 1 }
+        // A second press while the prompt is up asks nothing more.
+        run.source.refuse(.microphoneAccess(.undetermined))
+        run.press(500)
+        run.release(700)
+        try await run.settle()
+        XCTAssertEqual(run.asks, 1)
+        XCTAssertEqual(run.drop.states, [.left, .left])
+        run.answer(true)
+        try await run.until { run.drop.states.last == .ready }
+        XCTAssertEqual(run.source.opens, 0)
+        XCTAssertEqual(run.inserts.texts, [])
+        XCTAssertFalse(run.session.holdsDrop)
+        run.press(3_000)
+        run.release(4_200)
+        try await run.until { run.drop.states.last == .left && run.inserts.texts == ["Hello"] }
+        XCTAssertEqual(run.drop.states, [.left, .left, .ready, .recording, .transcribing, .left])
+    }
+
+    func testTheMicrophoneRefusedAtThePromptSaysAccessIsOff() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly)
+        run.source.refuse(.microphoneAccess(.undetermined))
+        run.press(0)
+        run.release(1_200)
+        try await run.until { run.asks == 1 }
+        run.answer(false)
+        try await run.until { run.drop.states.last == .failed(.microphoneAccess) }
+        XCTAssertEqual(run.drop.states, [.left, .failed(.microphoneAccess)])
+        XCTAssertEqual(run.source.opens, 0)
+    }
+
     func testADropHeldByAnotherFeatureStartsNothing() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly)
         run.drop.available = false
@@ -152,6 +187,9 @@ import XCTest
     let engine: FakeSpeechEngine?
     var mode: DictationMode
     var status: [String] = []
+    /// How often the session asked for the microphone, and the prompt it is waiting on.
+    private(set) var asks = 0
+    private var prompt: CheckedContinuation<Bool, Never>?
     private(set) var session: DictationSession!
 
     init(_ test: XCTestCase, mode: DictationMode, audio: [Float]? = nil, engine: FakeSpeechEngine? = FakeSpeechEngine(text: "Hello"),
@@ -165,7 +203,16 @@ import XCTest
         let inserts = inserts
         session = DictationSession(recorder: recorder, engine: engine, modelPath: { path }, language: { language },
                                    mode: { [weak self] in self?.mode ?? .holdOrTap },
-                                   insert: { await inserts.insert($0) }, drop: drop, status: { [weak self] in self?.status.append($0) })
+                                   insert: { await inserts.insert($0) }, drop: drop, status: { [weak self] in self?.status.append($0) },
+                                   askMicrophone: { [weak self] in
+                                       await withCheckedContinuation { self?.asks += 1; self?.prompt = $0 }
+                                   })
+    }
+
+    /// Answers the microphone prompt the session is waiting on.
+    func answer(_ granted: Bool) {
+        prompt?.resume(returning: granted)
+        prompt = nil
     }
 
     /// Key events at `ms` on the key clock and at `audio` on the file's timeline: by default a press at
@@ -209,7 +256,7 @@ import XCTest
 /// The drop's states in order, `.left` for each time it left.
 @MainActor final class FakeDictationDrop: DictationDrop {
     enum Shown: Equatable {
-        case recording, transcribing, failed(DictationFailure), left
+        case recording, transcribing, ready, failed(DictationFailure), left
     }
 
     var available = true
@@ -222,6 +269,7 @@ import XCTest
         switch state {
         case .recording: states.append(.recording)
         case .transcribing: states.append(.transcribing)
+        case .ready: states.append(.ready)
         case .failed(let failure): states.append(.failed(failure))
         }
         journal?("\(state)")

@@ -2,8 +2,8 @@ import OopsCore
 import SwiftUI
 
 /// The dictation drop's voice, in whichever kind Settings picked. Every kind takes the same input: the drop's
-/// state and a loudness from 0 to 1, already smoothed, updated at the display's rate. A failure shows the
-/// drop's warning symbol rather than a voice, as the drop always has.
+/// state and a loudness from 0 to 1, already smoothed, updated at the display's rate. A failure, and the
+/// word that the microphone is ready, show the drop's symbol rather than a voice, as the drop always has.
 struct DictationVisualizerView: View {
     let kind: DictationVisualizer
     let phase: DictationDropState
@@ -31,7 +31,7 @@ struct DictationVisualizerView: View {
     var body: some View {
         let size = Self.size(kind, phase: phase)
         Group {
-            if case .failed = phase {
+            if !phase.isLive {
                 Image(systemName: phase.symbol).font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark, inked: inked).halo))
             } else {

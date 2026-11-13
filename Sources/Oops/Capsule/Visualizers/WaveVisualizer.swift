@@ -28,7 +28,12 @@ struct WaveVisualizer: View {
 
 extension DictationDropState {
     /// Recording or transcribing: a voice to draw, moving.
-    var isLive: Bool { if case .failed = self { false } else { true } }
+    var isLive: Bool {
+        switch self {
+        case .recording, .transcribing: true
+        case .ready, .failed: false
+        }
+    }
 }
 
 /// What one frame of the wave draws: kept by value, so the canvas holds no reference into the clock.
@@ -57,7 +62,7 @@ struct WaveFrame {
         case .transcribing:
             if case .transcribing = mode {} else { mode = .transcribing(since: time) }
             return WaveFrame(history: history, live: 0, mode: mode.since(time))
-        case .failed:
+        case .ready, .failed:
             mode = .still
             return WaveFrame(history: history, live: 0, mode: .still)
         }

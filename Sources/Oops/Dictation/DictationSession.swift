@@ -41,6 +41,9 @@ import OSLog
     let insert: @MainActor (String) async -> InsertOutcome
     private let drop: any DictationDrop
     private let status: @MainActor (String) -> Void
+    private let askMicrophone: @MainActor () async -> Bool
+    /// The system's microphone prompt is up, or its answer is on its way to the drop.
+    private var asking = false
     private let events: AsyncStream<Event>.Continuation
     private var consumer: Task<Void, Never>?
     private var timer: Task<Void, Never>?
@@ -57,14 +60,17 @@ import OSLog
     var language: String?
 
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
-    /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused start.
+    /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
+    /// start; `askMicrophone` shows the system's prompt and answers whether access was given.
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, modelPath: @escaping @MainActor () -> String?,
          language: @escaping @MainActor () -> String? = { nil },
          mode: @escaping @MainActor () -> DictationMode, insert: @escaping @MainActor (String) async -> InsertOutcome,
          drop: any DictationDrop, loudness: DictationLoudnessFeed = DictationLoudnessFeed(),
-         status: @escaping @MainActor (String) -> Void) {
+         status: @escaping @MainActor (String) -> Void,
+         askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() }) {
         self.recorder = recorder; self.engine = engine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
         self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status
+        self.askMicrophone = askMicrophone
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
         consumer = Task { [weak self] in
@@ -145,7 +151,10 @@ import OSLog
             loadedModel = model
             loading = Task.detached(priority: .userInitiated) { try await engine.load(model: model) }
         }
-        do { try await recorder.start(at: pressed) } catch { return refuse(Self.failure(error)) }
+        do { try await recorder.start(at: pressed) } catch {
+            if case .microphoneAccess(.undetermined) = error { return ask() }
+            return refuse(Self.failure(error))
+        }
         activation.startResult(started: true)
         Self.log.notice("recording mode=\(self.activation.sessionMode.rawValue, privacy: .public)")
         loudness.start { recorder.inputLevel }
@@ -156,6 +165,26 @@ import OSLog
         activation.startResult(started: false)
         Self.log.notice("start refused=\(String(describing: failure), privacy: .public)")
         conclude(.failed(failure))
+    }
+
+    /// The microphone was never asked for: this press asks and records nothing, since the prompt takes the
+    /// keyboard and the answer comes long after the press. The drop then says to press again, or that access
+    /// is off.
+    private func ask() {
+        activation.startResult(started: false)
+        Self.log.notice("start refused=microphoneNeverAsked asking=\(!self.asking, privacy: .public)")
+        drop.leave()
+        holdsDrop = false
+        guard !asking else { return }
+        asking = true
+        Task { [weak self] in
+            guard let self else { return }
+            let granted = await askMicrophone()
+            asking = false
+            // A dictation of its own may not be running, but Fix may have taken the drop meanwhile.
+            guard !holdsDrop, drop.claim(busy: { false }) else { return }
+            drop.show(granted ? .ready : .failed(.microphoneAccess))
+        }
     }
 
     private func stop(at released: CaptureInstant?) {
