@@ -30,10 +30,18 @@ final class ModifierReleaseTests: XCTestCase {
             XCTAssertLessThanOrEqual(clock, 1.000001)
         }
     }
-    func testModifierNoKeyHoldsPassesOnceTheWaitIsUp() async throws {
+    func testModifierNoKeyHoldsPassesWellBeforeTheWaitIsUp() async throws {
         var clock = 0.0
-        _ = try await ModifierRelease.wait(isReleased: { false }, keyboardReleased: { true }, now: { clock }, pause: { clock += $0 })
-        XCTAssertGreaterThanOrEqual(clock, 0.99)
+        let waits = try await ModifierRelease.wait(isReleased: { false }, keyboardReleased: { true }, now: { clock }, pause: { clock += $0 })
+        XCTAssertEqual(waits, 14)
+        XCTAssertLessThan(clock, 0.2)
+    }
+    func testKeysStillDownOnTheHardwareKeepTheFullWait() async {
+        var clock = 0.0
+        do {
+            _ = try await ModifierRelease.wait(isReleased: { false }, keyboardReleased: { false }, now: { clock }, pause: { clock += $0 })
+            XCTFail("Held keys must not authorize a paste")
+        } catch { XCTAssertGreaterThanOrEqual(clock, 0.99) }
     }
     func testCancellationDuringWaitStopsTheOperation() async {
         do {

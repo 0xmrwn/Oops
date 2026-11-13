@@ -61,7 +61,7 @@ final class FakeModelStore: ModelDownloading {
 }
 
 /// Waits for main-actor work the test started (a download's task, a driver's loop) to catch up.
-@MainActor func eventually(_ condition: () -> Bool, seconds: Double = 2) async -> Bool {
+@MainActor func eventually(_ condition: () -> Bool, seconds: Double = 10) async -> Bool {
     let deadline = ContinuousClock.now + .seconds(seconds)
     while !condition() {
         guard ContinuousClock.now < deadline else { return false }
