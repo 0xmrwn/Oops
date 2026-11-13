@@ -32,6 +32,13 @@ enum DebugFlags {
     #else
     static var dictationModel: String? { nil }
     #endif
+    /// `-DebugMicrophoneAccess denied|undetermined`: dictation sees that access whatever the system says, so
+    /// each refusal can be seen in the app. Nothing changes in the real setting.
+    #if DEBUG || OOPS_PREVIEW
+    static var microphoneAccess: String? { UserDefaults.standard.string(forKey: "DebugMicrophoneAccess") }
+    #else
+    static var microphoneAccess: String? { nil }
+    #endif
     /// Actions, the same way: `DebugActions`.
     static var actions: Bool { bool("DebugActions") }
 

@@ -7,7 +7,12 @@ extension AppDelegate {
     func makeDictation() -> DictationSession? {
         guard DebugFlags.dictation else { return nil }
         let engine = DictationEngineProvider.engine()
-        let recorder = engine.map { _ in DictationRecorder(source: DictationMicrophone()) }
+        let forced: DictationMicrophoneAccess? = switch DebugFlags.microphoneAccess {
+        case "denied": .denied
+        case "undetermined": .undetermined
+        default: nil
+        }
+        let recorder = engine.map { _ in DictationRecorder(source: DictationMicrophone(access: { forced ?? .current })) }
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
         let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
