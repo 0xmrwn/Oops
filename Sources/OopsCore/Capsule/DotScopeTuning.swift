@@ -177,6 +177,17 @@ package struct DotScopePalette: Equatable, Sendable {
         palette(isDark: false, pose: pose, saturation: saturation)
     }
 
+    /// One colour for the whole scope, halfway between a dim dot's and a bright one's: warm while it follows
+    /// the voice, cool for its shimmer. For a caller that colours the scope itself rather than each dot.
+    package static func tone(isDark: Bool, cool: Bool, saturation: Float = 1.0) -> SIMD3<Float> {
+        let pose = DotScopePose(
+            width: 0, height: 0, activeSpan: 0, activeCenter: 0, leadingInset: 0, trailingInset: 0, opacity: 1,
+            scale: 1, softness: 0, cool: cool ? 1 : 0, fail: 0, glow: 0, grid: 0, live: 1
+        )
+        let palette = palette(isDark: isDark, pose: pose, saturation: saturation)
+        return (palette.base + palette.core) * 0.5
+    }
+
     /// Matches OpenCode iOS `pearlPalette(dark:)` (`DotScopeView.swift:363-372`).
     package static func palette(isDark: Bool, pose: DotScopePose, saturation: Float = 1.0) -> DotScopePalette {
         let you = isDark

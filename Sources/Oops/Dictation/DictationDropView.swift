@@ -18,7 +18,9 @@ struct DictationDropView: View {
 
     private var increasedContrast: Bool { contrast == .increased }
     private var ink: Color { scheme == .dark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09) }
-    private var halo: Color { increasedContrast ? .clear : (scheme == .dark ? Color.black : .white).opacity(0.85) }
+    private var halo: Color { increasedContrast || inked ? .clear : (scheme == .dark ? Color.black : .white).opacity(0.85) }
+    /// Reduce Transparency fills the drop, so the appearance's ink is already the right one.
+    private var inked: Bool { BackdropInk.isAvailable && !reduceTransparency }
 
     /// Computed rather than measured, so the glass and the pointer's hold area agree.
     private var width: CGFloat {
@@ -43,9 +45,12 @@ struct DictationDropView: View {
             HStack(spacing: Self.spacing) {
                 DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: model.loudness?.level ?? 0,
                                         isDark: scheme == .dark, reduceMotion: reduceMotion)
+                    .backdropInk(inked, tones: .voice(model.visualizer, state: model.state, increasedContrast: increasedContrast))
                 Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
                     .foregroundStyle(ink).modifier(Halo(color: halo))
+                    .backdropInk(inked)
             }
+            .environment(\.backdropInked, inked)
             .padding(.leading, lead).padding(.trailing, Self.padding)
         }
         .frame(width: width, height: height)

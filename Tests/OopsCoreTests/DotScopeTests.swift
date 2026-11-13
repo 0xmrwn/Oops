@@ -197,6 +197,14 @@ struct DotScopeTests {
 
     /// Not in Hex: with Reduce Motion the scope takes its still form, as `advance` and `beam` define it. The
     /// layout springs jump instead of gliding, the braid stops turning, and there is no entrance pass.
+    @Test func `the scope's single tone is warm for the voice, cool for the shimmer, and lighter in dark`() {
+        let warm = DotScopePalette.tone(isDark: false, cool: false), cool = DotScopePalette.tone(isDark: false, cool: true)
+        #expect(warm.x > warm.z)
+        #expect(cool.z > cool.x)
+        let dark = DotScopePalette.tone(isDark: true, cool: false)
+        #expect(dark.x > warm.x && dark.y > warm.y && dark.z > warm.z) // The ink's ramp needs dark above light.
+    }
+
     @Test func `reduced motion yields the still form`() {
         func run(reduceMotion: Bool) -> DotScopePose {
             let sim = DotScopeSimulation(tuning: .hud)
