@@ -47,6 +47,19 @@ final class CleanupSpokenSymbolsTests: XCTestCase {
         XCTAssertEqual(SpokenSymbols.apply("hola virgule gracias"), "hola, gracias")
     }
 
+    func testFrenchDeuxPointsCountingPointsStaysProse() {
+        for text in [
+            "deux points de vue", "Il y a deux points d'écart.", "deux points d\u{2019}accord", "deux points du programme",
+            "les deux points", "à deux points près", "il a deux points", "gagné par deux points", "sur deux points importants"
+        ] {
+            XCTAssertEqual(SpokenSymbols.apply(text), text)
+        }
+        XCTAssertEqual(SpokenSymbols.apply("la liste deux points pommes"), "la liste: pommes")
+        XCTAssertEqual(SpokenSymbols.apply("deux points de vue deux-points le mien"), "deux points de vue: le mien")
+        XCTAssertEqual(SpokenSymbols.apply("les deux-points pommes"), "les: pommes")
+        XCTAssertEqual(SpokenSymbols.apply("la lista dos puntos de manzanas"), "la lista: de manzanas")
+    }
+
     func testOtherWordsAreLeftAlone() {
         for text in [
             "comas", "guiones largos", "un punto y aparte", "commas", "slashed prices", "hashtags everywhere",

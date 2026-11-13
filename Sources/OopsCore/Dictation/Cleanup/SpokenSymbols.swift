@@ -75,9 +75,36 @@ public enum SpokenSymbols {
     /// The symbol whose words start at `start`, and where they end.
     private static func symbolAt(_ chars: [Unicode.Scalar], _ start: Int) -> (Unicode.Scalar, Join, Int)? {
         for (words, symbol, join) in symbols {
-            if let end = matchPhrase(words, in: chars, at: start) { return (symbol, join, end) }
+            guard let end = matchPhrase(words, in: chars, at: start) else { continue }
+            if words == deuxPoints, countsPoints(chars, start, end) { continue }
+            return (symbol, join, end)
         }
         return nil
+    }
+
+    // French alone: unlike "dos puntos", the two words are everyday prose ("deux points de vue", "les deux points").
+    private static let deuxPoints = [scalars("deux"), scalars("points")]
+    /// What follows points counted rather than ":": "deux points de vue", "deux points d'écart".
+    private static let complements: Set = ["de", "d'", "du", "des"]
+    /// What precedes points counted: "les deux points", "à deux points près".
+    private static let counters: Set = ["les", "des", "ces", "mes", "tes", "ses", "nos", "vos", "leurs", "aux", "a", "de", "en", "par", "sur"]
+
+    /// Whether the unhyphenated "deux points" between `start` and `end` counts points in running prose. The
+    /// hyphenated "deux-points" always names the colon.
+    private static func countsPoints(_ chars: [Unicode.Scalar], _ start: Int, _ end: Int) -> Bool {
+        var after = end
+        while after < chars.count, chars[after].isInlineSpace { after += 1 }
+        var next = String.UnicodeScalarView()
+        while after < chars.count, chars[after].isWordCharacter || chars[after].folded == "'" {
+            next.append(chars[after].folded)
+            after += 1
+            if next.last == "'" { break }
+        }
+        var before = start
+        while before > 0, chars[before - 1].isInlineSpace { before -= 1 }
+        var previous: [Unicode.Scalar] = []
+        while before > 0, chars[before - 1].isWordCharacter { before -= 1; previous.insert(chars[before].folded, at: 0) }
+        return complements.contains(String(next)) || counters.contains(String(String.UnicodeScalarView(previous)))
     }
 
     private static func skip(_ chars: [Unicode.Scalar], _ from: Int) -> Int {
