@@ -29,6 +29,21 @@ import XCTest
         XCTAssertEqual(languages, ["fr"])
     }
 
+    func testAModelChosenDuringARecordingWarmsOnlyOnceItIsTranscribed() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly, language: "fr")
+        let first = try XCTUnwrap(run.model), second = try DictationSessionRun.modelFile(self)
+        run.press(0)
+        try await run.until { run.drop.states == [.recording] }
+        run.model = second
+        run.session.warmUp()
+        run.release(1_200)
+        try await run.until { run.drop.states.last == .left }
+        try await run.until { await run.engine?.loads.last?.path == second }
+        let models = await run.engine?.models.map { $0?.path }, languages = await run.engine?.languages
+        XCTAssertEqual(models, [first])
+        XCTAssertEqual(languages, ["fr"])
+    }
+
     func testSilenceWritesNothingAndNeverCallsTheEngine() async throws {
         let quiet = (0 ..< 48_000).map { Float(0.000_7) * sin(2 * Float.pi * 220 * Float($0) / 16_000) }
         let run = try DictationSessionRun(self, mode: .holdOnly, audio: quiet)
@@ -186,6 +201,8 @@ import XCTest
     let source: ScriptedSource
     let engine: FakeSpeechEngine?
     var mode: DictationMode
+    /// The model file the session reads at each start and warm-up.
+    var model: String?
     var status: [String] = []
     /// How often the session asked for the microphone, and the prompt it is waiting on.
     private(set) var asks = 0
@@ -199,9 +216,9 @@ import XCTest
         let url = try test.wavFile(float: audio ?? Self.speech(), rate: 16_000)
         source = ScriptedSource(DictationAudioFile(url: url, pace: .immediate(from: Self.origin)))
         let recorder = DictationRecorder(source: source, keepAliveSleep: { _ in try await Task.sleep(for: .seconds(3_600)) })
-        let path = try modelPath ?? Self.modelFile(test)
+        model = try modelPath ?? Self.modelFile(test)
         let inserts = inserts
-        session = DictationSession(recorder: recorder, engine: engine, modelPath: { path }, language: { language },
+        session = DictationSession(recorder: recorder, engine: engine, modelPath: { [weak self] in self?.model }, language: { language },
                                    mode: { [weak self] in self?.mode ?? .holdOrTap },
                                    insert: { await inserts.insert($0) }, drop: drop, status: { [weak self] in self?.status.append($0) },
                                    askMicrophone: { [weak self] in
@@ -301,6 +318,8 @@ actor FakeSpeechEngine: SpeechEngine {
     private(set) var transcribed = 0
     private(set) var loads: [URL] = []
     private(set) var languages: [String?] = []
+    /// The model last loaded as each transcription ran.
+    private(set) var models: [URL?] = []
     private var held = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
@@ -321,6 +340,7 @@ actor FakeSpeechEngine: SpeechEngine {
     func transcribe(_ samples: [Float], language: String?) async throws -> String {
         transcribed += 1
         languages.append(language)
+        models.append(loads.last)
         if held { await withCheckedContinuation { waiting.append($0) } }
         if let error { throw error }
         return text

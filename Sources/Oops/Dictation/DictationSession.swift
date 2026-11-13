@@ -60,6 +60,8 @@ import OSLog
     var loading: Task<Void, any Error>?
     /// The language hint read at the last start, for its transcription.
     var language: String?
+    /// Another model was chosen while a dictation held the drop: it warms once that dictation is over.
+    private var warmUpDeferred = false
 
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
     /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
@@ -94,6 +96,8 @@ import OSLog
     /// Loads the model and runs it once at low priority, away from the main actor, so the first dictation
     /// doesn't wait for it, again when another model is chosen. A failure is ignored: the first dictation loads it again.
     func warmUp() {
+        // A recording is transcribed by the model and language read at its start: the engine's model can't change under it.
+        guard !holdsDrop else { warmUpDeferred = true; return }
         guard let engine, let model = Self.modelURL(modelPath()), loadedModel != model else { return }
         loadedModel = model
         loading = Task.detached(priority: .background) { try await engine.warmUp(model: model) }
@@ -221,6 +225,7 @@ import OSLog
         case .failed(let failure): drop.show(.failed(failure))
         }
         holdsDrop = false
+        if warmUpDeferred { warmUpDeferred = false; warmUp() }
     }
 
     /// Keeps exactly one timer, for the activation's current deadline.
