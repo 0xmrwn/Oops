@@ -93,6 +93,20 @@ import XCTest
         XCTAssertFalse(run.session.holdsDrop)
     }
 
+    func testACleanupOvertakenByANewDictationReplacesNothing() async throws {
+        var replaced = 0
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
+                                          cleanup: cleanup(.button, CleanupStub(.late("Hello."))) { _, _ in replaced += 1; return .replaced })
+        try await dictate(run)
+        try XCTUnwrap(run.drop.action).perform()
+        run.press(3_000)
+        try await run.until { run.drop.states.last == .recording }
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(replaced, 0, "the answer came after the next dictation began")
+        XCTAssertEqual(run.session.lastTranscript, "um hello")
+        XCTAssertEqual(run.drop.states.last, .recording, "and the new recording keeps the drop")
+    }
+
     func testButtonReplacesNothingWhenTheFieldChangedAndTheDropSaysSo() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
                                           cleanup: cleanup(.button, CleanupStub(.answer("Hello."))) { _, _ in .changed })
@@ -140,7 +154,7 @@ import XCTest
 
 /// A cleanup model that answers `text`, fails, or takes too long, and records each request.
 private actor CleanupStub: CorrectionBackend {
-    enum Behaviour: Sendable { case answer(String), fail, slow }
+    enum Behaviour: Sendable { case answer(String), late(String), fail, slow }
     private let behaviour: Behaviour
     private(set) var calls: [(text: String, instructions: String)] = []
 
@@ -150,6 +164,9 @@ private actor CleanupStub: CorrectionBackend {
         calls.append((text, instructions))
         switch behaviour {
         case .answer(let answer): return String(decoding: try JSONSerialization.data(withJSONObject: ["text": answer]), as: UTF8.self)
+        case .late(let answer):
+            try await Task.sleep(for: .milliseconds(120))
+            return String(decoding: try JSONSerialization.data(withJSONObject: ["text": answer]), as: UTF8.self)
         case .fail: throw CorrectionError.failure(.offline, "Stub failure.")
         case .slow:
             try await Task.sleep(for: .seconds(30))

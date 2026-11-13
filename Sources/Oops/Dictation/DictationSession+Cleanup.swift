@@ -81,9 +81,15 @@ extension DictationSession {
         drop.show(.cleaningUp)
         Task { [weak self] in
             guard let self else { return }
+            let cleaned = await clean(text)
+            // A dictation started meanwhile owns the field, the kept transcript and the drop: this cleanup
+            // touches none of them, even where the new dictation wrote the same words.
+            guard turn == mine else { return Self.log.notice("cleanup button ending=superseded") }
             let ending: Ending
-            if let cleaned = await clean(text) {
-                switch sameText(cleaned, text) ? .replaced : await cleanup.replace(text, cleaned) {
+            if let cleaned {
+                let outcome: InsertReplacement = sameText(cleaned, text) ? .replaced : await cleanup.replace(text, cleaned)
+                guard turn == mine else { return Self.log.notice("cleanup button ending=superseded") }
+                switch outcome {
                 case .replaced: ending = .done; lastTranscript = cleaned
                 case .changed: ending = .failed(.textChanged)
                 case .failed: ending = .failed(.cannotWrite)
@@ -92,8 +98,6 @@ extension DictationSession {
                 ending = .failed(.cleanup)
             }
             Self.log.notice("cleanup button ending=\(String(describing: ending), privacy: .public)")
-            // A dictation started meanwhile has the drop now.
-            guard turn == mine else { return }
             conclude(ending)
         }
     }
