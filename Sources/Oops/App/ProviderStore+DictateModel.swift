@@ -1,7 +1,7 @@
 import Foundation
 import OopsCore
 
-/// One entry of Dictate's model menu: an installed model on this Mac, or a provider's that transcribes.
+/// One entry of Dictate's model menu: an installed model on this Mac.
 struct DictateModelOption: Identifiable, Equatable {
     let reference: VoiceModelReference
     let name: String
@@ -19,30 +19,25 @@ struct DictateModelOption: Identifiable, Equatable {
         reference = .local(model.id); name = model.name; streams = model.streams
         languages = model.languageChoices; automatic = model.automaticLanguage
     }
-
-    /// A provider's model; languages it doesn't report are taken to be any, detected.
-    init(_ choice: ModelSelection.Choice, name: String, capabilities: ModelCapabilities) {
-        reference = .provider(choice); self.name = name; streams = capabilities.streaming
-        languages = [SpeechLanguage.auto] + (capabilities.languages ?? SpeechLanguage.listed.map(\.code).filter { $0 != SpeechLanguage.auto })
-        automatic = SpeechLanguage.auto
-    }
 }
 
 extension ProviderStore {
-    /// Dictate's model menu: the installed models, then switched-on provider models that resolve to voice.
+    /// Dictate's model menu: the installed models. A provider's voice model has no way to transcribe yet, so
+    /// it isn't offered.
     func dictateOptions(_ local: LocalModels) -> [DictateModelOption] {
-        let installed = local.installed.map(DictateModelOption.init)
-        let voice = shownCapabilities.compactMap { choice, resolution -> DictateModelOption? in
-            guard let capabilities = resolution.capabilities, capabilities.voice else { return nil }
-            let name = catalogs[choice.providerID]?.first { $0.id == choice.modelID }?.name ?? choice.modelID
-            return DictateModelOption(choice, name: name, capabilities: capabilities)
-        }
-        return installed + voice.sorted { $0.name < $1.name }
+        local.installed.map(DictateModelOption.init)
     }
 
-    /// The selected model when it can be used now: installed, or still switched on.
+    /// The model dictation uses: the selection, or the first installed model in place of a provider's, which
+    /// can't transcribe yet.
+    private func dictateModel(_ local: LocalModels) -> VoiceModelReference? {
+        guard case .provider? = dictateSelection.model else { return dictateSelection.model }
+        return local.installed.first.map { .local($0.id) }
+    }
+
+    /// The model in use when it can be used now: installed.
     func dictateOption(_ local: LocalModels) -> DictateModelOption? {
-        guard let model = dictateSelection.model else { return nil }
+        guard let model = dictateModel(local) else { return nil }
         return dictateOptions(local).first { $0.reference == model }
     }
 
@@ -71,14 +66,14 @@ extension ProviderStore {
     /// file. Nil, dictation fails with "No speech model".
     func dictationModelPath(_ local: LocalModels, override: String?) -> String? {
         if let override, !override.isEmpty { return override }
-        guard case .local(let id)? = dictateSelection.model else { return nil }
+        guard case .local(let id)? = dictateModel(local) else { return nil }
         return local.fileURL(id)?.path
     }
 
     /// The selected language in the engine's terms; nil under Automatic, with the debug override, or for a model
     /// that takes no hint.
     func dictationLanguageHint(_ local: LocalModels, override: String?) -> String? {
-        guard override?.isEmpty != false, case .local(let id)? = dictateSelection.model,
+        guard override?.isEmpty != false, case .local(let id)? = dictateModel(local),
               let model = SpeechModelCatalog.model(id: id), local.isInstalled(id) else { return nil }
         return model.runtimeLanguageHint(for: dictateLanguage(for: DictateModelOption(model)))
     }

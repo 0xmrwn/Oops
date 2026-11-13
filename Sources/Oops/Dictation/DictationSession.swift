@@ -16,6 +16,8 @@ import OSLog
         case timer(ContinuousClock.Instant)
         /// A transcription is written or abandoned.
         case processed(Ending)
+        /// Dictate lost its shortcut.
+        case off
     }
 
     /// What a stopped recording came to.
@@ -58,6 +60,8 @@ import OSLog
     var loading: Task<Void, any Error>?
     /// The language hint read at the last start, for its transcription.
     var language: String?
+    /// Another model was chosen while a dictation held the drop: it warms once that dictation is over.
+    private var warmUpDeferred = false
 
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
     /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
@@ -83,9 +87,17 @@ import OSLog
         events.yield(.key(phase, capture, now))
     }
 
+    /// Dictate lost its shortcut: a recording under way, which no key could end now, is discarded, and a press
+    /// remembered for later is forgotten. A transcription already running still writes.
+    func turnedOff() {
+        events.yield(.off)
+    }
+
     /// Loads the model and runs it once at low priority, away from the main actor, so the first dictation
     /// doesn't wait for it, again when another model is chosen. A failure is ignored: the first dictation loads it again.
     func warmUp() {
+        // A recording is transcribed by the model and language read at its start: the engine's model can't change under it.
+        guard !holdsDrop else { warmUpDeferred = true; return }
         guard let engine, let model = Self.modelURL(modelPath()), loadedModel != model else { return }
         loadedModel = model
         loading = Task.detached(priority: .background) { try await engine.warmUp(model: model) }
@@ -101,6 +113,11 @@ import OSLog
     }
 
     private func handle(_ event: Event) async {
+        // A slow start can hold a release and the next press in the queue past the release's deadline, whose
+        // timer comes after them: what was due before the key went down or up is settled first, at the release.
+        if case let .key(_, _, now) = event, let deadline = activation.deadline, deadline <= now {
+            await perform(activation.timerFired(at: deadline), stoppingAt: lastRelease)
+        }
         switch event {
         case let .key(.pressed, capture, now):
             activation.mode = mode()
@@ -118,6 +135,10 @@ import OSLog
             // A press made meanwhile takes the drop straight over; otherwise the outcome shows.
             if next != .start { conclude(ending) }
             await perform(next, stoppingAt: nil)
+        case .off:
+            let recording = activation.isRecording
+            activation.cancel(recordingWasActive: recording)
+            if recording { await perform(.discard, stoppingAt: nil) }
         }
         armTimer()
     }
@@ -204,6 +225,7 @@ import OSLog
         case .failed(let failure): drop.show(.failed(failure))
         }
         holdsDrop = false
+        if warmUpDeferred { warmUpDeferred = false; warmUp() }
     }
 
     /// Keeps exactly one timer, for the activation's current deadline.

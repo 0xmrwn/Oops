@@ -93,6 +93,22 @@ import Testing
         store.answerCapabilities(Self.mistral, voice: false)
         #expect(suite.store().capabilities(Self.mistral) == .resolved(ModelCapabilities(text: true, voice: false, source: .user)))
     }
+
+    @Test func `a provider's voice model isn't offered, and one saved falls back to an installed model`() async throws {
+        let suite = try Suite()
+        let store = suite.store()
+        store.answerCapabilities(Self.mistral, voice: true)
+        #expect(store.capabilities(Self.mistral).capabilities?.voice == true)
+        let whisper = try #require(SpeechModelCatalog.model(id: "whisper_large_v3_turbo"))
+        let local = LocalModels(store: FakeModelStore(installed: [whisper.artifact.fileName]))
+        await local.refresh()
+        #expect(store.dictateOptions(local).map(\.reference) == [.local(whisper.id)])
+        store.selectDictate(.provider(Self.mistral), languages: nil)
+        #expect(store.dictateOption(local)?.reference == .local(whisper.id))
+        #expect(store.dictationModelPath(local, override: nil) == FakeModelStore.url(whisper.artifact.fileName).path)
+        await local.delete(whisper)
+        #expect(store.dictationModelPath(local, override: nil) == nil)
+    }
 }
 
 private final class NoCredentials: ChatGPTStore, Sendable {
