@@ -73,4 +73,10 @@ extension SpeechModelLicense {
     static let apache2 = SpeechModelLicense(name: "Apache-2.0")
     static let mit = SpeechModelLicense(name: "MIT")
     static let openMDW = SpeechModelLicense(name: "OpenMDW-1.1")
+    // Hex names no licence for the entries that use the two below; these are the ones their model cards declare.
+    static let nvidiaOpenModel = SpeechModelLicense(
+        name: "NVIDIA Open Model License",
+        url: URL(string: "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"))
+    static let funASRModel = SpeechModelLicense(
+        name: "FunASR Model License", url: URL(string: "https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE"))
 }

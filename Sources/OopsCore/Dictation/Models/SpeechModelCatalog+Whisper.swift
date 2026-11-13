@@ -15,6 +15,7 @@ extension SpeechModelCatalog {
             sha256: "d5e65f2b0828802ae2c231673d31982cebe3a778c95d9494a9f3efee6bd17448"),
         architecture: .whisper, variant: "whisper-large-v3-turbo", languages: .anyKnown,
         acceptsLanguageHint: true, supportsLanguageDetection: true, runtimeLanguages: ["fil": "tl"],
+        license: .mit,
         wordErrorRate: 2.01, realtime: "~19x")
 
     // ivrit.ai's Hebrew fine-tune: it lost language detection and translation, so it always runs with the Hebrew hint.

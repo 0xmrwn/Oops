@@ -8,10 +8,10 @@ import OopsCore
 /// The keyboard input sources the user has enabled and which one is selected, from Text Input Sources. Main actor
 /// only, like the system calls it wraps. The debounce before a change acts belongs to `KeyboardModelSwitcher`.
 @MainActor
-final class KeyboardInputSources {
+final class KeyboardInputSources: NSObject {
     static let shared = KeyboardInputSources()
 
-    private var observer: NSObjectProtocol?
+    private var observing = false
     private var listeners: [UUID: AsyncStream<String?>.Continuation] = [:]
 
     /// The id of the selected keyboard input source (`com.apple.keylayout.ABC`).
@@ -53,20 +53,20 @@ final class KeyboardInputSources {
         return stream
     }
 
-    /// One observer for the app's life. Hex's delivers immediately while the app is in the background; this
-    /// block-based registration takes no suspension behaviour, so that is unverified here.
+    /// One observer for the app's life, delivering immediately as Hex's does: Oops is never the active app,
+    /// and a held-back notification would arrive only once it was.
     private func startObserving() {
-        guard observer == nil else { return }
-        observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                let id = self.current()
-                for continuation in self.listeners.values { continuation.yield(id) }
-            }
-        }
+        guard !observing else { return }
+        observing = true
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(sourceChanged),
+            name: Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String), object: nil,
+            suspensionBehavior: .deliverImmediately)
+    }
+
+    @objc private func sourceChanged() {
+        let id = current()
+        for continuation in listeners.values { continuation.yield(id) }
     }
 
     private nonisolated static func property(_ source: TISInputSource, _ key: CFString) -> UnsafeMutableRawPointer? {

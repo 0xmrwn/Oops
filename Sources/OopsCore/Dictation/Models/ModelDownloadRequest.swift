@@ -72,3 +72,10 @@ public enum ModelDownloadError: Error, Equatable, Sendable, LocalizedError {
         }
     }
 }
+
+public extension SpeechModelArtifact {
+    /// What the store needs to fetch and verify this file.
+    var downloadRequest: ModelDownloadRequest {
+        ModelDownloadRequest(url: url, fileName: fileName, byteCount: byteCount, sha256: sha256)
+    }
+}

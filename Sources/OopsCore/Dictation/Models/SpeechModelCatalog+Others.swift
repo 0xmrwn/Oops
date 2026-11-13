@@ -14,7 +14,7 @@ extension SpeechModelCatalog {
             byteCount: 850_423_456,
             sha256: "f081b2d5e23bd669d92cc331d722a8a0681943b8e6f34b48996fd5c319b5acd8"),
         architecture: .qwen3ASR, variant: "qwen3-asr-0.6b", languages: .many(qwenLanguages),
-        acceptsLanguageHint: true, supportsLanguageDetection: true,
+        acceptsLanguageHint: true, supportsLanguageDetection: true, license: .apache2,
         wordErrorRate: 7.64, realtime: "~16x")
 
     // Mohammed Aly's Qwen3-ASR 1.7B fine-tune for Egyptian Arabic and Arabic/English code-switching. The error rate
@@ -40,7 +40,7 @@ extension SpeechModelCatalog {
             byteCount: 252_684_608,
             sha256: "6c759ee4c9748c9b3f7a5a60ca74f0f7e685fb9d45d1378fce7cfd62f59adf29"),
         architecture: .senseVoice, variant: "sensevoice-small", languages: .many(["zh", "yue", "en", "ja", "ko"]),
-        acceptsLanguageHint: true, supportsLanguageDetection: true,
+        acceptsLanguageHint: true, supportsLanguageDetection: true, license: .funASRModel,
         wordErrorRate: 10.11, realtime: "~72x")
 
     static let cohereTranscribe = SpeechModel(
@@ -52,7 +52,7 @@ extension SpeechModelCatalog {
             byteCount: 2_410_655_232,
             sha256: "931916663432fd895423a4291a8400221802b288967ca2d435fc5e3141c9e71e"),
         architecture: .cohereASR, variant: "cohere-transcribe-03-2026", languages: .many(cohereLanguages),
-        acceptsLanguageHint: true, supportsLanguageDetection: false,
+        acceptsLanguageHint: true, supportsLanguageDetection: false, license: .apache2,
         wordErrorRate: 1.27, realtime: "73x")
 
     // ai-sage's GigaAM v3 e2e RNN-T, Russian only, cased and punctuated. It has no language input. The error rate

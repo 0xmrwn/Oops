@@ -31,6 +31,8 @@ under its own terms.
   keyboard model switching policy (`Sources/OopsCore/Dictation/Models/KeyboardModelSwitching.swift`) and its tests
   from `src/transcription/keyboard_model_switching.rs`; the input-source observer
   (`Sources/Oops/Dictation/KeyboardInputSources.swift`) from `src/keyboard_input_sources/macos.rs` (v3.4.0).
+  Model downloads (`Sources/OopsCore/Dictation/Models/ModelDownload*.swift`) and their tests follow
+  `download_artifact` in `src/transcription/models.rs` and `src/net/download.rs` (v3.4.0).
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
   `src-tauri/src/transcription_coordinator.rs` (revision 73cc857).

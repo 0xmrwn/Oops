@@ -16,7 +16,7 @@ extension SpeechModelCatalog {
         // Hex buffers it with its largest context, its most accurate and least compute-intensive setting.
         streams: true,
         streamingChunk: SpeechModelStreamingChunk(leftMilliseconds: 5600, chunkMilliseconds: 1040, rightMilliseconds: 1040),
-        acceptsLanguageHint: true, supportsLanguageDetection: false,
+        acceptsLanguageHint: true, supportsLanguageDetection: false, license: .nvidiaOpenModel,
         wordErrorRate: 1.60, realtime: "~163x")
 
     static let parakeetV2 = SpeechModel(
@@ -28,7 +28,7 @@ extension SpeechModelCatalog {
             byteCount: 729_574_912,
             sha256: "f0d0e99cebb6d3b83f1f7069b82b5d3c2e39a54545b0da039cb4bafd9c4e5caa"),
         architecture: .parakeet, variant: "tdt-0.6b-v2", languages: .one("en"),
-        acceptsLanguageHint: true, supportsLanguageDetection: false,
+        acceptsLanguageHint: true, supportsLanguageDetection: false, license: .ccBy4,
         wordErrorRate: 1.69, realtime: "~55x")
 
     // The pinned v3 artifact detects the language from audio and has no prompt input, so it is offered under Auto.
@@ -41,7 +41,7 @@ extension SpeechModelCatalog {
             byteCount: 739_508_576,
             sha256: "5859f77944efcd8eafa23a6350731960b2b55b2203df51f319665c807d802cc7"),
         architecture: .parakeet, variant: "tdt-0.6b-v3", languages: .many(parakeetV3Languages),
-        acceptsLanguageHint: false, supportsLanguageDetection: true,
+        acceptsLanguageHint: false, supportsLanguageDetection: true, license: .ccBy4,
         wordErrorRate: 1.94, realtime: "~33x")
 
     // Oruk AI's Parakeet TDT 0.6B v3 fine-tune, converted by handy-computer. Like v3 it detects the language.

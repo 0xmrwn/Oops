@@ -75,15 +75,13 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertFalse(try model("parakeet_v3").languages.supports("ja"))
     }
 
-    /// Hex names a licence only in the file comments of nine entries; these seven have none to port.
-    func testLicencesAreOnlyMissingWhereHexNamesNone() {
-        let unrecorded = SpeechModelCatalog.models.filter { !$0.license.isRecorded }.map(\.id)
-        XCTAssertEqual(unrecorded, [
-            "parakeet_unified_en", "parakeet_v2", "parakeet_v3", "whisper_large_v3_turbo", "qwen3_asr06_b",
-            "sense_voice_small", "cohere_transcribe"
-        ])
+    /// Hex names a licence for ten entries; the other seven carry the one their model card declares.
+    func testEveryEntryNamesItsLicence() throws {
+        XCTAssertEqual(SpeechModelCatalog.models.filter { !$0.license.isRecorded }.map(\.id), [])
         XCTAssertEqual(try model("orukeet").license.name, "CC-BY-SA-4.0")
         XCTAssertEqual(try model("nemotron_3_5_asr").license.name, "OpenMDW-1.1")
+        XCTAssertEqual(try model("parakeet_unified_en").license.name, "NVIDIA Open Model License")
+        XCTAssertEqual(try model("sense_voice_small").license.name, "FunASR Model License")
     }
 
     // MARK: Hex's tests
