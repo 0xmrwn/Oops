@@ -12,6 +12,10 @@ enum DictationDropState: Equatable, Sendable {
     /// The transcript is being rewritten by the cleanup model.
     case cleaningUp
     case failed(DictationFailure)
+    /// No text field had focus: the transcript is kept, and the drop's one action copies it.
+    case kept
+    /// The kept transcript is on the clipboard.
+    case copied
 
     var symbol: String {
         switch self {
@@ -21,6 +25,8 @@ enum DictationDropState: Equatable, Sendable {
         case .written: "checkmark"
         case .cleaningUp: "wand.and.sparkles"
         case .failed: "exclamationmark.triangle.fill"
+        case .kept: "text.cursor"
+        case .copied: "checkmark"
         }
     }
 
@@ -32,6 +38,8 @@ enum DictationDropState: Equatable, Sendable {
         case .written: "Written"
         case .cleaningUp: "Cleaning up"
         case .failed(let failure): failure.message
+        case .kept: "No text field"
+        case .copied: "Copied"
         }
     }
 }
@@ -48,7 +56,13 @@ enum DictationFailure: Equatable, Sendable {
     case notInBuild
     /// The engine failed to load the model or to transcribe.
     case transcription
-    /// The insert was refused.
+    /// A password or code field.
+    case secureField
+    /// An app dictation never writes in: a password manager.
+    case appDenied
+    /// An app turned off in Settings.
+    case turnedOff
+    /// The insert was refused for another reason.
     case cannotWrite
     /// The cleanup model failed, took too long or answered nothing: the text stays as heard.
     case cleanup
@@ -62,6 +76,9 @@ enum DictationFailure: Equatable, Sendable {
         case .noMicrophone: "No microphone"
         case .notInBuild: "Dictation isn’t in this build"
         case .transcription: "Couldn’t transcribe"
+        case .secureField: "Can’t write in a password field"
+        case .appDenied: "Can’t write in this app"
+        case .turnedOff: "Turned off in this app"
         case .cannotWrite: "Can’t write here"
         case .cleanup: "Couldn’t clean up"
         case .textChanged: "Text changed, nothing replaced"
@@ -84,7 +101,7 @@ struct DropAction {
     /// dictation is at work and its drop has yet to show.
     func claim(busy: @escaping () -> Bool) -> Bool
     /// Shows `state`, with `action` to press beside it or none; a state that isn't work under way (a failure, the
-    /// word that the microphone is ready, a written transcript) leaves by itself after the time results stay.
+    /// word that the microphone is ready, a written or kept transcript and its copy) leaves by itself after a while.
     func show(_ state: DictationDropState, action: DropAction?)
     /// The drop leaves.
     func leave()
@@ -111,6 +128,8 @@ extension DictationDropPosition {
     var visualizer = DictationVisualizer.standard
     /// The recording's loudness, which the visualizer follows; nil where nothing records.
     let loudness: DictationLoudnessFeed?
+    /// The kept transcript's copy button was pressed; its icon turns into a check.
+    var copied = false
     init(loudness: DictationLoudnessFeed? = nil) { self.loudness = loudness }
 }
 
@@ -134,6 +153,17 @@ extension DictationDropPosition {
     }
 
     func show(_ state: DictationDropState, action: DropAction?) {
+        // As Fix's copy does: the button's icon becomes a check, then the drop says so and leaves.
+        if state == .copied, model.state == .kept, panel.isShown {
+            model.copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard let self, model.copied, model.state == .kept else { return }
+                model.state = .copied; model.action = nil
+                panel.present(); settle()
+            }
+            return
+        }
+        model.copied = false
         model.state = state
         model.action = action
         if locating != nil { return }
@@ -156,10 +186,13 @@ extension DictationDropPosition {
         panel.hide()
     }
 
-    /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves.
+    /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves; a
+    /// kept transcript stays as long as Fix's failures, for its button, and the word that it was copied briefly.
     private func settle() {
         switch model.state {
         case .failed, .ready, .written: panel.hide(after: ResultTiming.seconds)
+        case .kept: panel.hide(after: 8)
+        case .copied: panel.hide(after: 0.9)
         case .recording, .transcribing, .cleaningUp: break
         }
     }

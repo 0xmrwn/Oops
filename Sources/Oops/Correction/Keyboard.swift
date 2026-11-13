@@ -70,20 +70,22 @@ struct Shortcut: Codable, Equatable {
 }
 
 /// The shortcuts. Fix text defaults to ⌃⌘W wherever the layout puts W; pressed again it restores (D10).
-/// Dictate has no default: without a shortcut it is off. A custom one is stored by key code under
-/// `Shortcut.<action>`.
+/// Dictate and Paste last dictation have no default: without a shortcut they are off. A custom one is stored
+/// by key code under `Shortcut.<action>`.
 @MainActor @Observable final class ShortcutSettings {
     enum Action: String, CaseIterable {
         case correct
         case dictate
         /// One dictation cleaned up whatever Clean up says; no default, so no hotkey until one is chosen.
         case dictateAndCleanUp
+        case pasteLast
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
         var symbol: String {
             switch self {
             case .correct: "checkmark.bubble"
             case .dictate: SettingsTab.dictate.symbol
             case .dictateAndCleanUp: "wand.and.sparkles"
+            case .pasteLast: "doc.on.clipboard"
             }
         }
         /// The action's name in Settings.
@@ -92,15 +94,18 @@ struct Shortcut: Codable, Equatable {
             case .correct: "Fix text"
             case .dictate: "Dictate"
             case .dictateAndCleanUp: "Dictate and clean up"
+            case .pasteLast: "Paste last dictation"
             }
         }
         /// The Settings tab the action belongs to.
         var tab: SettingsTab {
             switch self {
             case .correct: .fix
-            case .dictate, .dictateAndCleanUp: .dictate
+            case .dictate, .dictateAndCleanUp, .pasteLast: .dictate
             }
         }
+        /// Whether the shortcut is its feature's switch, which General's Turn on records.
+        var isSwitch: Bool { self == .correct || self == .dictate }
     }
 
     /// What `register()` does with an action: binds its chord, leaves it off, or reports that its

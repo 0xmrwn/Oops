@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// A drop's one action: centred in the drop's trailing cap as Fix's eyes are in the leading one, on a glass disc
-/// concentric with the cap (7 pt of rim all round), so it reads as something to press rather than a status glyph.
-/// The disc is the button's own surface, not a plate under text. Fix's drop and the dictation drop share it.
+/// A drop's one action, Fix's and dictation's alike. It mirrors the eyes: centred in the right cap as the
+/// eyes are in the left one, on a glass disc concentric with the cap (7 pt of rim all round), so it reads as
+/// something to press rather than a status glyph. The disc is the button's own surface, not a plate under text.
 struct DropActionButton: View {
     let symbol: String
     let label: String

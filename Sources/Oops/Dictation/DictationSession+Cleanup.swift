@@ -84,7 +84,7 @@ extension DictationSession {
             let ending: Ending
             if let cleaned = await clean(text) {
                 switch sameText(cleaned, text) ? .replaced : await cleanup.replace(text, cleaned) {
-                case .replaced: ending = .done
+                case .replaced: ending = .done; lastTranscript = cleaned
                 case .changed: ending = .failed(.textChanged)
                 case .failed: ending = .failed(.cannotWrite)
                 }

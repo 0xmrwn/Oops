@@ -2,8 +2,13 @@ import Foundation
 
 /// Which apps Oops corrects in (D4): any app whose focused field passes the text, selection and
 /// secure-field checks, except terminals, password managers and the apps turned off in Settings.
-/// Application scope is separate from those field checks.
+/// Dictation writes in terminals too, by paste only (`Feature.dictate`). Application scope is separate
+/// from those field checks.
 public enum EditorApplicationPolicy {
+    /// Which feature is writing: Fix reads a draft back and rewrites it, which a terminal never allows;
+    /// dictation only pastes new text, which a terminal takes at its prompt.
+    public enum Feature: Sendable { case fix, dictate }
+
     public enum Verdict: Equatable, Sendable {
         /// `bundleID` is the app as Settings names it; `nested` when the field lives in a helper
         /// process inside the frontmost app's bundle (Teams' WebView), which then stands for it.
@@ -13,21 +18,30 @@ public enum EditorApplicationPolicy {
         case unknown
     }
 
-    /// Terminals (a shell reads what Oops would paste) and password managers.
-    public static let denied: Set<String> = [
+    /// Terminals: a shell reads what Fix would paste back.
+    public static let terminals: Set<String> = [
         "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "dev.warp.Warp", "net.kovidgoyal.kitty",
         "com.mitchellh.ghostty", "org.alacritty", "io.alacritty", "com.github.wez.wezterm", "co.zeit.hyper",
-        "com.raphaelamorim.rio", "org.tabby", "com.termius-dmg.mac",
+        "com.raphaelamorim.rio", "org.tabby", "com.termius-dmg.mac"
+    ]
+    public static let passwordManagers: Set<String> = [
         "com.apple.Passwords", "com.apple.keychainaccess", "com.1password.1password", "com.agilebits.onepassword7",
         "com.bitwarden.desktop", "com.lastpass.LastPass", "com.dashlane.dashlanephonefinal", "org.keepassxc.keepassxc",
         "in.sinew.Enpass-Desktop", "com.nordsec.nordpass", "me.proton.pass.electron", "com.sentry.Strongbox"
     ]
+    /// Where Fix never works: terminals and password managers.
+    public static let denied = terminals.union(passwordManagers)
+
+    /// The apps `feature` never writes in: dictation leaves out only the password managers.
+    public static func denied(for feature: Feature) -> Set<String> {
+        feature == .fix ? denied : passwordManagers
+    }
 
     public static func verdict(bundleID: String?, bundleURL: URL?, foregroundBundleID: String?, foregroundBundleURL: URL?,
-                               turnedOff: Set<String>) -> Verdict {
+                               turnedOff: Set<String>, for feature: Feature = .fix) -> Verdict {
         let nested = isNested(bundleURL, in: foregroundBundleURL)
         guard let owner = nested ? foregroundBundleID : bundleID else { return .unknown }
-        if denied.contains(owner) { return .denied }
+        if denied(for: feature).contains(owner) { return .denied }
         if turnedOff.contains(owner) { return .turnedOff }
         return .accepted(bundleID: owner, nested: nested && bundleID != foregroundBundleID)
     }

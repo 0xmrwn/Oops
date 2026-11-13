@@ -236,7 +236,6 @@ struct EyesDropView: View {
         default: EmptyView()
         }
     }
-
     private func button(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         DropActionButton(symbol: symbol, label: label, scale: scale, action: action)
     }

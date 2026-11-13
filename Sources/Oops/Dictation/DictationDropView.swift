@@ -55,7 +55,10 @@ struct DictationDropView: View {
                 }
                 if let action = model.action {
                     Color.clear.frame(width: Self.gap)
-                    DropActionButton(symbol: action.symbol, label: action.label) { action.perform() }
+                    // Once pressed, Copy's icon turns into a check, and pressing again does nothing.
+                    DropActionButton(symbol: model.copied ? "checkmark" : action.symbol, label: action.label) {
+                        if !model.copied { action.perform() }
+                    }
                         .foregroundStyle(ink).help(action.label)
                 }
             }
@@ -76,7 +79,7 @@ struct DictationDropView: View {
         .allowsHitTesting(model.action != nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.state.text)
-        .accessibilityActions { if let action = model.action { Button(action.label) { action.perform() } } }
+        .accessibilityActions { if let action = model.action, !model.copied { Button(action.label) { action.perform() } } }
         .accessibilityHidden(!capsule.presented)
     }
 }

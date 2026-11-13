@@ -13,13 +13,15 @@ extension EditorAccess {
         let name: String
     }
 
-    /// The app that owns `pid`'s focused element, under the application policy; nil when it isn't running.
-    nonisolated func scope(of pid: pid_t) -> Scope? {
+    /// The app that owns `pid`'s focused element, under the application policy for `feature`; nil when it
+    /// isn't running.
+    nonisolated func scope(of pid: pid_t, for feature: EditorApplicationPolicy.Feature = .fix) -> Scope? {
         let foreground = NSWorkspace.shared.frontmostApplication
         guard let app = NSRunningApplication(processIdentifier: pid) else { return nil }
         let verdict = EditorApplicationPolicy.verdict(bundleID: app.bundleIdentifier, bundleURL: app.bundleURL,
                                                       foregroundBundleID: foreground?.bundleIdentifier,
-                                                      foregroundBundleURL: foreground?.bundleURL, turnedOff: AppScope.current)
+                                                      foregroundBundleURL: foreground?.bundleURL, turnedOff: AppScope.current,
+                                                      for: feature)
         let name = (EditorApplicationPolicy.isNested(app.bundleURL, in: foreground?.bundleURL) ? foreground : app)?.localizedName ?? "this app"
         Self.captureLog.info("editor_scope bundle=\(app.bundleIdentifier ?? "unknown", privacy: .public) verdict=\(String(describing: verdict), privacy: .public)")
         return Scope(app: app, foreground: foreground, verdict: verdict, name: name)

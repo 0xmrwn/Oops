@@ -27,7 +27,9 @@ extension AppDelegate {
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
-                                status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup)
+                                status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup,
+                                escape: { [weak self] in self?.shortcuts.armCancel($0) },
+                                shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers })
     }
 
     /// Swaps text a dictation wrote for its cleanup, as Fix swaps a correction in: the modifiers up, the clipboard

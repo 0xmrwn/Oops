@@ -22,7 +22,7 @@ private extension DictationDropState {
         switch self {
         case .recording: .recording
         case .transcribing: .processing
-        case .ready, .written, .cleaningUp, .failed: .failed
+        case .ready, .written, .cleaningUp, .failed, .kept, .copied: .failed
         }
     }
 }
