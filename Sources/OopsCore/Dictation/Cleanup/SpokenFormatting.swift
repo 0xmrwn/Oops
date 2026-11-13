@@ -7,7 +7,9 @@ import Foundation
 /// "unquote" around words) become line breaks and quotation marks, in English, Spanish ("nuevo párrafo", "abre
 /// comillas") and French ("à la ligne", "nouveau paragraphe", "ouvrez les guillemets"). Matching ignores case and
 /// accents and needs word boundaries, so "newline" or "new liner" stay as they are. The commas, periods and spaces
-/// a model puts around a command go with it.
+/// a model puts around a command go with it, except that a line break keeps the sentence it ends whole: when the
+/// model wrote the sentence's mark (. ! ? …) after the command, the mark moves before the break, unless the line
+/// already ends with one.
 public enum SpokenFormatting {
     private enum Command {
         case lineBreak(String)
@@ -40,6 +42,8 @@ public enum SpokenFormatting {
         ("fermer les guillemets", .closeQuote),
         ("ferme les guillemets", .closeQuote)
     ]
+
+    private static let sentenceEnds: Set<Unicode.Scalar> = [".", "!", "?", "…"]
 
     private static let commands = phrases.map { phrase, command in
         (words: phrase.split(separator: " ").map { scalars(String($0)) }, command: command)
@@ -111,8 +115,15 @@ public enum SpokenFormatting {
         switch command {
         case let .lineBreak(breaks):
             out.trimEnd(also: [",", ";"])
+            // A model ends the sentence after the command ("first point, new line."): the mark belongs to the line
+            // the break closes, unless that line already ends one.
+            let next = skip(chars, end, also: [])
+            if next < chars.count, sentenceEnds.contains(chars[next]), let last = out.last,
+               !sentenceEnds.contains(last), last != "\n" {
+                out.append(chars[next])
+            }
             out.append(contentsOf: breaks.unicodeScalars)
-            return skip(chars, end, also: [",", ".", ";", ":"])
+            return skip(chars, end, also: [",", ".", ";", ":", "!", "?", "…"])
         case .openQuote:
             out.trimEnd()
             if let last = out.last, !"\n([\"".unicodeScalars.contains(last) { out.append(" ") }
