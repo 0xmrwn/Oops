@@ -122,6 +122,7 @@ import OopsCore
         if let directory = DebugFlags.helloSnapshots { HelloSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.gradientSnapshots { GradientSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.setupSnapshots { SetupSnapshots.render(to: directory); exit(0) }
+        if let directory = DebugFlags.settingsSnapshots { SettingsSnapshots.render(to: directory); exit(0) }
         if DebugFlags.brandReview, DebugFlags.capsuleReview {
             let review = BrandCapsuleReview()
             DispatchQueue.main.async { review.show() }
