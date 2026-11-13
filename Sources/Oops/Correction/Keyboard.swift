@@ -70,17 +70,19 @@ struct Shortcut: Codable, Equatable {
 }
 
 /// The shortcuts. Fix text defaults to ⌃⌘W wherever the layout puts W; pressed again it restores (D10).
-/// Dictate has no default: without a shortcut it is off. A custom one is stored by key code under
-/// `Shortcut.<action>`.
+/// Dictate and Paste last dictation have no default: without a shortcut they are off. A custom one is stored
+/// by key code under `Shortcut.<action>`.
 @MainActor @Observable final class ShortcutSettings {
     enum Action: String, CaseIterable {
         case correct
         case dictate
+        case pasteLast
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
         var symbol: String {
             switch self {
             case .correct: "checkmark.bubble"
             case .dictate: SettingsTab.dictate.symbol
+            case .pasteLast: "doc.on.clipboard"
             }
         }
         /// The action's name in Settings.
@@ -88,15 +90,18 @@ struct Shortcut: Codable, Equatable {
             switch self {
             case .correct: "Fix text"
             case .dictate: "Dictate"
+            case .pasteLast: "Paste last dictation"
             }
         }
         /// The Settings tab the action belongs to.
         var tab: SettingsTab {
             switch self {
             case .correct: .fix
-            case .dictate: .dictate
+            case .dictate, .pasteLast: .dictate
             }
         }
+        /// Whether the shortcut is its feature's switch, which General's Turn on records.
+        var isSwitch: Bool { self != .pasteLast }
     }
 
     /// What `register()` does with an action: binds its chord, leaves it off, or reports that its
@@ -139,10 +144,10 @@ struct Shortcut: Codable, Equatable {
     func registration(_ action: Action) -> Registration {
         Self.registration(action, shortcut: shortcut(action), dictation: DebugFlags.dictation)
     }
-    /// Dictate only while dictation is switched on. An action with no shortcut is off, which is no failure;
-    /// only Fix, whose default is missing from this layout, has something to report.
+    /// Dictate and Paste last dictation only while dictation is switched on. An action with no shortcut is
+    /// off, which is no failure; only Fix, whose default is missing from this layout, has something to report.
     static func registration(_ action: Action, shortcut: Shortcut?, dictation: Bool) -> Registration {
-        if action == .dictate, !dictation { return .off }
+        if action != .correct, !dictation { return .off }
         if let shortcut { return .chord(shortcut) }
         return action == .correct ? .noDefault : .off
     }

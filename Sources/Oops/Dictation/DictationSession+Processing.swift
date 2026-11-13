@@ -1,9 +1,10 @@
-import Foundation
+import AppKit
 import OopsCore
 
 extension DictationSession {
     /// Ends the recording at `released`, transcribes it and writes the text at the caret. No speech, an
-    /// empty transcript and an insert the person cancelled write nothing and say nothing.
+    /// empty transcript and an insert the person cancelled write nothing and say nothing. Any other
+    /// transcript is kept as the last one, written or not.
     func process(released: CaptureInstant?) async -> Ending {
         guard let recorder, let engine else { return .done }
         // The recording is ended first, whatever else is missing: nothing may leave the microphone recording.
@@ -31,10 +32,37 @@ extension DictationSession {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         Self.log.notice("transcribed length=\(trimmed.utf16.count, privacy: .public) ms=\(DebugLog.milliseconds(since: began), privacy: .public)")
         guard !trimmed.isEmpty else { return .done }
-        switch await insert(trimmed) {
-        case .inserted, .unconfirmed, .refused(.cancelled), .refused(.empty): return .done
-        case .refused: return .failed(.cannotWrite)
+        let outcome = await insert(trimmed)
+        // A cancelled insert leaves the last transcript alone, as Hex's cancelled jobs do.
+        if outcome != .refused(.cancelled) { lastTranscript = trimmed }
+        return Self.ending(outcome)
+    }
+
+    /// What an insert's outcome shows: nothing once written, Copy where no text field had focus, and why
+    /// otherwise.
+    static func ending(_ outcome: InsertOutcome) -> Ending {
+        switch outcome {
+        case .inserted, .unconfirmed, .refused(.cancelled), .refused(.empty): .done
+        case .refused(.noEditor): .kept
+        case .refused(.secureField): .failed(.secureField)
+        case .refused(.appDenied): .failed(.appDenied)
+        case .refused(.appTurnedOff): .failed(.turnedOff)
+        case .refused: .failed(.cannotWrite)
         }
+    }
+
+    /// The kept drop's Copy: the last transcript goes on the clipboard and stays there, as Hex's copy-only
+    /// dictation leaves it, and the drop says so.
+    func copyLast() {
+        guard let lastTranscript else { return }
+        copy(lastTranscript)
+        drop.show(.copied)
+    }
+
+    /// The clipboard (the general one unless a test names another), as an ordinary entry the person copied.
+    static func copyToClipboard(_ text: String, on board: NSPasteboard = .general) {
+        board.clearContents()
+        board.setString(text, forType: .string)
     }
 
     /// The loudest sample, in dBFS: enough to tell a dead input from a quiet room in the log.

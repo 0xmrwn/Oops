@@ -1,3 +1,4 @@
+import AppKit
 @testable import Oops
 import OopsCore
 import Synchronization
@@ -126,13 +127,20 @@ import XCTest
         XCTAssertFalse(run.session.holdsDrop)
     }
 
-    func testARefusedInsertSaysItCantWriteHere() async throws {
-        let run = try DictationSessionRun(self, mode: .holdOnly)
-        run.inserts.outcome = .refused(.secureField)
-        run.press(0)
-        run.release(1_200)
-        try await run.until { run.drop.states.count == 3 }
-        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .failed(.cannotWrite)])
+    func testARefusedInsertSaysWhy() async throws {
+        let refusals: [(InsertRefusal, DictationFailure)] = [
+            (.secureField, .secureField), (.appDenied, .appDenied), (.appTurnedOff, .turnedOff), (.readOnly, .cannotWrite),
+            (.focusMoved, .cannotWrite),
+        ]
+        for (refusal, failure) in refusals {
+            let run = try DictationSessionRun(self, mode: .holdOnly)
+            run.inserts.outcome = .refused(refusal)
+            run.press(0)
+            run.release(1_200)
+            try await run.until { run.drop.states.count == 3 }
+            XCTAssertEqual(run.drop.states, [.recording, .transcribing, .failed(failure)], "\(refusal)")
+            XCTAssertEqual(run.session.lastTranscript, "Hello", "kept for Paste last dictation")
+        }
     }
 
     func testACancelledInsertSaysNothing() async throws {
@@ -187,6 +195,12 @@ import XCTest
     let engine: FakeSpeechEngine?
     var mode: DictationMode
     var status: [String] = []
+    /// The Dictate shortcut's modifiers, and each set of Escape chords the session registered.
+    var shortcutModifiers: UInt32?
+    private(set) var escapes: [[UInt32]] = []
+    /// A clipboard of the run's own: the real one is never touched.
+    let board = NSPasteboard.withUniqueName()
+    let recorder: DictationRecorder
     /// How often the session asked for the microphone, and the prompt it is waiting on.
     private(set) var asks = 0
     private var prompt: CheckedContinuation<Bool, Never>?
@@ -198,15 +212,18 @@ import XCTest
         self.engine = engine
         let url = try test.wavFile(float: audio ?? Self.speech(), rate: 16_000)
         source = ScriptedSource(DictationAudioFile(url: url, pace: .immediate(from: Self.origin)))
-        let recorder = DictationRecorder(source: source, keepAliveSleep: { _ in try await Task.sleep(for: .seconds(3_600)) })
+        recorder = DictationRecorder(source: source, keepAliveSleep: { _ in try await Task.sleep(for: .seconds(3_600)) })
         let path = try modelPath ?? Self.modelFile(test)
-        let inserts = inserts
+        let inserts = inserts, board = board
+        test.addTeardownBlock { board.releaseGlobally() }
         session = DictationSession(recorder: recorder, engine: engine, modelPath: { path }, language: { language },
                                    mode: { [weak self] in self?.mode ?? .holdOrTap },
                                    insert: { await inserts.insert($0) }, drop: drop, status: { [weak self] in self?.status.append($0) },
                                    askMicrophone: { [weak self] in
                                        await withCheckedContinuation { self?.asks += 1; self?.prompt = $0 }
-                                   })
+                                   },
+                                   escape: { [weak self] in self?.escapes.append($0) }, shortcutModifiers: { [weak self] in self?.shortcutModifiers },
+                                   copy: { DictationSession.copyToClipboard($0, on: board) })
     }
 
     /// Answers the microphone prompt the session is waiting on.
@@ -256,7 +273,7 @@ import XCTest
 /// The drop's states in order, `.left` for each time it left.
 @MainActor final class FakeDictationDrop: DictationDrop {
     enum Shown: Equatable {
-        case recording, transcribing, ready, failed(DictationFailure), left
+        case recording, transcribing, ready, failed(DictationFailure), kept, copied, left
     }
 
     var available = true
@@ -271,6 +288,8 @@ import XCTest
         case .transcribing: states.append(.transcribing)
         case .ready: states.append(.ready)
         case .failed(let failure): states.append(.failed(failure))
+        case .kept: states.append(.kept)
+        case .copied: states.append(.copied)
         }
         journal?("\(state)")
     }
@@ -329,14 +348,21 @@ actor FakeSpeechEngine: SpeechEngine {
     func unload() async {}
 }
 
-/// A file standing in for the microphone that can be slow to open or refuse to, and counts its opens.
+/// A file standing in for the microphone that can be slow to open or refuse to, counts its opens and closes,
+/// and can lose its input as an unplugged microphone does.
 final class ScriptedSource: DictationAudioSource {
     private let inner: any DictationAudioSource
-    private let state = Mutex((opens: 0, delay: 0.0, refusal: DictationAudioError?.none))
+    private let state = Mutex((opens: 0, closes: 0, delay: 0.0, refusal: DictationAudioError?.none, lost: (@Sendable () -> Void)?.none))
 
     init(_ inner: any DictationAudioSource) { self.inner = inner }
 
     var opens: Int { state.withLock { $0.opens } }
+    var closes: Int { state.withLock { $0.closes } }
+
+    func watchLoss(_ lost: @escaping @Sendable () -> Void) { state.withLock { $0.lost = lost } }
+
+    /// The input goes away, as when the microphone in use is unplugged.
+    func lose() { state.withLock { $0.lost }?() }
 
     var openDelay: Double {
         get { state.withLock { $0.delay } }
@@ -357,5 +383,8 @@ final class ScriptedSource: DictationAudioSource {
         return try inner.open(into: ring)
     }
 
-    func close() { inner.close() }
+    func close() {
+        state.withLock { $0.closes += 1 }
+        inner.close()
+    }
 }

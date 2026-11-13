@@ -12,7 +12,7 @@ import OopsCore
     private(set) lazy var session = CorrectionSession(preferences: preferences, testEditor: testEditor, drop: drop)
     private(set) lazy var settings = SettingsWindow(preferences: preferences, testEditor: testEditor, session: session)
     private(set) var menuBar: MenuBar?
-    private let shortcuts = HyperShortcuts()
+    let shortcuts = HyperShortcuts()
     /// Only while dictation is switched on (`DebugFlags.dictation`).
     private(set) var dictation: DictationSession?
 
@@ -28,7 +28,7 @@ import OopsCore
         session.editor.switches.restoreAll()
         quitOnSIGTERM()
         configureMainMenu()
-        menuBar = MenuBar(preferences: preferences, session: session,
+        menuBar = MenuBar(preferences: preferences, session: session, dictation: { [weak self] in self?.dictation },
                           openSettings: { [weak self] in self?.settings.show() }, quit: { [weak self] in self?.quit() })
         session.openSettings = { [weak self] in self?.settings.show() }
         session.retryInTry = { [weak self] in self?.correctInTry() }
@@ -40,14 +40,17 @@ import OopsCore
         testEditor.onRestore = { [weak self] in self?.restoreInTry() }
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
         dictation = makeDictation()
-        // Fix runs on its press; its release ends nothing. Dictate hears both, at the instants they happened.
+        // Fix and Paste last dictation run on their press; their release ends nothing. Dictate hears both, at the
+        // instants they happened, and Escape while it records.
         shortcuts.invoke = { [weak self] action, phase, instant in
             switch (action, phase) {
             case (.correct, .pressed): self?.session.correct()
-            case (.correct, .released): break
+            case (.pasteLast, .pressed): self?.dictation?.pasteLast()
+            case (.correct, .released), (.pasteLast, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
             }
         }
+        shortcuts.cancel = { [weak self] in self?.dictation?.cancel() }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }
         do { try shortcuts.register() } catch { preferences.status = error.localizedDescription }
         warmUpDictation()

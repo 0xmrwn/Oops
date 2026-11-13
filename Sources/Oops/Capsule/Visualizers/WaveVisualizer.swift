@@ -31,7 +31,7 @@ extension DictationDropState {
     var isLive: Bool {
         switch self {
         case .recording, .transcribing: true
-        case .ready, .failed: false
+        case .ready, .failed, .kept, .copied: false
         }
     }
 }
@@ -62,7 +62,7 @@ struct WaveFrame {
         case .transcribing:
             if case .transcribing = mode {} else { mode = .transcribing(since: time) }
             return WaveFrame(history: history, live: 0, mode: mode.since(time))
-        case .ready, .failed:
+        case .ready, .failed, .kept, .copied:
             mode = .still
             return WaveFrame(history: history, live: 0, mode: .still)
         }
