@@ -53,6 +53,7 @@ struct DictationDropView: View {
                         .foregroundStyle(ink).modifier(Halo(color: halo))
                         .backdropInk(inked)
                 }
+                .accessibilityHidden(true) // The drop's own label reads the state.
                 if let action = model.action {
                     Color.clear.frame(width: Self.gap)
                     // Once pressed, Copy's icon turns into a check, and pressing again does nothing.
@@ -77,9 +78,10 @@ struct DictationDropView: View {
         .onChange(of: model.visualizer) { capsule.width = self.width }
         .onChange(of: model.action?.label) { capsule.width = self.width }
         .allowsHitTesting(model.action != nil)
-        .accessibilityElement(children: .ignore)
+        // Contained, not ignored: ignoring would swallow the action's button, leaving it reachable only as a
+        // custom action that assistive tools searching for a button never find.
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(model.state.text)
-        .accessibilityActions { if let action = model.action, !model.copied { Button(action.label) { action.perform() } } }
         .accessibilityHidden(!capsule.presented)
     }
 }
