@@ -43,9 +43,8 @@ struct DictationDropView: View {
                 Color.clear.glassEffect(.clear, in: .capsule)
             }
             HStack(spacing: Self.spacing) {
-                DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: model.loudness?.level ?? 0,
-                                        isDark: scheme == .dark, reduceMotion: reduceMotion)
-                    .backdropInk(inked, tones: .voice(model.visualizer, state: model.state, increasedContrast: increasedContrast))
+                DropVoice(model: model, isDark: scheme == .dark, reduceMotion: reduceMotion)
+                    .voiceInk(inked, kind: model.visualizer, state: model.state, increasedContrast: increasedContrast)
                 Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
                     .foregroundStyle(ink).modifier(Halo(color: halo))
                     .backdropInk(inked)
@@ -67,5 +66,17 @@ struct DictationDropView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.state.text)
         .accessibilityHidden(!capsule.presented)
+    }
+}
+
+/// The drop's voice. It reads the level here, so each frame's change redraws the voice and not the drop around it.
+private struct DropVoice: View {
+    let model: DictationDropModel
+    let isDark: Bool
+    let reduceMotion: Bool
+
+    var body: some View {
+        DictationVisualizerView(kind: model.visualizer, phase: model.state, loudness: model.loudness?.level ?? 0,
+                                isDark: isDark, reduceMotion: reduceMotion)
     }
 }
