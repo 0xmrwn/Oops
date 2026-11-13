@@ -4,14 +4,15 @@ import Foundation
 enum Responses {
     static let url = URL(string: "https://api.openai.com/v1/responses")!
 
-    static func request(model: String, effort: String?, serviceTier: String?, text: String, token: String) throws -> URLRequest {
+    static func request(model: String, effort: String?, serviceTier: String?, instructions: String, text: String,
+                        token: String) throws -> URLRequest {
         var request = URLRequest(url: url, timeoutInterval: 35)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         var body: [String: Any] = [
-            "model": model, "instructions": CorrectionPolicy.instructions,
+            "model": model, "instructions": instructions,
             "input": [["role": "user", "content": text]],
             "text": ["format": ["type": "json_schema", "name": "correction", "strict": true, "schema": CorrectionPolicy.schema]],
             "service_tier": serviceTier ?? "default", "store": false, "stream": true

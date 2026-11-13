@@ -26,7 +26,7 @@ public struct APIConfiguration: Sendable {
         return OpenAICompatibleBackend(configuration: self, session: session)
     }
 
-    public func request(for text: String) throws -> URLRequest {
+    public func request(for text: String, instructions: String) throws -> URLRequest {
         guard Self.isSafe(baseURL), !model.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw CorrectionError.message("Use an HTTPS base URL (or local HTTP) and a model name.")
         }
@@ -37,7 +37,7 @@ public struct APIConfiguration: Sendable {
         if !apiKey.isEmpty { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
         var body: [String: Any] = [
             "model": model, "stream": false,
-            "messages": [["role": "system", "content": CorrectionPolicy.instructions], ["role": "user", "content": text]],
+            "messages": [["role": "system", "content": instructions], ["role": "user", "content": text]],
             "response_format": ["type": "json_schema", "json_schema": ["name": "correction", "strict": true, "schema": CorrectionPolicy.schema]]
         ]
         if let reasoningEffort { body["reasoning_effort"] = reasoningEffort }
@@ -52,9 +52,9 @@ public struct OpenAICompatibleBackend: CorrectionBackend {
     public init(configuration: APIConfiguration, session: URLSession = .shared) {
         self.configuration = configuration; self.session = session
     }
-    public func complete(_ text: String) async throws -> String {
+    public func complete(_ text: String, instructions: String) async throws -> String {
         let data: Data, response: URLResponse
-        let request = try configuration.request(for: text), session = session
+        let request = try configuration.request(for: text, instructions: instructions), session = session
         // The request timeout only bounds silence between bytes; the deadline bounds the whole answer.
         do { (data, response) = try await withDeadline(.seconds(40), orThrow: URLError(.timedOut)) { try await session.data(for: request) } }
         catch let error as URLError where error.code == .cancelled { throw CancellationError() }

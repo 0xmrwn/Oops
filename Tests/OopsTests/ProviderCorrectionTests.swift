@@ -278,7 +278,7 @@ private actor Probe: CorrectionBackend {
     private var heldPreparation = false, failedAnswer = false
     func holdPreparation() { heldPreparation = true }
     func failAnswer() { failedAnswer = true }
-    func prepare() async {
+    func prepare(instructions: String) async {
         prepares += 1
         await preparing.release()
         if heldPreparation {
@@ -287,7 +287,7 @@ private actor Probe: CorrectionBackend {
         }
         preparationFinished = true
     }
-    func complete(_ text: String) async throws -> String {
+    func complete(_ text: String, instructions: String) async throws -> String {
         sources.append(text)
         await submitted.release()
         await withTaskCancellationHandler { await answer.wait() }

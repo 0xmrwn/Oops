@@ -74,11 +74,11 @@ final class ChatGPTCancellationTests: XCTestCase {
             if deadline {
                 return try await withDeadline(.seconds(1), orThrow: FixtureTimeout()) {
                     try await withTaskCancellationHandler {
-                        try await backend.complete("ths is a test.")
+                        try await backend.complete("ths is a test.", instructions: CorrectionPolicy.instructions)
                     } onCancel: { deadlineReached?.fulfill() }
                 }
             }
-            return try await backend.complete("ths is a test.")
+            return try await backend.complete("ths is a test.", instructions: CorrectionPolicy.instructions)
         }
         await fulfillment(of: [refreshStarted], timeout: 5)
         if let deadlineReached { await fulfillment(of: [deadlineReached], timeout: 5) }

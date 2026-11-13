@@ -10,7 +10,7 @@ import OopsCore
 struct StubBackend: CorrectionBackend {
     let control: URL
 
-    func complete(_ text: String) async throws -> String {
+    func complete(_ text: String, instructions: String) async throws -> String {
         let calls = control.appendingPathExtension("calls")
         let count = (try? String(contentsOf: calls, encoding: .utf8)).flatMap { Int($0) } ?? 0
         try? String(count + 1).write(to: calls, atomically: true, encoding: .utf8)

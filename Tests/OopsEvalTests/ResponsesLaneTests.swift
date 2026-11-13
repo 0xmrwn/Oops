@@ -26,7 +26,7 @@ final class ResponsesLaneTests: XCTestCase {
         XCTAssertEqual(answer.tokens?.cached, 4); XCTAssertEqual(answer.finish, "completed")
         XCTAssertNotNil(answer.ttft); XCTAssertNotNil(answer.ttfc)
         let sent = try XCTUnwrap(EvalResponsesStub.requests.first)
-        let expected = try ChatGPTBackend.request(model: "gpt-6.1-sol", effort: "low", serviceTier: nil, text: "teh cat", token: "synthetic-key")
+        let expected = try ChatGPTBackend.request(model: "gpt-6.1-sol", effort: "low", serviceTier: nil, instructions: CorrectionPolicy.instructions, text: "teh cat", token: "synthetic-key")
         XCTAssertEqual(sent.url, expected.url)
         XCTAssertEqual(sent.url?.absoluteString, "https://api.openai.com/v1/responses")
         XCTAssertEqual(sent.value(forHTTPHeaderField: "Authorization"), "Bearer synthetic-key")

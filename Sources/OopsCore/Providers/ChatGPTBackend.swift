@@ -12,13 +12,14 @@ public struct ChatGPTBackend: CorrectionBackend {
         self.auth = auth; self.model = model; self.effort = effort; self.serviceTier = serviceTier
     }
 
-    public func complete(_ text: String) async throws -> String {
+    public func complete(_ text: String, instructions: String) async throws -> String {
         do {
             try Task.checkCancellation()
             let (auth, model, effort, tier) = (auth, model, effort, serviceTier)
             return try await withDeadline(.seconds(40), orThrow: Self.slow) {
                 try await auth.withAccessToken { token in
-                    try await Responses.stream(request: Self.request(model: model, effort: effort, serviceTier: tier, text: text, token: token),
+                    try await Responses.stream(request: Self.request(model: model, effort: effort, serviceTier: tier, instructions: instructions,
+                                                                     text: text, token: token),
                                                session: auth.session)
                 }
             }
@@ -26,10 +27,11 @@ public struct ChatGPTBackend: CorrectionBackend {
     }
 
     /// Renews a token that is about to expire while the draft is still being read.
-    public func prepare() async { _ = try? await auth.validAccessToken() }
+    public func prepare(instructions: String) async { _ = try? await auth.validAccessToken() }
 
-    public static func request(model: String, effort: String?, serviceTier: String?, text: String, token: String) throws -> URLRequest {
-        try Responses.request(model: model, effort: effort, serviceTier: serviceTier, text: text, token: token)
+    public static func request(model: String, effort: String?, serviceTier: String?, instructions: String, text: String,
+                               token: String) throws -> URLRequest {
+        try Responses.request(model: model, effort: effort, serviceTier: serviceTier, instructions: instructions, text: text, token: token)
     }
 
     static let slow = CorrectionError.failure(.slow, "ChatGPT took too long to correct this text. Try again.")

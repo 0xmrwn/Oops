@@ -3,7 +3,7 @@ import OopsCore
 
 /// Returns the input unchanged: a baseline, and a way to test the harness without a model.
 struct EchoBackend: CorrectionBackend {
-    func complete(_ text: String) async throws -> String {
+    func complete(_ text: String, instructions: String) async throws -> String {
         String(decoding: try JSONSerialization.data(withJSONObject: ["text": text]), as: UTF8.self)
     }
 }
@@ -62,7 +62,7 @@ enum Runner {
         let started = ContinuousClock.now
         var result = EvalResult(id: item.id, label: item.label, verdict: .error, input: item.input, milliseconds: 0)
         do {
-            let raw = try await backend.complete(item.input)
+            let raw = try await backend.complete(item.input, instructions: CorrectionPolicy.instructions)
             result.raw = raw
             do {
                 let reconciled = try CorrectionPolicy.reconcile(raw, original: item.input)

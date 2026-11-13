@@ -82,7 +82,7 @@ final class ChatGPTBackendTests: XCTestCase {
         XCTAssertEqual(format["name"] as? String, "correction")
         XCTAssertEqual((format["schema"] as? NSDictionary), CorrectionPolicy.schema as NSDictionary)
 
-        let wire = try JSONSerialization.jsonObject(with: ChatGPTBackend.request(model: "m", effort: "medium", serviceTier: nil, text: "a", token: "t").httpBody!) as! [String: Any]
+        let wire = try JSONSerialization.jsonObject(with: ChatGPTBackend.request(model: "m", effort: "medium", serviceTier: nil, instructions: CorrectionPolicy.instructions, text: "a", token: "t").httpBody!) as! [String: Any]
         XCTAssertEqual(wire["service_tier"] as? String, "default")
     }
 

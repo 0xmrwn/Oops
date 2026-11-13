@@ -46,7 +46,7 @@ final class OpenAIResponsesTests: XCTestCase {
         XCTAssertEqual(sent.request.httpMethod, "POST")
         XCTAssertEqual(sent.request.value(forHTTPHeaderField: "Authorization"), "Bearer project-test-key")
         XCTAssertNil(sent.request.value(forHTTPHeaderField: "OpenAI-Organization"))
-        let shared = try ChatGPTBackend.request(model: "discovered-model", effort: "low", serviceTier: nil,
+        let shared = try ChatGPTBackend.request(model: "discovered-model", effort: "low", serviceTier: nil, instructions: CorrectionPolicy.instructions,
                                                text: "ths is a test.", token: "project-test-key")
         XCTAssertEqual(try JSONSerialization.jsonObject(with: sent.body) as? NSDictionary,
                        try JSONSerialization.jsonObject(with: XCTUnwrap(shared.httpBody)) as? NSDictionary)
@@ -93,12 +93,12 @@ final class OpenAIResponsesTests: XCTestCase {
     }
 
     func testCapabilityRuleDoesNotChangeSubscriptionOrGenericRequests() throws {
-        let chatGPT = try ChatGPTBackend.request(model: "gpt-5.1", effort: "none", serviceTier: "priority", text: "hi", token: "t")
+        let chatGPT = try ChatGPTBackend.request(model: "gpt-5.1", effort: "none", serviceTier: "priority", instructions: CorrectionPolicy.instructions, text: "hi", token: "t")
         let subscriptionBody = try JSONSerialization.jsonObject(with: XCTUnwrap(chatGPT.httpBody)) as! [String: Any]
         XCTAssertEqual(subscriptionBody["reasoning"] as? [String: String], ["effort": "none"])
         XCTAssertEqual(subscriptionBody["service_tier"] as? String, "priority")
         let generic = APIConfiguration(baseURL: URL(string: "https://example.com/v1")!, model: "gpt-4.1", reasoningEffort: "none")
-        let genericBody = try JSONSerialization.jsonObject(with: XCTUnwrap(generic.request(for: "hi").httpBody)) as! [String: Any]
+        let genericBody = try JSONSerialization.jsonObject(with: XCTUnwrap(generic.request(for: "hi", instructions: CorrectionPolicy.instructions).httpBody)) as! [String: Any]
         XCTAssertEqual(genericBody["reasoning_effort"] as? String, "none")
         XCTAssertNil(genericBody["reasoning"])
     }
@@ -160,7 +160,7 @@ final class OpenAIResponsesTests: XCTestCase {
         let backend = configuration().backend(session: ChatGPTStub.session)
         let cancelled = Task {
             withUnsafeCurrentTask { $0?.cancel() }
-            return try await backend.complete("hello")
+            return try await backend.complete("hello", instructions: CorrectionPolicy.instructions)
         }
         do { _ = try await cancelled.value; XCTFail("must cancel before sending") }
         catch { XCTAssertTrue(error is CancellationError) }

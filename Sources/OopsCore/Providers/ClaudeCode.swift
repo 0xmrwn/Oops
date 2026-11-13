@@ -38,10 +38,10 @@ public enum ClaudeCode {
     static let common = ["--safe-mode", "-p", "--tools", "", "--strict-mcp-config", "--permission-mode", "dontAsk",
                          "--no-session-persistence", "--output-format", "stream-json", "--verbose"]
 
-    public static func correctionArguments(model: String, effort: String?) -> [String] {
+    public static func correctionArguments(model: String, effort: String?, instructions: String) -> [String] {
         var arguments = common + ["--model", model]
         if let effort { arguments += ["--effort", effort] }
-        return arguments + ["--system-prompt", CorrectionPolicy.instructions, "--json-schema", schema]
+        return arguments + ["--system-prompt", instructions, "--json-schema", schema]
     }
 
     static let catalogArguments = common + ["--input-format", "stream-json"]
@@ -185,26 +185,29 @@ public actor ClaudeCodeBackend: CorrectionBackend {
     public let runtime: ClaudeCodeRuntime
     public let model: String
     public let effort: String?
-    private var spare: ClaudeProcess?
+    /// A process started ahead of the next correction, and the instructions it was started with.
+    private var spare: (process: ClaudeProcess, instructions: String)?
 
     public init(runtime: ClaudeCodeRuntime, model: String, effort: String?) {
         self.runtime = runtime; self.model = model; self.effort = effort
     }
 
-    deinit { spare?.terminate() }
+    deinit { spare?.process.terminate() }
 
-    public func prepare() {
-        if let spare, spare.isRunning { return }
-        guard let process = try? ClaudeProcess(runtime, arguments: ClaudeCode.correctionArguments(model: model, effort: effort)) else { return }
-        spare = process
+    public func prepare(instructions: String) {
+        if let spare, spare.process.isRunning, spare.instructions == instructions { return }
+        spare?.process.terminate()
+        let arguments = ClaudeCode.correctionArguments(model: model, effort: effort, instructions: instructions)
+        guard let process = try? ClaudeProcess(runtime, arguments: arguments) else { return }
+        spare = (process, instructions)
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(2500))
             await self?.drop(process)
         }
     }
 
-    public func complete(_ text: String) async throws -> String {
-        let process = try take()
+    public func complete(_ text: String, instructions: String) async throws -> String {
+        let process = try take(instructions)
         // The draft is written off this task, inside the deadline: a long draft can fill the pipe
         // before Claude starts reading.
         process.finishInput(text)
@@ -222,14 +225,17 @@ public actor ClaudeCodeBackend: CorrectionBackend {
         return try ClaudeCode.decodeResult(ClaudeProcess.object(line))
     }
 
-    private func take() throws -> ClaudeProcess {
-        if let spare, spare.isRunning { self.spare = nil; return spare }
+    /// The spare process when it was started with `instructions`; another one is ended rather than kept.
+    private func take(_ instructions: String) throws -> ClaudeProcess {
+        let ready = spare
         spare = nil
-        return try ClaudeProcess(runtime, arguments: ClaudeCode.correctionArguments(model: model, effort: effort))
+        if let ready, ready.process.isRunning, ready.instructions == instructions { return ready.process }
+        ready?.process.terminate()
+        return try ClaudeProcess(runtime, arguments: ClaudeCode.correctionArguments(model: model, effort: effort, instructions: instructions))
     }
 
     private func drop(_ process: ClaudeProcess) {
-        guard spare === process else { return }
+        guard spare?.process === process else { return }
         spare = nil; process.terminate()
     }
 }
