@@ -7,6 +7,11 @@ import QuartzCore
 /// while a recording does, and reads 0 otherwise.
 @MainActor @Observable final class DictationLoudnessFeed {
     private(set) var level: Float = 0
+    /// The last recording's loudest and mean level, for the numbers a dictation logs.
+    @ObservationIgnored private(set) var loudest: Float = 0
+    @ObservationIgnored private var total: Float = 0
+    @ObservationIgnored private var frames = 0
+    var mean: Float { frames > 0 ? total / Float(frames) : 0 }
     @ObservationIgnored private var link: CADisplayLink?
     @ObservationIgnored private var lastTimestamp: CFTimeInterval?
     @ObservationIgnored private var sample: (@Sendable () -> Float)?
@@ -15,6 +20,7 @@ import QuartzCore
     func start(source: @escaping @Sendable () -> Float) {
         stop()
         sample = source
+        loudest = 0; total = 0; frames = 0
         let ticker = Ticker { [weak self] link in self?.tick(link.timestamp) }
         let link = (NSScreen.main ?? NSScreen.screens.first)?.displayLink(target: ticker, selector: #selector(Ticker.fire(_:)))
         link?.add(to: .main, forMode: .common)
@@ -34,6 +40,7 @@ import QuartzCore
         lastTimestamp = timestamp
         let next = DictationLoudness.smoothed(level, toward: DictationLoudness.normalized(rms: sample()), dt: dt)
         if next != level { level = next }
+        loudest = max(loudest, next); total += next; frames += 1
     }
 
     /// The display link retains its target, so the feed is reached through a closure it holds weakly.
