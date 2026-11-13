@@ -10,6 +10,7 @@ struct DictationVisualizerView: View {
     let loudness: Float
     let isDark: Bool
     let reduceMotion: Bool
+    @Environment(\.backdropInked) private var inked
 
     /// The space each kind draws in, inside the drop's 46 pt height. The ripple takes a cap of the drop, as
     /// Fix's eyes do; the waveforms take a strip as tall as a line of the drop's text with its halo.
@@ -30,7 +31,7 @@ struct DictationVisualizerView: View {
         Group {
             if case .failed = phase {
                 Image(systemName: phase.symbol).font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark).halo))
+                    .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark, inked: inked).halo))
             } else {
                 switch kind {
                 case .hex: hexVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
@@ -45,11 +46,12 @@ struct DictationVisualizerView: View {
 }
 
 /// The drop's ink and halo, for marks drawn rather than typed: the same tones as its text, so a voice reads
-/// over any backdrop with no backing shape. Increase Contrast's solid glass needs no halo.
+/// over any backdrop with no backing shape. Increase Contrast's solid glass needs no halo, and neither does
+/// ink that follows the backdrop (`BackdropInk`): it contrasts by itself, and a halo would be inked over too.
 struct VoiceInk {
     let ink: Color, halo: Color
-    init(isDark: Bool, increasedContrast: Bool = false) {
+    init(isDark: Bool, increasedContrast: Bool = false, inked: Bool = false) {
         ink = isDark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09)
-        halo = increasedContrast ? .clear : (isDark ? Color.black : .white).opacity(0.85)
+        halo = increasedContrast || inked ? .clear : (isDark ? Color.black : .white).opacity(0.85)
     }
 }

@@ -115,13 +115,15 @@ struct LabDrop<Voice: View>: View {
     }
 
     var body: some View {
-        let ink = VoiceInk(isDark: dark)
+        let inked = BackdropInk.isAvailable
+        let ink = VoiceInk(isDark: dark, inked: inked)
         let lead = Self.lead(kind, state: state)
         HStack(spacing: 7) {
-            voice()
+            voice().backdropInk(inked, tones: .voice(kind, state: state))
             Text(state.text).font(.system(size: 13, weight: .semibold).monospacedDigit()).lineLimit(1).fixedSize()
-                .foregroundStyle(ink.ink).modifier(Halo(color: ink.halo))
+                .foregroundStyle(ink.ink).modifier(Halo(color: ink.halo)).backdropInk(inked)
         }
+        .environment(\.backdropInked, inked)
         .padding(.leading, lead).padding(.trailing, 16)
         .frame(height: Self.height)
         .background { GlassEffectContainer { Color.clear.glassEffect(.clear, in: .capsule) } }
