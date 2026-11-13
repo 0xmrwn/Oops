@@ -15,6 +15,11 @@ import XCTest
 
     func testAnActionWithoutAShortcutIsOffNotAFailure() {
         XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: nil, dictation: true), .off)
+        // "Dictate and clean up" is unset by default, and unset registers no second hotkey.
+        XCTAssertNil(ShortcutSettings.defaultShortcut(.dictateAndCleanUp, w: 13))
+        XCTAssertEqual(ShortcutSettings.registration(.dictateAndCleanUp, shortcut: nil, dictation: true), .off)
+        XCTAssertEqual(ShortcutSettings.registration(.dictateAndCleanUp, shortcut: chord, dictation: true), .chord(chord))
+        XCTAssertEqual(ShortcutSettings.registration(.dictateAndCleanUp, shortcut: chord, dictation: false), .off)
         XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: chord, dictation: true), .chord(chord))
         // Fix keeps its message for a layout with no W.
         XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: nil, dictation: true), .noDefault)

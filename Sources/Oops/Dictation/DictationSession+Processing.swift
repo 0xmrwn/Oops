@@ -21,7 +21,7 @@ extension DictationSession {
         do {
             // A load or warm-up that failed gets one more try, now that a recording needs it.
             do { try await loading?.value } catch { try await engine.load(model: model) }
-            text = try await engine.transcribe(samples, language: language)
+            text = try await engine.transcribe(samples, language: language, vocabulary: plan.engineVocabulary)
         } catch {
             // Loaded afresh by the next start.
             loadedModel = nil; loading = nil
@@ -31,8 +31,12 @@ extension DictationSession {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         Self.log.notice("transcribed length=\(trimmed.utf16.count, privacy: .public) ms=\(DebugLog.milliseconds(since: began), privacy: .public)")
         guard !trimmed.isEmpty else { return .done }
-        switch await insert(trimmed) {
-        case .inserted, .unconfirmed, .refused(.cancelled), .refused(.empty): return .done
+        let polished = await polish(trimmed)
+        guard !polished.isEmpty else { return .done }
+        switch await insert(polished) {
+        // Clean up's button replaces the text later, so only a field that read the text back offers it.
+        case .inserted: return plan.mode == .button ? .offer(polished) : .done
+        case .unconfirmed, .refused(.cancelled), .refused(.empty): return .done
         case .refused: return .failed(.cannotWrite)
         }
     }

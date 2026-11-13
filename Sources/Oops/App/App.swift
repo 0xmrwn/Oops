@@ -46,6 +46,7 @@ import OopsCore
             case (.correct, .pressed): self?.session.correct()
             case (.correct, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
+            case (.dictateAndCleanUp, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock, cleanUp: true)
             }
         }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }

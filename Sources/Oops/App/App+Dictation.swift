@@ -18,11 +18,32 @@ extension AppDelegate {
         let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
         let providers = preferences.providers, local = LocalModels.shared
         startSpeechModels(providers, local)
+        let vocabulary = VocabularyStore.shared
+        let cleanup = DictationSession.Cleanup(
+            vocabulary: { providers.dictationVocabulary(local, override: DebugFlags.dictationModel, entries: vocabulary.entries) },
+            small: { SmallCleanups.saved }, language: { providers.dictationCleanupLanguage(local) }, mode: { DictationCleanupMode.saved },
+            backend: { try providers.cleanupBackend() }, replace: { await Self.replace($0, with: $1, in: editor) })
         return DictationSession(recorder: recorder, engine: engine,
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
-                                status: { [weak self] in self?.preferences.status = $0 })
+                                status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup)
+    }
+
+    /// Swaps text a dictation wrote for its cleanup, as Fix swaps a correction in: the modifiers up, the clipboard
+    /// saved, and keys and clicks held back while the swap runs.
+    private static func replace(_ inserted: String, with cleaned: String, in editor: EditorAccess) async -> InsertReplacement {
+        do {
+            try await KeyboardGate.waitForModifierRelease()
+            let clipboard = try await editor.prepareClipboard()
+            defer { clipboard.restoreIfOwned() }
+            let gate = try KeyboardGate()
+            defer { gate.release() }
+            return try await editor.replaceInserted(inserted, with: cleaned, clipboard: clipboard, protected: { gate.isActive })
+        } catch {
+            DictationSession.log.notice("cleanup replace failed error=\(String(describing: type(of: error)), privacy: .public)")
+            return .failed
+        }
     }
 
     /// Reads which models are installed, then warms the selected one, and lets the keyboard's language switch

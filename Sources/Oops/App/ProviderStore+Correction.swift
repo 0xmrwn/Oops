@@ -15,27 +15,28 @@ extension ProviderStore {
         let settings = selection.settings(for: choice)
         let identity = correctionIdentity
         if let cached, cached.identity == identity { return cached.backend }
-        if let makeBackend {
-            let backend = try makeBackend(provider, choice, settings)
-            cached = (identity, backend)
-            return backend
-        }
-        let backend: any CorrectionBackend
+        let backend = try backend(provider, choice, settings)
+        cached = (identity, backend)
+        return backend
+    }
+
+    /// A backend for `choice` on `provider` at `settings`, whichever feature asks.
+    func backend(_ provider: Provider, _ choice: ModelSelection.Choice, _ settings: ModelSelection.Settings) throws -> any CorrectionBackend {
+        if let makeBackend { return try makeBackend(provider, choice, settings) }
         switch provider.kind {
         case .chatGPT:
-            let tier = settings.fast ? currentModel?.fast?.id : nil
-            backend = ChatGPTBackend(auth: chatGPT, model: choice.modelID, effort: settings.effort ?? ModelSelection.defaultEffort, serviceTier: tier)
+            let model = catalogs[provider.id]?.first { $0.id == choice.modelID }
+            let tier = settings.fast ? model?.fast?.id : nil
+            return ChatGPTBackend(auth: chatGPT, model: choice.modelID, effort: settings.effort ?? ModelSelection.defaultEffort, serviceTier: tier)
         case .claudeCode:
             guard let runtime = claudeRuntime ?? ClaudeCodeRuntime.locate(directory: Self.claudeDirectory, askShell: false) else {
                 throw CorrectionError.failure(.setup, "Install Claude Code to correct with Claude.")
             }
             claudeRuntime = runtime
-            backend = ClaudeCodeBackend(runtime: runtime, model: choice.modelID, effort: settings.effort)
+            return ClaudeCodeBackend(runtime: runtime, model: choice.modelID, effort: settings.effort)
         case .api:
-            backend = try provider.apiBackend(model: choice.modelID, apiKey: readKey(provider.id), effort: settings.effort)
+            return try provider.apiBackend(model: choice.modelID, apiKey: readKey(provider.id), effort: settings.effort)
         }
-        cached = (identity, backend)
-        return backend
     }
 
     func endCorrection(_ request: ProviderCorrection, discardBackend: Bool) {

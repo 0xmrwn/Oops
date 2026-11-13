@@ -41,6 +41,7 @@ extension EditorAccess {
     }
 
     private func write(_ text: String) async throws -> InsertOutcome {
+        lastInsert = nil
         guard !text.isEmpty else { throw InsertRefusal.empty }
         guard AXIsProcessTrusted() else { throw InsertRefusal.permission }
         let target = try insertTarget()
@@ -76,7 +77,12 @@ extension EditorAccess {
         // Most editors show the paste within the settle; a slow one gets a moment more.
         for attempt in 0..<16 {
             if attempt > 0 { Thread.sleep(forTimeInterval: 0.025) }
-            if let now = self.text(target.element, strategy), sameText(now, expected) { return .inserted }
+            if let now = self.text(target.element, strategy), sameText(now, expected) {
+                let location = CorrectionPolicy.isPlaceholder(before.text, hints: target.placeholders) ? 0 : before.selection.location
+                lastInsert = InsertedText(element: target.element, pid: target.pid, text: text, field: expected,
+                                          range: NSRange(location: location, length: text.utf16.count))
+                return .inserted
+            }
         }
         return .unconfirmed
     }

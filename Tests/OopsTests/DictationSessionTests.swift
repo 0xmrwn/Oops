@@ -210,7 +210,7 @@ import XCTest
     private(set) var session: DictationSession!
 
     init(_ test: XCTestCase, mode: DictationMode, audio: [Float]? = nil, engine: FakeSpeechEngine? = FakeSpeechEngine(text: "Hello"),
-         modelPath: String?? = nil, language: String? = nil) throws {
+         modelPath: String?? = nil, language: String? = nil, cleanup: DictationSession.Cleanup = .none) throws {
         self.mode = mode
         self.engine = engine
         let url = try test.wavFile(float: audio ?? Self.speech(), rate: 16_000)
@@ -221,7 +221,7 @@ import XCTest
         session = DictationSession(recorder: recorder, engine: engine, modelPath: { [weak self] in self?.model }, language: { language },
                                    mode: { [weak self] in self?.mode ?? .holdOrTap },
                                    insert: { await inserts.insert($0) }, drop: drop, status: { [weak self] in self?.status.append($0) },
-                                   askMicrophone: { [weak self] in
+                                   cleanup: cleanup, askMicrophone: { [weak self] in
                                        await withCheckedContinuation { self?.asks += 1; self?.prompt = $0 }
                                    })
     }
@@ -234,8 +234,8 @@ import XCTest
 
     /// Key events at `ms` on the key clock and at `audio` on the file's timeline: by default a press at
     /// 400 ms and a release at 1.6 s, around the speech, since the file plays from the start each time it opens.
-    func press(_ ms: Int64, audio: Int64? = nil) {
-        session.shortcut(.pressed, at: Self.origin + .milliseconds(audio ?? 400), now: clock + .milliseconds(ms))
+    func press(_ ms: Int64, audio: Int64? = nil, cleanUp: Bool = false) {
+        session.shortcut(.pressed, at: Self.origin + .milliseconds(audio ?? 400), now: clock + .milliseconds(ms), cleanUp: cleanUp)
     }
 
     func release(_ ms: Int64, audio: Int64? = nil) {
@@ -273,7 +273,7 @@ import XCTest
 /// The drop's states in order, `.left` for each time it left.
 @MainActor final class FakeDictationDrop: DictationDrop {
     enum Shown: Equatable {
-        case recording, transcribing, ready, failed(DictationFailure), left
+        case recording, transcribing, ready, written, cleaningUp, failed(DictationFailure), left
     }
 
     var available = true
@@ -282,11 +282,17 @@ import XCTest
 
     func claim(busy: @escaping () -> Bool) -> Bool { available }
 
-    func show(_ state: DictationDropState) {
+    /// The action the drop offered with its last state.
+    private(set) var action: DropAction?
+
+    func show(_ state: DictationDropState, action: DropAction?) {
+        self.action = action
         switch state {
         case .recording: states.append(.recording)
         case .transcribing: states.append(.transcribing)
         case .ready: states.append(.ready)
+        case .written: states.append(.written)
+        case .cleaningUp: states.append(.cleaningUp)
         case .failed(let failure): states.append(.failed(failure))
         }
         journal?("\(state)")
@@ -318,6 +324,7 @@ actor FakeSpeechEngine: SpeechEngine {
     private(set) var transcribed = 0
     private(set) var loads: [URL] = []
     private(set) var languages: [String?] = []
+    private(set) var vocabularies: [VocabularyDelivery?] = []
     /// The model last loaded as each transcription ran.
     private(set) var models: [URL?] = []
     private var held = false
@@ -337,9 +344,10 @@ actor FakeSpeechEngine: SpeechEngine {
     func load(model url: URL) async throws { loads.append(url) }
     func warmUp(model url: URL) async throws { loads.append(url) }
 
-    func transcribe(_ samples: [Float], language: String?) async throws -> String {
+    func transcribe(_ samples: [Float], language: String?, vocabulary: VocabularyDelivery?) async throws -> String {
         transcribed += 1
         languages.append(language)
+        vocabularies.append(vocabulary)
         models.append(loads.last)
         if held { await withCheckedContinuation { waiting.append($0) } }
         if let error { throw error }

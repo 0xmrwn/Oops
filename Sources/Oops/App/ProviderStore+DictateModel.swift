@@ -78,6 +78,20 @@ extension ProviderStore {
         return model.runtimeLanguageHint(for: dictateLanguage(for: DictateModelOption(model)))
     }
 
+    /// The vocabulary as the model dictation uses takes it (`VocabularyRouting`); nil for an empty list. A model file
+    /// from the debug override, whose kind isn't known, gets fuzzy replacement.
+    func dictationVocabulary(_ local: LocalModels, override: String?, entries: [VocabularyEntry]) -> VocabularyDelivery? {
+        guard !entries.isEmpty else { return nil }
+        guard override?.isEmpty != false else { return .fuzzyReplacement(entries.map(\.term)) }
+        guard case .local(let id)? = dictateModel(local), let model = SpeechModelCatalog.model(id: id) else { return nil }
+        return VocabularyRouting.delivery(of: entries, to: .local(model.architecture))
+    }
+
+    /// The language the small cleanups take the dictation to be in: the chosen one, or what Automatic means on the model.
+    func dictationCleanupLanguage(_ local: LocalModels) -> String? {
+        dictateOption(local).map(dictateLanguage(for:))
+    }
+
     /// Deletes an installed model; Dictate forgets it when it was the one selected.
     func deleteLocalModel(_ model: SpeechModel, from local: LocalModels) async {
         guard await local.delete(model), dictateSelection.model == .local(model.id) else { return }

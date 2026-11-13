@@ -76,11 +76,14 @@ struct Shortcut: Codable, Equatable {
     enum Action: String, CaseIterable {
         case correct
         case dictate
+        /// One dictation cleaned up whatever Clean up says; no default, so no hotkey until one is chosen.
+        case dictateAndCleanUp
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
         var symbol: String {
             switch self {
             case .correct: "checkmark.bubble"
             case .dictate: SettingsTab.dictate.symbol
+            case .dictateAndCleanUp: "wand.and.sparkles"
             }
         }
         /// The action's name in Settings.
@@ -88,13 +91,14 @@ struct Shortcut: Codable, Equatable {
             switch self {
             case .correct: "Fix text"
             case .dictate: "Dictate"
+            case .dictateAndCleanUp: "Dictate and clean up"
             }
         }
         /// The Settings tab the action belongs to.
         var tab: SettingsTab {
             switch self {
             case .correct: .fix
-            case .dictate: .dictate
+            case .dictate, .dictateAndCleanUp: .dictate
             }
         }
     }
@@ -139,10 +143,10 @@ struct Shortcut: Codable, Equatable {
     func registration(_ action: Action) -> Registration {
         Self.registration(action, shortcut: shortcut(action), dictation: DebugFlags.dictation)
     }
-    /// Dictate only while dictation is switched on. An action with no shortcut is off, which is no failure;
-    /// only Fix, whose default is missing from this layout, has something to report.
+    /// Dictate's shortcuts only while dictation is switched on. An action with no shortcut is off, which is no
+    /// failure; only Fix, whose default is missing from this layout, has something to report.
     static func registration(_ action: Action, shortcut: Shortcut?, dictation: Bool) -> Registration {
-        if action == .dictate, !dictation { return .off }
+        if action != .correct, !dictation { return .off }
         if let shortcut { return .chord(shortcut) }
         return action == .correct ? .noDefault : .off
     }
