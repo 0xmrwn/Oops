@@ -39,6 +39,20 @@ enum DebugFlags {
     #else
     static var microphoneAccess: String? { nil }
     #endif
+    /// `-DebugDictationAudioFile <path.wav>`: dictation hears this file, played at real-time pace from its start at each
+    /// open of the source, instead of the microphone, which is never opened or asked for. Debug and preview builds.
+    #if DEBUG || OOPS_PREVIEW
+    static var dictationAudioFile: String? { UserDefaults.standard.string(forKey: "DebugDictationAudioFile") }
+    #else
+    static var dictationAudioFile: String? { nil }
+    #endif
+    /// `-DebugLiveWordsLayout inline`: live words in the drop take the place of its state word, in the panel's usual
+    /// height, instead of a line beside the capsule; a layout to compare, Debug and preview builds.
+    #if DEBUG || OOPS_PREVIEW
+    static var liveWordsLayout: String? { UserDefaults.standard.string(forKey: "DebugLiveWordsLayout") }
+    #else
+    static var liveWordsLayout: String? { nil }
+    #endif
     /// Actions, the same way: `DebugActions`.
     static var actions: Bool { bool("DebugActions") }
 
