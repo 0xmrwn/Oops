@@ -9,11 +9,15 @@ import SwiftUI
 struct DictatePage: View {
     let store: ProviderStore
     var local = LocalModels.shared
+    var keyboards = KeyboardModelDriver.shared
+    /// The keyboards to map; this Mac's enabled ones unless a snapshot passes others.
+    var sources: [KeyboardInputSource]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             DictateShortcutCard()
-            DictateModelCard(store: store, local: local)
+            DictateModelCard(store: store, local: local, keyboards: keyboards)
+            DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
             planned.disabled(true)
         }
     }

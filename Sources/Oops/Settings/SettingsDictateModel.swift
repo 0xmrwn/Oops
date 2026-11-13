@@ -6,6 +6,7 @@ import SwiftUI
 struct DictateModelCard: View {
     let store: ProviderStore
     let local: LocalModels
+    let keyboards: KeyboardModelDriver
 
     var body: some View {
         let options = store.dictateOptions(local), current = store.dictateOption(local)
@@ -39,6 +40,8 @@ struct DictateModelCard: View {
 
     private func choose(_ reference: VoiceModelReference?) {
         guard let reference, reference != store.dictateSelection.model else { return }
+        // Picked by hand: it stands until the keyboard changes again.
+        keyboards.manualChoice()
         store.chooseDictateModel(reference)
         (NSApp.delegate as? AppDelegate)?.warmUpDictation()
     }
