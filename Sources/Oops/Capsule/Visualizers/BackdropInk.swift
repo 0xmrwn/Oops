@@ -38,7 +38,15 @@ struct BackdropInk: NSViewRepresentable {
 final class BackdropInkView: NSView {
     var tones: BackdropInk.Tones? {
         didSet {
-            if tones != oldValue { backdrop?.filters = Self.filters(tones: tones) }
+            guard tones != oldValue, let backdrop else { return }
+            // New filters leave the layer empty until the window server has them, so a tone that glides
+            // changes the two colours in place; only gaining or losing the tones rebuilds the chain.
+            if let tones, oldValue != nil {
+                backdrop.setValue(Self.colour(tones.dark - tones.light), forKeyPath: "filters.inkSpan.inputColor")
+                backdrop.setValue(Self.colour(tones.light), forKeyPath: "filters.inkBase.inputColor")
+            } else {
+                backdrop.filters = Self.filters(tones: tones)
+            }
         }
     }
 
@@ -82,8 +90,8 @@ final class BackdropInkView: NSView {
         ]
         if let tones {
             // Black to white becomes `light` to `dark`: each channel is `light + ink * (dark - light)`.
-            filters += [filter("multiplyColor", ["inputColor": colour(tones.dark - tones.light)]),
-                        filter("colorAdd", ["inputColor": colour(tones.light)])]
+            filters += [filter("multiplyColor", ["name": "inkSpan", "inputColor": colour(tones.dark - tones.light)]),
+                        filter("colorAdd", ["name": "inkBase", "inputColor": colour(tones.light)])]
         }
         return filters.contains { $0 == nil } ? nil : filters.compactMap(\.self)
     }
