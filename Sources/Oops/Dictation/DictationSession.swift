@@ -32,6 +32,8 @@ import OSLog
     /// Held from a start until its outcome shows or the drop leaves.
     private(set) var holdsDrop = false
     let recorder: DictationRecorder?
+    /// The loudness of the recording, for the drop's visualizer; 0 when nothing records.
+    let loudness = DictationLoudnessFeed()
     let engine: any SpeechEngine?
     private let modelPath: @MainActor () -> String?
     private let mode: @MainActor () -> DictationMode
@@ -116,6 +118,7 @@ import OSLog
         case .start?: await start(at: lastPress)
         case .stop?: stop(at: instant)
         case .discard?:
+            loudness.stop()
             await recorder?.cancel()
             conclude(.done)
         case nil: break
@@ -139,6 +142,7 @@ import OSLog
         do { try await recorder.start(at: pressed) } catch { return refuse(Self.failure(error)) }
         activation.startResult(started: true)
         Self.log.notice("recording mode=\(self.activation.sessionMode.rawValue, privacy: .public)")
+        loudness.start { recorder.inputLevel }
         drop.show(.recording)
     }
 
@@ -149,6 +153,7 @@ import OSLog
     }
 
     private func stop(at released: CaptureInstant?) {
+        loudness.stop()
         drop.show(.transcribing)
         Task { [weak self] in
             guard let self else { return }
