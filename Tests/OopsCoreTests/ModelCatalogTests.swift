@@ -67,6 +67,18 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertNil(SpeechModelCatalog.model(id: "unknown"))
     }
 
+    /// The debug override loads a file without a selection; its language decides whether fillers go.
+    func testAModelFileNamesItsModel() throws {
+        let path = "/Users/someone/Library/Application Support/hex/models/parakeet-unified-en-0.6b-Q8_0.gguf"
+        let model = try XCTUnwrap(SpeechModelCatalog.model(atPath: path))
+        XCTAssertEqual(model.id, "parakeet_unified_en")
+        XCTAssertEqual(model.automaticLanguage, "en")
+        XCTAssertEqual(DictationText.prepare("Um, ship it.", vocabulary: nil, cleanups: SmallCleanups(fillers: true),
+                                             language: model.automaticLanguage), "Ship it.")
+        XCTAssertNil(SpeechModelCatalog.model(atPath: "/tmp/my-own-model.gguf"))
+        XCTAssertNil(SpeechModelCatalog.model(atPath: "/tmp/parakeet-unified-en-0.6b-Q8_0.gguf.partial"))
+    }
+
     func testSingleLanguageModelsReportIt() throws {
         XCTAssertTrue(try model("gigaam_v3").isSingleLanguage)
         XCTAssertTrue(try model("parakeet_v2").languages.isSingleLanguage)

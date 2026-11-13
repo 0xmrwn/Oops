@@ -59,12 +59,16 @@ struct GlassMenu<Value: Hashable>: View {
     @Binding var selection: Value
     /// Shown while the selection is none of the choices.
     var placeholder = ""
+    /// The header a choice sits under, as the model picker groups models by provider; nil for none.
+    var section: (Value) -> String? = { _ in nil }
     @State private var anchor = MenuAnchor()
 
     var body: some View {
         let current = choices.firstIndex { $0.value == selection }
         Button {
-            anchor.popUp(choices.map(\.label), checked: current) { selection = choices[$0].value }
+            anchor.popUp(choices.map(\.label), sections: choices.map { section($0.value) }, checked: current) {
+                selection = choices[$0].value
+            }
         } label: {
             HStack(spacing: 6) {
                 Text(current.map { choices[$0].label } ?? placeholder).fontWeight(.medium)
@@ -86,11 +90,15 @@ struct GlassMenu<Value: Hashable>: View {
     fileprivate weak var view: NSView?
     private var pick: ((Int) -> Void)?
 
-    func popUp(_ titles: [String], checked: Int?, pick: @escaping (Int) -> Void) {
+    func popUp(_ titles: [String], sections: [String?], checked: Int?, pick: @escaping (Int) -> Void) {
         guard let view else { return }
         self.pick = pick
         let menu = NSMenu()
         for (index, title) in titles.enumerated() {
+            if let section = sections[index], index == 0 || sections[index - 1] != section {
+                if index > 0 { menu.addItem(.separator()) }
+                menu.addItem(.sectionHeader(title: section))
+            }
             let item = NSMenuItem(title: title, action: #selector(chosen(_:)), keyEquivalent: "")
             item.target = self
             item.tag = index

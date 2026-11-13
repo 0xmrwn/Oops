@@ -88,8 +88,11 @@ extension ProviderStore {
     }
 
     /// The language the small cleanups take the dictation to be in: the chosen one, or what Automatic means on the model.
-    func dictationCleanupLanguage(_ local: LocalModels) -> String? {
-        dictateOption(local).map(dictateLanguage(for:))
+    /// A model file from the debug override has no selection: it gives what Automatic means on the catalog model it
+    /// holds, and nil (fillers kept) for a file the catalog doesn't pin.
+    func dictationCleanupLanguage(_ local: LocalModels, override: String?) -> String? {
+        if let override, !override.isEmpty { return SpeechModelCatalog.model(atPath: override)?.automaticLanguage }
+        return dictateOption(local).map(dictateLanguage(for:))
     }
 
     /// Deletes an installed model; Dictate forgets it when it was the one selected.

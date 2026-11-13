@@ -11,6 +11,32 @@ final class CleanupSpokenFormattingTests: XCTestCase {
         XCTAssertEqual(SpokenFormatting.apply("a NEW LINE new line b"), "a\n\nb")
     }
 
+    /// A model ends the sentence after the command; the mark stays with the line it ends.
+    func testABreakKeepsTheSentenceMarkSpokenAfterIt() {
+        XCTAssertEqual(
+            SpokenFormatting.apply(
+                "Here is the first point, new line. Here is the second point, new paragraph. She said, open quote, ship it today, close quote."
+            ),
+            "Here is the first point.\nHere is the second point.\n\nShe said, \"ship it today\"."
+        )
+        XCTAssertEqual(SpokenFormatting.apply("point. New line. Here"), "point.\nHere")
+        XCTAssertEqual(SpokenFormatting.apply("point new line here"), "point\nhere")
+        XCTAssertEqual(SpokenFormatting.apply("New line. Here"), "\nHere")
+        XCTAssertEqual(SpokenFormatting.apply("Here, new line."), "Here.\n")
+        XCTAssertEqual(SpokenFormatting.apply("Are you in, new line? Yes"), "Are you in?\nYes")
+        XCTAssertEqual(SpokenFormatting.apply("Ship it, new paragraph! Now"), "Ship it!\n\nNow")
+        XCTAssertEqual(SpokenFormatting.apply("Ready? New line! Go"), "Ready?\nGo")
+        XCTAssertEqual(SpokenFormatting.apply("one, new line, two"), "one\ntwo")
+        XCTAssertEqual(SpokenFormatting.apply("Wait, new line… Then"), "Wait…\nThen")
+    }
+
+    func testABreakKeepsTheSentenceMarkInEveryLanguage() {
+        XCTAssertEqual(SpokenFormatting.apply("Primero, nueva línea. Segundo"), "Primero.\nSegundo")
+        XCTAssertEqual(SpokenFormatting.apply("Primero, nuevo párrafo. Segundo"), "Primero.\n\nSegundo")
+        XCTAssertEqual(SpokenFormatting.apply("D'abord, à la ligne. Ensuite"), "D'abord.\nEnsuite")
+        XCTAssertEqual(SpokenFormatting.apply("D'abord, nouveau paragraphe. Ensuite"), "D'abord.\n\nEnsuite")
+    }
+
     func testQuotesBecomeQuotationMarks() {
         XCTAssertEqual(SpokenFormatting.apply("He said open quote hi close quote."), "He said \"hi\".")
         XCTAssertEqual(

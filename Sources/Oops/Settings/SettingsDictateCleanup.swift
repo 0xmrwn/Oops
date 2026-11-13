@@ -50,8 +50,10 @@ struct DictateCleanupCard: View {
             Button { store.wantsProvidersPage = true } label: { Label("Switch on a model", systemImage: "switch.2") }
                 .buttonStyle(.settingsGlass).controlSize(.large)
         } else {
+            // Under their providers' names, as Fix's picker lists them: two providers can serve the same model.
             GlassMenu(title: "Clean up model", choices: options.map { (Optional($0), store.modelName($0)) },
-                      selection: Binding(get: { store.cleanupChoice }, set: { if let choice = $0 { store.selectCleanup(choice) } }))
+                      selection: Binding(get: { store.cleanupChoice }, set: { if let choice = $0 { store.selectCleanup(choice) } }),
+                      section: { $0.flatMap { store.provider($0.providerID)?.name } })
         }
     }
 
