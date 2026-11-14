@@ -3,7 +3,7 @@ import OopsCore
 
 /// One dictation's live words: the stream its engine opened for it, the pump that hands the stream the recording as
 /// it grows, and the task that shows the words while the dictation's turn holds the drop. The words are only ever
-/// shown: the text written comes from the stream's `finish`, at the release.
+/// shown: the text written comes from a hosted stream's `finish`, or a local model's one-shot, at the release.
 @MainActor final class LiveDictation {
     /// The session's turn at the press: words from a dictation whose turn has passed never show.
     let turn: Int
@@ -104,19 +104,16 @@ extension DictationSession {
         live = nil
     }
 
-    /// The text of `live`'s stream over the whole of `samples`, the released clip: what the pump didn't send is
-    /// appended, then the stream finishes. Nil when there is no stream and a local model transcribes the clip once
-    /// instead, as it also does when the stream heard audio past the clip's end (a release handled late). Throws the
-    /// stream's failure, and for a hosted engine that couldn't even start.
+    /// The text of `live`'s hosted stream over the whole of `samples`, the released clip: what the pump didn't send
+    /// is appended, then the stream finishes. Nil for a local model, whose stream only showed words: its text is the
+    /// one-shot over the clip, which the caller runs at once rather than first feeding the model the clip's tail.
+    /// Throws the stream's failure, and for a hosted engine that couldn't even start.
     func finishLive(_ live: LiveDictation, samples: [Float]) async throws -> String? {
-        guard let stream = await live.starting.value else {
-            if live.hosted { throw SpeechEngineError.hostedFailed("connection") }
+        guard live.hosted else {
+            live.cancel()
             return nil
         }
-        if !live.hosted, live.sent > samples.count {
-            await stream.cancel()
-            return nil
-        }
+        guard let stream = await live.starting.value else { throw SpeechEngineError.hostedFailed("connection") }
         if live.sent < samples.count {
             await stream.append(Array(samples[live.sent...]))
             live.sent = samples.count

@@ -3,7 +3,8 @@ import OopsCore
 import XCTest
 
 /// Live words while a dictation streams: shown while the key is held, gone before the one write, and the text
-/// written from the stream's finish. A WAV file stands in for the microphone; the engines are fakes.
+/// written from a hosted stream's finish or a local model's one-shot. A WAV file stands in for the microphone; the
+/// engines are fakes.
 @MainActor final class DictationSessionLiveTests: XCTestCase {
     func testAStreamingModelShowsWordsWhileRecordingAndWritesOnceAtTheEnd() async throws {
         let run = try DictationLiveRun(self)
@@ -14,11 +15,13 @@ import XCTest
         run.release(1_200)
         try await run.until { run.drop.states.last == .left }
         XCTAssertEqual(run.drop.states, [.recording, .transcribing, .left])
-        XCTAssertEqual(run.inserts.texts, ["Streamed text."])
+        XCTAssertEqual(run.inserts.texts, ["Hello"])
         let opened = await run.engine.opened, transcribed = await run.engine.transcribed
         XCTAssertEqual(opened.count, 1)
-        XCTAssertEqual(opened.first?.finished, 1)
-        XCTAssertEqual(transcribed, 0, "the stream's finish gives the text")
+        XCTAssertEqual(transcribed, 1, "a local model's one-shot gives the text")
+        let stream = try XCTUnwrap(opened.first)
+        try await run.until { stream.cancelled }
+        XCTAssertEqual(stream.finished, 0, "the model is never fed the clip's tail just to be reset")
     }
 
     func testWordsAreClearedBeforeTheOneWrite() async throws {
@@ -44,15 +47,16 @@ import XCTest
         XCTAssertEqual(transcribed, 1)
     }
 
-    func testEverySampleReachesTheStreamBeforeFinish() async throws {
+    func testEverySampleReachesAHostedStreamBeforeFinish() async throws {
         let audio = DictationSessionRun.speech()
         // Streamed while the key is held, then the rest at the release: the file from the press to its end, in order.
-        let run = try DictationLiveRun(self, audio: audio)
+        let hosted = FakeStreamingEngine()
+        let run = try DictationLiveRun(self, hosted: hosted, modelPath: .some(nil), audio: audio)
         run.press(0)
         try await run.until { !run.shownWords.isEmpty }
         run.release(1_200)
         try await run.until { run.drop.states.last == .left }
-        let streamed = await run.engine.opened.first?.samples ?? []
+        let streamed = await hosted.opened.first?.samples ?? []
         XCTAssertGreaterThan(streamed.count, 40_000)
         XCTAssertTrue(streamed == Array(audio[6_400...].prefix(streamed.count)))
         XCTAssertEqual(run.inserts.texts, ["Streamed text."], "the stream heard no more than the clip")
@@ -60,7 +64,7 @@ import XCTest
         // A stream that opens only after the release hears the whole clip, through the release tail and no further.
         let late = FakeStreamingEngine()
         await late.holdStart()
-        let held = try DictationLiveRun(self, engine: late, audio: audio)
+        let held = try DictationLiveRun(self, hosted: late, modelPath: .some(nil), audio: audio)
         held.press(0)
         try await held.until { held.drop.states == [.recording] }
         held.release(1_200, audio: 1_600)
@@ -132,7 +136,7 @@ import XCTest
     func testANewRecordingDuringTranscriptionGetsItsOwnStream() async throws {
         let engine = FakeStreamingEngine()
         await engine.holdFinish()
-        let run = try DictationLiveRun(self, engine: engine)
+        let run = try DictationLiveRun(self, hosted: engine, modelPath: .some(nil))
         run.press(0)
         try await run.until { !run.shownWords.isEmpty }
         run.release(1_200)
