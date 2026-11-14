@@ -3,11 +3,11 @@ import SwiftUI
 
 // Dictate and Actions as they are planned, drawn with the controls they will use and every one not yet
 // wired disabled. The dictation work replaces each control's constant with its setting: the shortcut and
-// the mode are live, as are the drop's visualizer and position, Clean up and the vocabulary; Actions comes
-// with the action library.
+// the mode are live, as are the drop's visualizer, position and live words, Clean up and the vocabulary;
+// Actions comes with the action library.
 
 /// Dictate's settings: the shortcut and the mode, the speech model, cleanup, the drop and the vocabulary, with the
-/// planned microphone and live words.
+/// planned microphone.
 struct DictatePage: View {
     let store: ProviderStore
     var local = LocalModels.shared
@@ -39,12 +39,10 @@ struct DictatePage: View {
             DictateShortcutCard()
             DictateModelCard(store: store, local: local, keyboards: keyboards)
             DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
-            DictateDropCard()
+            DictateDropCard(store: store, local: local)
             SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("Microphone", ["System default"]) }
                 .settingsSurface().disabled(true)
             DictateCleanupCard(store: store)
-            SettingRow(symbol: "text.bubble", title: "Live words") { choice("Live words", ["In the drop", "Over the text"]) }
-                .settingsSurface().disabled(true)
             Button { vocabulary = true } label: {
                 SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }.contentShape(Rectangle())
             }
@@ -56,10 +54,6 @@ struct DictatePage: View {
     /// The first value is the one the setting will start with.
     private func menu(_ title: String, _ values: [String]) -> some View {
         GlassMenu(title: title, choices: values.map { ($0, $0) }, selection: .constant(values[0]))
-    }
-
-    private func choice(_ title: String, _ values: [String]) -> some View {
-        GlassChoice(title: title, choices: values.map { ($0, $0) }, selection: .constant(values[0]))
     }
 }
 

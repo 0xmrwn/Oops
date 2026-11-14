@@ -131,6 +131,8 @@ public struct SpeechModel: Sendable, Identifiable, Equatable {
     public let streams: Bool
     /// The buffering Hex's comments name as the model's most accurate streaming setting; nil when it names none.
     public let streamingChunk: SpeechModelStreamingChunk?
+    /// How live words stream it; nil for a model that only transcribes once the recording ends.
+    public let liveContext: SpeechModelLiveContext?
     public let acceptsLanguageHint: Bool
     public let supportsLanguageDetection: Bool
     /// Codes the model takes under another name: Whisper's `tl` for `fil`, Nemotron's locales.
@@ -158,7 +160,8 @@ public struct SpeechModel: Sendable, Identifiable, Equatable {
     public init(
         id: String, name: String, artifact: SpeechModelArtifact, architecture: SpeechModelArchitecture,
         variant: String, languages: SpeechModelLanguages, streams: Bool = false,
-        streamingChunk: SpeechModelStreamingChunk? = nil, acceptsLanguageHint: Bool,
+        streamingChunk: SpeechModelStreamingChunk? = nil, liveContext: SpeechModelLiveContext? = nil,
+        acceptsLanguageHint: Bool,
         supportsLanguageDetection: Bool, runtimeLanguages: [String: String] = [:],
         license: SpeechModelLicense = .unrecorded, wordErrorRate: Double?, realtime: String
     ) {
@@ -170,6 +173,7 @@ public struct SpeechModel: Sendable, Identifiable, Equatable {
         self.languages = languages
         self.streams = streams
         self.streamingChunk = streamingChunk
+        self.liveContext = liveContext
         self.acceptsLanguageHint = acceptsLanguageHint
         self.supportsLanguageDetection = supportsLanguageDetection
         self.runtimeLanguages = runtimeLanguages
@@ -177,4 +181,14 @@ public struct SpeechModel: Sendable, Identifiable, Equatable {
         self.wordErrorRate = wordErrorRate
         self.realtime = realtime
     }
+}
+
+/// How a streaming model is run for live words: the shortest context the M3 kept up with, words about 0.3 s
+/// behind speech, where Hex's `streamingChunk` is the most accurate setting (about 1.5 s behind).
+public enum SpeechModelLiveContext: Sendable, Equatable {
+    /// Chunked attention (Parakeet Unified English): chunk and lookahead in milliseconds, multiples of the 80 ms
+    /// encoder frame; the left context stays the model's default.
+    case chunked(chunkMilliseconds: Int, lookaheadMilliseconds: Int)
+    /// Cache-aware (Nemotron 3.5): the lookahead in 80 ms encoder frames, an entry of the model's trained menu.
+    case cacheAware(lookaheadFrames: Int)
 }

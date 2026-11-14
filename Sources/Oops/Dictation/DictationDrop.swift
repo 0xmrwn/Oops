@@ -1,3 +1,4 @@
+import AppKit
 import OopsCore
 import SwiftUI
 
@@ -105,11 +106,24 @@ struct DropAction {
     func show(_ state: DictationDropState, action: DropAction?)
     /// The drop leaves.
     func leave()
+    /// The words so far while a dictation streams, shown where Settings' Live words says (in the drop, or at the
+    /// caret through the highlight overlay, falling back to the drop where the overlay can't place them); nil, or
+    /// words with nothing in them, takes them away. The session clears them before it writes and as a dictation ends.
+    func showWords(_ words: LiveWords?)
 }
 
 extension DictationDrop {
     /// Shows `state` with nothing to press.
     func show(_ state: DictationDropState) { show(state, action: nil) }
+    /// A drop that shows no words (test fakes) needs nothing.
+    func showWords(_ words: LiveWords?) {}
+}
+
+extension DictationLiveWordsPlace {
+    /// Where Settings keeps the place, by raw value.
+    static let key = "DictationLiveWords"
+    /// The place as saved, the drop until one is chosen.
+    static var saved: DictationLiveWordsPlace { UserDefaults.standard.string(forKey: key).flatMap(Self.init(rawValue:)) ?? .drop }
 }
 
 extension DictationDropPosition {
@@ -130,6 +144,10 @@ extension DictationDropPosition {
     let loudness: DictationLoudnessFeed?
     /// The kept transcript's copy button was pressed; its icon turns into a check.
     var copied = false
+    /// The words so far while a dictation streams, when they show in the drop; nil shows none.
+    var words: LiveWords?
+    /// Debug only: the words take the state word's place in the capsule, instead of a line beside it.
+    let inlineWords = DebugFlags.liveWordsLayout == "inline"
     init(loudness: DictationLoudnessFeed? = nil) { self.loudness = loudness }
 }
 
@@ -143,13 +161,24 @@ extension DictationDropPosition {
     /// The drop is on its way up, once its spot is known.
     private var locating: Task<Void, Never>?
     private var panel: CapsulePanel { owner.panel }
+    /// The field's geometry as the drop came up, where words at the caret go.
+    private var geometry: CapsulePlacement.Geometry?
+    /// Live words' place, read as the recording shows; the latest words, kept until the drop's spot is known; and
+    /// whether this dictation's target was logged.
+    private var place = DictationLiveWordsPlace.drop, words: LiveWords?, logged = false
+    /// The app in front as the recording started: words at the caret belong to its field.
+    private var host: pid_t?
 
     init(owner: DropOwner, loudness: DictationLoudnessFeed? = nil, locate: @escaping @MainActor () async -> CapsulePlacement.Geometry?) {
         self.owner = owner; self.locate = locate; model = DictationDropModel(loudness: loudness)
     }
 
     func claim(busy: @escaping () -> Bool) -> Bool {
-        owner.claim(.dictate, busy: busy) { [model, capsule = owner.panel.model] in AnyView(DictationDropView(model: model, capsule: capsule)) }
+        // Room for the line of live words beside the capsule, so placement keeps it off the text too.
+        let size = model.inlineWords ? CapsulePanel.standard : CGSize(width: 280, height: CapsulePanel.standard.height + DictationLivePreview.room)
+        return owner.claim(.dictate, busy: busy, size: size) { [model, capsule = owner.panel.model] in
+            AnyView(DictationDropView(model: model, capsule: capsule))
+        }
     }
 
     func show(_ state: DictationDropState, action: DropAction?) {
@@ -166,24 +195,62 @@ extension DictationDropPosition {
         model.copied = false
         model.state = state
         model.action = action
+        if state == .recording {
+            // A new dictation: none of the last one's words, and the place as Settings says now.
+            showWords(nil)
+            place = .saved; logged = false; host = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        }
         if locating != nil { return }
-        // Already up: it keeps its spot, and a new state stops a failure's timed exit.
-        if panel.isShown { panel.present(); settle(); return }
+        // Already up: it keeps its spot, and a new state stops a failure's timed exit. A new recording places it
+        // afresh, by the caret the last dictation's text moved: its words go there, not over that text.
+        if panel.isShown, state != .recording { panel.present(); settle(); return }
         model.visualizer = .stored()
         locating = Task { [weak self] in
             let geometry = await self?.locate()
             guard let self, !Task.isCancelled else { return }
             locating = nil
+            self.geometry = geometry
             // Read at each dictation, so a change in Settings applies to the next one.
             let position = DictationDropPosition.saved.resolved(hasAnchor: geometry?.element != nil)
             panel.present(geometry: geometry, fixed: position == .anchored ? nil : position)
             settle()
+            if let words { route(words) }
         }
     }
 
     func leave() {
         locating?.cancel(); locating = nil
+        showWords(nil)
+        geometry = nil
         panel.hide()
+    }
+
+    func showWords(_ words: LiveWords?) {
+        guard let words, !words.isEmpty else {
+            self.words = nil; model.words = nil
+            return owner.highlight.clearWords()
+        }
+        self.words = words
+        // Until the drop's spot is known, the newest words wait for it.
+        if locating == nil, panel.isShown { route(words) }
+    }
+
+    /// At the caret when Settings and the field allow it, and while the field's app is still in front; in the drop
+    /// otherwise.
+    private func route(_ words: LiveWords) {
+        var target = LiveWordsAnchor.target(place, geometry: geometry)
+        if case .caret = target, NSWorkspace.shared.frontmostApplication?.processIdentifier != host { target = .drop }
+        if case let .caret(caret, width) = target {
+            model.words = nil
+            owner.highlight.showWords(words, at: caret, width: width)
+        } else {
+            owner.highlight.clearWords()
+            model.words = words
+        }
+        guard !logged else { return }
+        logged = true
+        let name = if case .caret = target { "caret" } else { place == .text ? "fallback" : "drop" }
+        DictationSession.log.notice("live target=\(name, privacy: .public)")
     }
 
     /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves; a

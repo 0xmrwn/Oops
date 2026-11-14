@@ -5,10 +5,26 @@ import OopsCore
 /// A loaded model, freed with its last reference: what the engine holds between uses.
 protocol LoadedModel: AnyObject {
     func run(_ samples: [Float], language: String?, vocabulary: VocabularyDelivery?) throws(SpeechEngineError) -> String
+    /// Starts streaming on the model's session, ending any stream still open there.
+    func beginStream(_ context: SpeechModelLiveContext, language: String?) throws(SpeechEngineError)
+    /// Feeds the open stream; the words so far when they changed.
+    func feedStream(_ samples: [Float]) throws(SpeechEngineError) -> LiveWords?
+    /// Ends the open stream without finishing it, so the session can run or stream again.
+    func resetStream()
 }
 
-/// One transcribe.cpp session over the C API, which owns the model it opened. Three calls are all Oops needs;
-/// upstream's Swift wrapper would add a hundred kilobytes of streaming, diarization and options for them.
+/// Stand-ins that never stream need none of it.
+extension LoadedModel {
+    func beginStream(_ context: SpeechModelLiveContext, language: String?) throws(SpeechEngineError) {
+        throw .streamingUnsupported
+    }
+
+    func feedStream(_ samples: [Float]) throws(SpeechEngineError) -> LiveWords? { nil }
+    func resetStream() {}
+}
+
+/// One transcribe.cpp session over the C API, which owns the model it opened. A few calls are all Oops needs;
+/// upstream's Swift wrapper would add a hundred kilobytes of diarization and options for them.
 final class TranscribeModel: LoadedModel {
     /// Metal keeps a loaded model's buffers resident, waking the CPU about 166 times a second, until this many
     /// seconds after its last run (about 1.2 times as long in practice). Shorter than the idle release, so the
@@ -17,7 +33,7 @@ final class TranscribeModel: LoadedModel {
     /// ggml reads it once, when the first model loads; set before that, whatever the environment had.
     private static let keepAlive: Void = { setenv("GGML_METAL_RESIDENCY_KEEP_ALIVE_S", String(keepAliveSeconds), 1) }()
 
-    private let session: OpaquePointer
+    let session: OpaquePointer
 
     init(url: URL) throws(SpeechEngineError) {
         guard FileManager.default.fileExists(atPath: url.path) else { throw .noModelFile }
@@ -45,7 +61,7 @@ final class TranscribeModel: LoadedModel {
         return String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func reason(_ status: transcribe_status) -> String {
+    static func reason(_ status: transcribe_status) -> String {
         String(cString: transcribe_status_string(Int32(status.rawValue)))
     }
 }

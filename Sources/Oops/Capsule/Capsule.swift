@@ -53,7 +53,10 @@ private final class PassivePanel: NSPanel {
 }
 
 @MainActor final class CapsulePanel {
-    private static let size = CGSize(width: 280, height: 78)
+    /// Fix's panel, and the dictation drop's without live words in it.
+    static let standard = CGSize(width: 280, height: 78)
+    /// The panel's size for the feature holding it (`DropOwner.claim`).
+    private(set) var size = standard
     /// EyesDropView pads its glass by this much inside the panel.
     private static let inset: CGFloat = 14
     let model = CapsuleModel()
@@ -63,7 +66,7 @@ private final class PassivePanel: NSPanel {
     private let tracker = WindowTracker()
     private var resample: Task<Void, Never>?
     init() {
-        panel = PassivePanel(contentRect: NSRect(origin: .zero, size: Self.size),
+        panel = PassivePanel(contentRect: NSRect(origin: .zero, size: Self.standard),
                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.title = "Oops Capsule"
@@ -81,7 +84,16 @@ private final class PassivePanel: NSPanel {
         if let hiding { hiding.cancel(); remove() }
         // The initial icon-only phase has a smaller ideal width. Keep hosting
         // geometry stable so AppKit does not compress later status text away.
-        panel.contentView = FirstClickHostingView(rootView: CapsuleRoot(model: model, size: Self.size, content: content))
+        panel.contentView = FirstClickHostingView(rootView: CapsuleRoot(model: model, size: size, content: content))
+    }
+    /// Sizes the panel for the feature about to show in it: placement keeps the whole of it clear of the draft.
+    func resize(_ size: CGSize) {
+        guard size != self.size else { return }
+        self.size = size
+        if let root = panel.contentView as? FirstClickHostingView<CapsuleRoot> {
+            root.rootView = CapsuleRoot(model: model, size: size, content: root.rootView.content)
+        }
+        if panel.isVisible { position() }
     }
     /// `spoken` replaces the label in the VoiceOver announcement, for labels that read badly aloud.
     func show(_ phase: CapsulePhase, label: String, detail: String = "", remedy: CapsuleModel.Remedy? = nil,
@@ -242,7 +254,7 @@ private final class PassivePanel: NSPanel {
         let primary = NSScreen.screens.first?.frame.maxY ?? 900
         let screens = NSScreen.screens.map { s in CGRect(x: s.visibleFrame.minX, y: primary - s.visibleFrame.maxY,
                                                          width: s.visibleFrame.width, height: s.visibleFrame.height) }
-        let envelope = CGSize(width: Self.size.width - 2 * Self.inset, height: Self.size.height - 2 * Self.inset)
+        let envelope = CGSize(width: size.width - 2 * Self.inset, height: size.height - 2 * Self.inset)
         let placement = if let fixedPosition {
             CapsulePlacement.fixed(fixedPosition, envelope: envelope, screens: fixedScreens(primary: primary),
                                    anchor: geometry?.window ?? geometry?.element)
@@ -258,6 +270,7 @@ private final class PassivePanel: NSPanel {
         case .bottomLeading: .bottomLeading
         case .topLeading: .topLeading
         case .bottom: .bottom
+        case .top: .top
         }
         let rect = placement.envelope.insetBy(dx: -Self.inset, dy: -Self.inset)
         panel.setFrame(NSRect(x: rect.minX, y: primary - rect.maxY, width: rect.width, height: rect.height), display: true)
