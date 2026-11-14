@@ -90,6 +90,19 @@ import XCTest
         XCTAssertEqual(opened, 1)
     }
 
+    func testAHostedStreamThatHeardPastTheReleaseIsRedoneFromTheClip() async throws {
+        let hosted = FakeStreamingEngine(text: "Too much.", oneShot: "Just the clip.")
+        let run = try DictationLiveRun(self, hosted: hosted, modelPath: .some(nil))
+        run.press(0)
+        // The file plays at once, so by now the pump has sent audio from well after the release point below.
+        try await run.until { await (hosted.opened.first?.samples.count ?? 0) > 30_000 }
+        run.release(1_200, audio: 1_000)
+        try await run.until { run.drop.states.last == .left }
+        XCTAssertEqual(run.inserts.texts, ["Just the clip."])
+        let stream = await hosted.opened.first, transcribed = await hosted.transcribed
+        XCTAssertEqual(stream?.cancelled, true); XCTAssertEqual(stream?.finished, 0); XCTAssertEqual(transcribed, 1)
+    }
+
     func testAHostedFailureEndsInTheFailedDropAndWritesNothing() async throws {
         let hosted = FakeStreamingEngine(error: .hostedFailed("timeout"))
         let run = try DictationLiveRun(self, hosted: hosted, modelPath: .some(nil))

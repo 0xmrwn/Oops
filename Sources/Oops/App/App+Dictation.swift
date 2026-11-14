@@ -31,7 +31,11 @@ extension AppDelegate {
             small: { SmallCleanups.saved }, language: { providers.dictationCleanupLanguage(local, override: DebugFlags.dictationModel) },
             mode: { DictationCleanupMode.saved },
             backend: { try providers.cleanupBackend() }, replace: { await Self.replace($0, with: $1, in: editor) })
-        return DictationSession(recorder: recorder, engine: engine, hostedEngine: { providers.dictationHostedEngine(local) },
+        // A model file from the debug override is what a check means to run: its audio never goes to a hosted engine.
+        let hosted: @MainActor () -> (any SpeechEngine)? = {
+            DebugFlags.dictationModel?.isEmpty == false ? nil : providers.dictationHostedEngine(local)
+        }
+        return DictationSession(recorder: recorder, engine: engine, hostedEngine: hosted,
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,

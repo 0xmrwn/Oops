@@ -11,6 +11,8 @@ import OopsCore
     let hosted: Bool
     /// The stream once the engine opened it; nil when it can't stream (a model that only transcribes once).
     let starting: Task<any SpeechStream?, Never>
+    /// The engine's one-shot over a clip, as this dictation would stream it.
+    let oneShot: @Sendable ([Float]) async throws -> String
     var pump: Task<Void, Never>?
     var wordsTask: Task<Void, Never>?
     /// How many of the recording's samples the stream has.
@@ -24,8 +26,9 @@ import OopsCore
     /// None of this dictation's words show any more.
     private(set) var ended = false
 
-    init(turn: Int, hosted: Bool, starting: Task<any SpeechStream?, Never>) {
-        self.turn = turn; self.hosted = hosted; self.starting = starting
+    init(turn: Int, hosted: Bool, starting: Task<any SpeechStream?, Never>,
+         oneShot: @escaping @Sendable ([Float]) async throws -> String) {
+        self.turn = turn; self.hosted = hosted; self.starting = starting; self.oneShot = oneShot
     }
 
     /// Stops the pump and waits out an append it was making, so the stream's audio stays in recording order.
@@ -69,7 +72,9 @@ extension DictationSession {
                 return nil
             }
         }
-        let live = LiveDictation(turn: turn, hosted: hosted, starting: starting)
+        let live = LiveDictation(turn: turn, hosted: hosted, starting: starting) {
+            try await engine.transcribe($0, language: language, vocabulary: vocabulary)
+        }
         self.live = live
         Task { [weak self] in
             guard let stream = await starting.value, let self, !live.ended else { return }
@@ -114,6 +119,12 @@ extension DictationSession {
             return nil
         }
         guard let stream = await live.starting.value else { throw SpeechEngineError.hostedFailed("connection") }
+        // A release handled late: the pump already sent audio past the clip's end, which a commit would transcribe.
+        // The turn is abandoned and the clip alone goes through a new one.
+        if live.sent > samples.count {
+            await stream.cancel()
+            return try await live.oneShot(samples)
+        }
         if live.sent < samples.count {
             await stream.append(Array(samples[live.sent...]))
             live.sent = samples.count

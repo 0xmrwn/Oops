@@ -26,10 +26,20 @@ public struct URLSessionRealtimeTransport: RealtimeTransport {
         let task = session.webSocketTask(with: request)
         task.resume()
         // The handshake's outcome only surfaces on the first receive or send; a ping makes it explicit.
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            task.sendPing { error in
-                if let error { continuation.resume(throwing: error) } else { continuation.resume() }
-            }
+        do {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                    task.sendPing { error in
+                        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+                    }
+                }
+            } onCancel: { task.cancel() }
+            try Task.checkCancellation()
+        } catch {
+            // No socket is handed back to close, so the session is let go here.
+            task.cancel()
+            session.invalidateAndCancel()
+            throw error
         }
         return URLSessionRealtimeSocket(task: task, session: session)
     }
