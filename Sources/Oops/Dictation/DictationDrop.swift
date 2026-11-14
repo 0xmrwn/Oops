@@ -201,8 +201,9 @@ extension DictationDropPosition {
             place = .saved; logged = false; host = NSWorkspace.shared.frontmostApplication?.processIdentifier
         }
         if locating != nil { return }
-        // Already up: it keeps its spot, and a new state stops a failure's timed exit.
-        if panel.isShown { panel.present(); settle(); return }
+        // Already up: it keeps its spot, and a new state stops a failure's timed exit. A new recording places it
+        // afresh, by the caret the last dictation's text moved: its words go there, not over that text.
+        if panel.isShown, state != .recording { panel.present(); settle(); return }
         model.visualizer = .stored()
         locating = Task { [weak self] in
             let geometry = await self?.locate()
