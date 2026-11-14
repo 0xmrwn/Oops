@@ -9,7 +9,9 @@ public enum LiveWordsAnchor {
     /// window's when the field's frame is unknown). Otherwise the caret, with that room.
     public static func target(_ place: DictationLiveWordsPlace, geometry: CapsulePlacement.Geometry?,
                               minimumWidth: CGFloat = 120) -> LiveWordsTarget {
-        guard place == .text, let geometry, let caret = geometry.caret, CapsulePlacement.valid(caret),
+        // The caret as placement trusts it: AppKit puts a line-end caret on the line above, which the character
+        // before it corrects.
+        guard place == .text, let geometry, let caret = CapsulePlacement.caret(geometry, within: geometry.element ?? geometry.window),
               (8 ... 80).contains(caret.height), caret.width <= 10 else { return .drop }
         if let element = geometry.element, !element.insetBy(dx: -2, dy: -2).contains(CGPoint(x: caret.midX, y: caret.midY)) {
             return .drop

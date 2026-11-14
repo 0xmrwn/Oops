@@ -31,6 +31,14 @@ final class LiveWordsAnchorTests: XCTestCase {
         XCTAssertEqual(target(caret: CGRect(x: 300, y: 700, width: 1, height: 17)), .drop)
     }
 
+    func testALineEndCaretOnTheLineAboveIsMovedBesideTheCharacterBeforeIt() {
+        // TextEdit at the end of a line: the caret reported one line up, the character before it where it is drawn.
+        let text = CGRect(x: 175, y: 132, width: 656, height: 384)
+        let geometry = CapsulePlacement.Geometry(element: text, caret: CGRect(x: 304, y: 119, width: 0, height: 13),
+                                                 previousCharacter: CGRect(x: 297, y: 133, width: 7, height: 13))
+        XCTAssertEqual(LiveWordsAnchor.target(.text, geometry: geometry), .caret(CGRect(x: 304, y: 133, width: 0, height: 13), width: 527))
+    }
+
     func testTooLittleRoomBeforeTheEdgeFallsBack() {
         XCTAssertEqual(target(caret: CGRect(x: 600, y: 240, width: 1, height: 17)), .drop)
         // Without the field's frame, the window's edge counts.
