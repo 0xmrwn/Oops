@@ -11,8 +11,8 @@ import Testing
         var located = 0
         let drop = DictationDropOwner(owner: owner) {
             located += 1
-            return CapsulePlacement.Geometry(element: CGRect(x: 100, y: 200, width: 600, height: 300),
-                                             caret: CGRect(x: 120 + CGFloat(located) * 100, y: 210, width: 1, height: 17))
+            return (CapsulePlacement.Geometry(element: CGRect(x: 100, y: 200, width: 600, height: 300),
+                                              caret: CGRect(x: 120 + CGFloat(located) * 100, y: 210, width: 1, height: 17)), nil)
         }
         #expect(drop.claim(busy: { true }))
         drop.show(.recording)

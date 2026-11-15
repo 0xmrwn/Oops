@@ -154,20 +154,21 @@ extension DictationDropPosition {
 @MainActor final class DictationDropOwner: DictationDrop {
     private let owner: DropOwner
     private let model: DictationDropModel
-    /// The focused field's geometry, read without capturing a draft.
-    private let locate: @MainActor () async -> CapsulePlacement.Geometry?
+    /// The focused field's geometry and its text's style at the caret, read without capturing a draft.
+    private let locate: @MainActor () async -> (geometry: CapsulePlacement.Geometry, style: CaretStyle?)?
     /// The drop is on its way up, once its spot is known.
     private var locating: Task<Void, Never>?
     private var panel: CapsulePanel { owner.panel }
-    /// The field's geometry as the drop came up, where words at the caret go.
-    private var geometry: CapsulePlacement.Geometry?
+    /// The field's geometry and style as the drop came up, where words at the caret go and how they are drawn.
+    private var geometry: CapsulePlacement.Geometry?, style: CaretStyle?
     /// Live words' place, read as the recording shows; the latest words, kept until the drop's spot is known; and
     /// whether this dictation's target was logged.
     private var place = DictationLiveWordsPlace.drop, words: LiveWords?, logged = false
     /// The app in front as the recording started: words at the caret belong to its field.
     private var host: pid_t?
 
-    init(owner: DropOwner, loudness: DictationLoudnessFeed? = nil, locate: @escaping @MainActor () async -> CapsulePlacement.Geometry?) {
+    init(owner: DropOwner, loudness: DictationLoudnessFeed? = nil,
+         locate: @escaping @MainActor () async -> (geometry: CapsulePlacement.Geometry, style: CaretStyle?)?) {
         self.owner = owner; self.locate = locate; model = DictationDropModel(loudness: loudness)
     }
 
@@ -204,10 +205,11 @@ extension DictationDropPosition {
         if panel.isShown, state != .recording { panel.present(); settle(); return }
         model.visualizer = .stored()
         locating = Task { [weak self] in
-            let geometry = await self?.locate()
+            let located = await self?.locate()
             guard let self, !Task.isCancelled else { return }
             locating = nil
-            self.geometry = geometry
+            let geometry = located?.geometry
+            self.geometry = geometry; style = located?.style
             // Read at each dictation, so a change in Settings applies to the next one.
             let position = DictationDropPosition.saved.resolved(hasAnchor: geometry?.element != nil)
             panel.present(geometry: geometry, fixed: position == .anchored ? nil : position)
@@ -219,7 +221,7 @@ extension DictationDropPosition {
     func leave() {
         locating?.cancel(); locating = nil
         showWords(nil)
-        geometry = nil
+        geometry = nil; style = nil
         panel.hide()
     }
 
@@ -236,11 +238,11 @@ extension DictationDropPosition {
     /// At the caret when Settings and the field allow it, and while the field's app is still in front; in the drop
     /// otherwise.
     private func route(_ words: LiveWords) {
-        var target = LiveWordsAnchor.target(place, geometry: geometry)
+        var target = LiveWordsAnchor.target(place, geometry: geometry, style: style)
         if case .caret = target, NSWorkspace.shared.frontmostApplication?.processIdentifier != host { target = .drop }
-        if case let .caret(caret, width) = target {
+        if case let .caret(caret, width) = target, let style {
             model.words = nil
-            owner.highlight.showWords(words, at: caret, width: width)
+            owner.highlight.showWords(words, at: caret, width: width, style: style)
         } else {
             owner.highlight.clearWords()
             model.words = words
@@ -248,7 +250,9 @@ extension DictationDropPosition {
         guard !logged else { return }
         logged = true
         let name = if case .caret = target { "caret" } else { place == .text ? "fallback" : "drop" }
-        DictationSession.log.notice("live target=\(name, privacy: .public)")
+        // What the field told of its text, to see where ghost text can and cannot show.
+        let told = style.map { "font=\($0.fontName ?? "none") size=\($0.fontSize ?? 0) colour=\($0.color != nil) followed=\($0.followed)" } ?? "none"
+        DictationSession.log.notice("live target=\(name, privacy: .public) style=\(told, privacy: .public)")
     }
 
     /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves; a

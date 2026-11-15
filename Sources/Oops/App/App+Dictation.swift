@@ -22,7 +22,7 @@ extension AppDelegate {
         }
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
-        let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
+        let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedCaret() }
         let providers = preferences.providers, local = LocalModels.shared
         startSpeechModels(providers, local)
         let vocabulary = VocabularyStore.shared

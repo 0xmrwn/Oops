@@ -11,14 +11,7 @@ extension EditorAccess {
     /// reports the span's formatting and some of it is bold, italic, underlined or struck through.
     /// Nil leaves a plain paste: the span is plain, holds a link, or its formatting can't be read.
     nonisolated func richInput(_ element: AXUIElement, _ range: NSRange, original: String, replacement: String) -> Data? {
-        var value = CFRange(location: range.location, length: range.length)
-        guard let parameter = AXValueCreate(.cfRange, &value) else { return nil }
-        let read: NSAttributedString? = AccessibilityExecution.perform(for: element) {
-            var result: CFTypeRef?
-            return AXUIElementCopyParameterizedAttributeValue(element, kAXAttributedStringForRangeParameterizedAttribute as CFString,
-                                                              parameter, &result) == .success ? result as? NSAttributedString : nil
-        }
-        guard let read, sameText(read.string, original) else { return nil }
+        guard let read = attributedString(element, range), sameText(read.string, original) else { return nil }
         // RTF can't carry a link Accessibility reports as an element: a plain paste keeps the editor's link.
         var linked = false
         read.enumerateAttribute(NSAttributedString.Key("AXLink"), in: NSRange(location: 0, length: read.length)) { value, _, stop in

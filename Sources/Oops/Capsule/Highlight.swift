@@ -15,8 +15,8 @@ import OopsCore
     private var generation = 0
     private var observers: [NSObjectProtocol] = []
     private var watch: Task<Void, Never>?
-    /// The live words' pill and line, while a dictation shows them at the caret.
-    private var words: (pill: CALayer, text: CATextLayer)?
+    /// The live words' line and the clip it slides in, while a dictation shows them at the caret.
+    private var words: (clip: CALayer, text: CATextLayer, fade: CAGradientLayer)?
 
     init() {
         panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -122,7 +122,7 @@ import OopsCore
     }
 
     func clear() {
-        words?.pill.removeFromSuperlayer(); words?.text.removeFromSuperlayer(); words = nil
+        words?.clip.removeFromSuperlayer(); words = nil
         tracker.stop()
         observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }; observers = []
         watch?.cancel(); watch = nil
@@ -130,10 +130,11 @@ import OopsCore
         if panel.isVisible { panel.orderOut(nil) }
     }
 
-    /// A dictation's words so far, in one line from the caret (AX points) for at most `width`, over one pill in the
-    /// correction's tint. Updated in place, with no fade: the words change as fast as speech. The pill belongs to the
-    /// app in front, so another app or Space coming forward takes it away, as it does a flash.
-    func showWords(_ live: LiveWords, at caret: CGRect, width: CGFloat) {
+    /// A dictation's words so far as ghost text: one line from the caret (AX points) for at most `width`, in the
+    /// field's own font and colour, fainter, with nothing behind it. A line too long for the room keeps its newest
+    /// words at the far edge and lets the oldest fade out at the caret. Updated in place: the words change as fast
+    /// as speech. They belong to the app in front, so another app or Space coming forward takes them away.
+    func showWords(_ live: LiveWords, at caret: CGRect, width: CGFloat, style: CaretStyle) {
         if words == nil {
             clear()
             let host = NSWorkspace.shared.frontmostApplication?.processIdentifier, center = NSWorkspace.shared.notificationCenter
@@ -144,40 +145,48 @@ import OopsCore
                     }
                 })
             }
-            let pill = CALayer(), text = CATextLayer()
-            pill.cornerCurve = .continuous
-            content.layer?.addSublayer(pill); content.layer?.addSublayer(text)
-            words = (pill, text)
+            let clip = CALayer(), text = CATextLayer(), fade = CAGradientLayer()
+            clip.masksToBounds = true
+            text.isWrapped = false
+            // Across the clip: clear at the caret, solid a little way in.
+            fade.startPoint = CGPoint(x: 0, y: 0.5); fade.endPoint = CGPoint(x: 1, y: 0.5)
+            fade.colors = [NSColor.clear.cgColor, NSColor.black.cgColor]; fade.locations = [0, 0.07]
+            clip.addSublayer(text); content.layer?.addSublayer(clip)
+            words = (clip, text, fade)
         }
-        guard let (pill, text) = words else { return }
-        let font = NSFont.systemFont(ofSize: min(max(caret.height * 0.78, 11), 28)), inset: CGFloat = 4
-        let attributes: [NSAttributedString.Key: Any] = [.font: font]
-        let fitted = live.tail(fitting: width - 2 * inset) { ($0 as NSString).size(withAttributes: attributes).width }
-        // Resolved for the panel's appearance: layers keep a fixed colour.
-        var tint = NSColor.clear.cgColor, ink = tint, faint = tint
-        panel.effectiveAppearance.performAsCurrentDrawingAppearance {
-            let dark = panel.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            tint = NSColor.controlAccentColor.withAlphaComponent(dark ? 0.38 : 0.24).cgColor
-            ink = NSColor.labelColor.cgColor; faint = NSColor.secondaryLabelColor.cgColor
+        guard let (clip, text, fade) = words else { return }
+        let size = style.fontSize.map { CGFloat($0) } ?? min(max(caret.height * 0.78, 11), 28)
+        let font = style.fontName.map { EditorAccess.font(name: $0, size: size) } ?? NSFont.systemFont(ofSize: size)
+        // A field that keeps its colour to itself (AppKit's do) is taken to draw text as the appearance does.
+        var base = style.color.map { NSColor(srgbRed: $0.x, green: $0.y, blue: $0.z, alpha: 1) } ?? .textColor
+        if style.color == nil {
+            panel.effectiveAppearance.performAsCurrentDrawingAppearance { base = NSColor.textColor.usingColorSpace(.sRGB) ?? .gray }
         }
+        // Whitespace joined as the drop joins it; only the newest part of a long dictation can show.
+        let settled = LiveWords(stable: live.stable).text, all = live.text
+        let changing = String(all.dropFirst(settled.count)), stable = (style.spaced ? " " : "") + String(settled.suffix(Self.wordsLimit))
         // Core Text's own colour key: a text layer draws through it and ignores AppKit's.
         let color = NSAttributedString.Key(kCTForegroundColorAttributeName as String)
-        let line = NSMutableAttributedString(string: fitted.stable, attributes: [.font: font, color: ink])
-        line.append(NSAttributedString(string: fitted.changing, attributes: [.font: font, color: faint]))
-        let size = line.size(), height = max(caret.height, ceil(size.height) + 2)
-        let frame = CGRect(x: caret.maxX + 1, y: caret.midY - height / 2, width: ceil(size.width) + 2 * inset, height: height)
+        let line = NSMutableAttributedString(string: stable, attributes: [.font: font, color: base.withAlphaComponent(0.55).cgColor])
+        line.append(NSAttributedString(string: changing, attributes: [.font: font, color: base.withAlphaComponent(0.3).cgColor]))
+        let measured = line.size(), height = max(caret.height, ceil(measured.height)), length = ceil(measured.width) + 2
+        let frame = CGRect(x: caret.maxX + 1, y: caret.midY - height / 2, width: width, height: height)
         let primary = NSScreen.screens.first?.frame.maxY ?? 900
         CATransaction.begin(); CATransaction.setDisableActions(true)
         panel.setFrame(NSRect(x: frame.minX, y: primary - frame.maxY, width: frame.width, height: frame.height), display: false)
-        pill.frame = CGRect(origin: .zero, size: frame.size)
-        pill.cornerRadius = min(frame.height / 2, 6)
-        pill.backgroundColor = tint
-        text.frame = CGRect(x: inset, y: (frame.height - ceil(size.height)) / 2, width: frame.width - 2 * inset, height: ceil(size.height))
+        clip.frame = CGRect(origin: .zero, size: frame.size)
+        let over = length > width
+        fade.frame = clip.bounds
+        clip.mask = over ? fade : nil
+        text.frame = CGRect(x: over ? width - length : 0, y: (height - ceil(measured.height)) / 2, width: length, height: ceil(measured.height))
         text.contentsScale = panel.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         text.string = line
         CATransaction.commit()
         panel.orderFrontRegardless()
     }
+
+    /// More settled text than any line holds.
+    private static let wordsLimit = 400
 
     /// Takes the live words away, and nothing else: a flash never shows beside them.
     func clearWords() {

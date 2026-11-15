@@ -71,7 +71,7 @@ struct DictateDropCard: View {
 
     private static let visualizers: [(value: DictationVisualizer, label: String)] = [(.hex, "Hex"), (.wave, "Wave"), (.ripple, "Ripple")]
     private static let positions: [(value: DictationDropPosition, label: String)] = [(.anchored, "By the text"), (.top, "Top"), (.bottom, "Bottom")]
-    private static let places: [(value: DictationLiveWordsPlace, label: String)] = [(.drop, "In the drop"), (.text, "Over the text")]
+    private static let places: [(value: DictationLiveWordsPlace, label: String)] = [(.drop, "In the drop"), (.text, "At the caret")]
 
     var body: some View {
         VStack(spacing: 0) {
