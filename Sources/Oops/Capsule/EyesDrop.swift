@@ -3,14 +3,15 @@ import SwiftUI
 
 /// The quiet drop: a Liquid Glass droplet carrying the oops eyes as two slight, unequal dashes.
 ///
-/// Refined over decorated: the system's glass supplies the lensing, frost and edge light; the
+/// Refined over decorated: regular Liquid Glass supplies the lensing, frost and edge light, and keeps the
+/// eyes and the label legible, since they are its own content in the system's foreground style; the
 /// app adds only what real glass shows — a faint top sheen, a hairline edge brighter at the top —
 /// and, while working, a soft colourless highlight travelling round the edge, like light catching
 /// a turning drop, while the eyes read.
 ///
 /// One animated width drives the glass, the light, the eyes and the label reveal, so the morph
 /// stays in sync. The drop pops in from small and shrinks out from its centre on dismissal. Light
-/// is drawn outside the glass container: attached to glass it is absorbed as glass content.
+/// is drawn over the glass, not as its content: content is recoloured by the glass.
 struct EyesDropView: View {
     @ObservedObject var model: CapsuleModel
     /// Every size times this: onboarding draws the drop at its camera's zoom, natively rather than magnified.
@@ -19,7 +20,6 @@ struct EyesDropView: View {
     var previewAccessibility: Set<String> = []
     #endif
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
     /// Lab override, since these settings are read-only to the app: `CapsuleAccessibility` lists
@@ -33,14 +33,11 @@ struct EyesDropView: View {
         #endif
     }
     private var reduceMotion: Bool { systemReduceMotion || accessibilityOverrides.contains("reduce-motion") }
-    private var reduceTransparency: Bool { systemReduceTransparency || accessibilityOverrides.contains("reduce-transparency") }
     private var increasedContrast: Bool { contrast == .increased || accessibilityOverrides.contains("increase-contrast") }
     @State private var start = Date()
     /// The drawn width, animated by `morph`.
     @State private var shown: CGFloat = Self.drop
     nonisolated static let drop: CGFloat = 46
-    /// Glass left at the drop's centre: enough to keep the eyes legible while the lens still shows.
-    static let centerGlass = 0.45
     /// Tabular digits, so a timing doesn't jitter the drop's width.
     private static let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
     private var drop: CGFloat { Self.drop * scale }
@@ -49,14 +46,8 @@ struct EyesDropView: View {
     private var working: Bool { model.phase == .working }
     private var expanded: Bool { ![.invoked, .working, .copied].contains(model.phase) }
     private var painted: Bool { !increasedContrast }
-    /// Clear glass does not flip its content for the backdrop, and oops cannot see what is behind
-    /// it. The ink follows the appearance, which most apps share: white on dark, near-black on
-    /// light. A halo of the opposite tone around the glyphs alone carries it over an app whose
-    /// own theme differs, with no backing shape. Increase Contrast's solid glass needs no halo.
-    private var ink: Color { scheme == .dark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09) }
-    private var halo: Color { increasedContrast ? .clear : (scheme == .dark ? Color.black : .white).opacity(0.85) }
-    /// The feathered centre trades legibility for transparency; contrast and transparency settings keep solid glass.
-    private var feathered: Bool { !reduceTransparency && !increasedContrast }
+    /// The system's label colour: regular glass keeps its own content legible, in one colour, with no halo.
+    private var ink: Color { .primary }
     private var cancellable: Bool { [.invoked, .working].contains(model.phase) && model.canCancel }
 
     /// Target width, computed rather than measured so every layer animates to the same value.
@@ -84,18 +75,13 @@ struct EyesDropView: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            // Behind the glass, not inside it: glass content is absorbed into its wash.
-            if reduceTransparency { Capsule().fill(.background).frame(width: shown, height: drop) }
-            GlassEffectContainer {
-                Color.clear.frame(width: shown, height: drop)
-                    .glassEffect(.clear.interactive(), in: .capsule)
-            }
-            .mask { if feathered { FeatheredCapsule(center: Self.centerGlass) } else { Capsule() } }
-            // Only the light and the eyes tick while working; the glass and its mask stay still,
-            // so a frame costs two small layers rather than the whole drop.
-            if painted { ticking { t in GlassLight(t: t, travelling: working && !reduceMotion, dark: scheme == .dark) }.frame(width: shown, height: drop) }
             label.frame(width: shown, height: drop, alignment: .leading).clipShape(Capsule())
             ticking { t in eyes(t) }.frame(width: drop, height: drop)
+        }
+        .glassEffect(.regular.interactive(), in: .capsule)
+        // Only the light and the eyes tick while working; the glass stays still.
+        .overlay {
+            if painted { ticking { t in GlassLight(t: t, travelling: working && !reduceMotion, dark: scheme == .dark) } }
         }
         // No cancel button while working: the drop itself cancels, like pressing the shortcut again.
         .contentShape(Capsule())
@@ -145,12 +131,11 @@ struct EyesDropView: View {
             HStack(spacing: 0) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
                     if index > 0 {
-                        Capsule().fill(ink.opacity(0.4)).frame(width: 1.5 * scale, height: 11 * scale).frame(width: Self.divider * scale)
+                        Capsule().fill(.tertiary).frame(width: 1.5 * scale, height: 11 * scale).frame(width: Self.divider * scale)
                     }
                     Text(part).font(Font(font)).lineLimit(1).fixedSize().contentTransition(.identity)
                 }
             }
-            .modifier(Halo(color: halo))
             if actionCount > 0 { Color.clear.frame(width: Self.gap * scale); actions }
         }
         .foregroundStyle(ink)
@@ -201,7 +186,7 @@ struct EyesDropView: View {
         let pose = pose(t)
         // A done drop's eyes swing into a check, and relax back into the side-eye as it collapses.
         let check = [.fixed, .copied].contains(model.phase) && model.presented ? 1.0 : 0
-        return DashEyes(look: pose.look, lid: pose.lid, check: check, ink: ink, halo: halo)
+        return DashEyes(look: pose.look, lid: pose.lid, check: check, ink: ink, halo: .clear)
             .animation(reduceMotion ? .easeInOut(duration: 0.2) : check > 0 ? .spring(duration: 0.5, bounce: 0.32) : .spring(duration: 0.55, bounce: 0.15),
                        value: model.phase)
             .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.35, bounce: 0), value: model.presented)
@@ -238,25 +223,6 @@ struct EyesDropView: View {
     }
     private func button(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         DropActionButton(symbol: symbol, label: label, scale: scale, action: action)
-    }
-}
-
-/// Mask for the glass: solid at the rim, feathered to `center` inside, so the drop thins out
-/// toward its middle with no visible inner edge. Native frost cannot be tuned; this can.
-private struct FeatheredCapsule: View {
-    let center: Double
-    var body: some View {
-        GeometryReader { proxy in
-            let inset = proxy.size.height * 0.2
-            ZStack {
-                Capsule().fill(.white)
-                Capsule().inset(by: inset).fill(.white.opacity(1 - center))
-                    .blur(radius: inset * 0.8).blendMode(.destinationOut)
-            }
-            // Rasterized once: as a live filter chain, the blur re-ran on every frame of a moving backdrop.
-            .drawingGroup()
-            .clipShape(Capsule())
-        }
     }
 }
 
