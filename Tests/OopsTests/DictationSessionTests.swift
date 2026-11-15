@@ -224,7 +224,8 @@ import XCTest
     private(set) var session: DictationSession!
 
     init(_ test: XCTestCase, mode: DictationMode, audio: [Float]? = nil, engine: FakeSpeechEngine? = FakeSpeechEngine(text: "Hello"),
-         modelPath: String?? = nil, language: String? = nil, cleanup: DictationSession.Cleanup = .none) throws {
+         modelPath: String?? = nil, language: String? = nil, cleanup: DictationSession.Cleanup = .none,
+         environment: DictationRecordingEnvironment? = nil) throws {
         self.mode = mode
         self.engine = engine
         let url = try test.wavFile(float: audio ?? Self.speech(), rate: 16_000)
@@ -240,7 +241,7 @@ import XCTest
                                        await withCheckedContinuation { self?.asks += 1; self?.prompt = $0 }
                                    },
                                    escape: { [weak self] in self?.escapes.append($0) }, shortcutModifiers: { [weak self] _ in self?.shortcutModifiers },
-                                   copy: { DictationSession.copyToClipboard($0, on: board) })
+                                   copy: { DictationSession.copyToClipboard($0, on: board) }, environment: environment)
     }
 
     /// Answers the microphone prompt the session is waiting on.
