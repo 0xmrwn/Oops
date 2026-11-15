@@ -94,7 +94,7 @@ private struct DictationDropLabBoard: View {
     }
 }
 
-/// A stand-in for `DictationDropView` at its size, glass, type and halo, with a voice where its symbol is: a
+/// A stand-in for `DictationDropView` at its size, glass and type, with a voice where its symbol is: a
 /// strip after the drop's padding, or the ripple centred in the leading cap as Fix centres its eyes.
 struct LabDrop<Voice: View>: View {
     let kind: DictationVisualizer
@@ -115,19 +115,17 @@ struct LabDrop<Voice: View>: View {
     }
 
     var body: some View {
-        let inked = BackdropInk.isAvailable
-        let ink = VoiceInk(isDark: dark, inked: inked)
         let lead = Self.lead(kind, state: state)
         HStack(spacing: 7) {
-            voice().voiceInk(inked, kind: kind, state: state)
+            voice()
             Text(state.text).font(.system(size: 13, weight: .semibold).monospacedDigit()).lineLimit(1).fixedSize()
-                .foregroundStyle(ink.ink).modifier(Halo(color: ink.halo)).backdropInk(inked)
         }
-        .environment(\.backdropInked, inked)
+        .foregroundStyle(.primary)
+        .environment(\.voiceOnRegularGlass, true)
         .animation(.spring(duration: 0.4, bounce: 0.12), value: state)
         .padding(.leading, lead).padding(.trailing, 16)
         .frame(height: Self.height)
-        .background { GlassEffectContainer { Color.clear.glassEffect(.clear, in: .capsule) } }
+        .glassEffect(.regular, in: .capsule)
         .environment(\.colorScheme, dark ? .dark : .light)
     }
 }

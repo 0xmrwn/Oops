@@ -93,8 +93,7 @@ struct DictationDropView: View {
             }
         }
         .foregroundStyle(.primary)
-        // On regular glass the voices need no halo, which is what this says to them.
-        .environment(\.backdropInked, true)
+        .environment(\.voiceOnRegularGlass, true)
         .padding(.leading, lead).padding(.trailing, model.action == nil ? Self.padding : 0)
     }
 }

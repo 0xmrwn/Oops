@@ -12,11 +12,11 @@ struct WaveVisualizer: View {
     let isDark: Bool
     let reduceMotion: Bool
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.backdropInked) private var inked
+    @Environment(\.voiceOnRegularGlass) private var onRegularGlass
     @State private var clock = WaveClock()
 
     var body: some View {
-        let ink = VoiceInk(isDark: isDark, increasedContrast: contrast == .increased, inked: inked)
+        let ink = VoiceInk(isDark: isDark, increasedContrast: contrast == .increased, onRegularGlass: onRegularGlass)
         // A failure draws once; Reduce Motion redraws only when the level changes.
         TimelineView(.animation(paused: reduceMotion || !phase.isLive)) { context in
             let frame = clock.frame(at: context.date.timeIntervalSinceReferenceDate, phase: phase, loudness: loudness)
