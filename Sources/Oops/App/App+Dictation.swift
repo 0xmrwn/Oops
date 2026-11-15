@@ -18,7 +18,7 @@ extension AppDelegate {
             let source: any DictationAudioSource = DebugFlags.dictationAudioFile.map {
                 DictationAudioFile(url: URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath), pace: .realTime)
             } ?? DictationMicrophone(access: { forced ?? .current })
-            return DictationRecorder(source: source)
+            return DictationRecorder(source: source, preRoll: { DictationAudioSettings.pressPreRoll() })
         }
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
