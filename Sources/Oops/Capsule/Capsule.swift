@@ -55,8 +55,10 @@ private final class PassivePanel: NSPanel {
 @MainActor final class CapsulePanel {
     /// Fix's panel, and the dictation drop's without live words in it.
     static let standard = CGSize(width: 280, height: 78)
-    /// The panel's size for the feature holding it (`DropOwner.claim`).
+    /// The panel's size for the feature holding it (`DropOwner.claim`), and whether its drop sits centred across
+    /// the panel instead of hugging the placement's corner.
     private(set) var size = standard
+    private var centred = false
     /// EyesDropView pads its glass by this much inside the panel.
     private static let inset: CGFloat = 14
     let model = CapsuleModel()
@@ -87,7 +89,8 @@ private final class PassivePanel: NSPanel {
         panel.contentView = FirstClickHostingView(rootView: CapsuleRoot(model: model, size: size, content: content))
     }
     /// Sizes the panel for the feature about to show in it: placement keeps the whole of it clear of the draft.
-    func resize(_ size: CGSize) {
+    func resize(_ size: CGSize, centred: Bool = false) {
+        self.centred = centred
         guard size != self.size else { return }
         self.size = size
         if let root = panel.contentView as? FirstClickHostingView<CapsuleRoot> {
@@ -214,7 +217,7 @@ private final class PassivePanel: NSPanel {
     /// The drop inside the panel, in screen points, with room for the close badge on its rim.
     private var dropFrame: NSRect {
         let area = panel.frame.insetBy(dx: Self.inset, dy: Self.inset), width = model.width, height = EyesDropView.drop
-        let x = switch model.alignment.horizontal {
+        let x = switch centred ? .center : model.alignment.horizontal {
         case .leading: area.minX
         case .trailing: area.maxX - width
         default: area.midX - width / 2

@@ -46,13 +46,6 @@ enum DebugFlags {
     #else
     static var dictationAudioFile: String? { nil }
     #endif
-    /// `-DebugLiveWordsLayout inline`: live words in the drop take the place of its state word, in the panel's usual
-    /// height, instead of a line beside the capsule; a layout to compare, Debug and preview builds.
-    #if DEBUG || OOPS_PREVIEW
-    static var liveWordsLayout: String? { UserDefaults.standard.string(forKey: "DebugLiveWordsLayout") }
-    #else
-    static var liveWordsLayout: String? { nil }
-    #endif
     /// Actions, the same way: `DebugActions`.
     static var actions: Bool { bool("DebugActions") }
 

@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// Where live words appear. The raw values are what Settings stores.
 public enum DictationLiveWordsPlace: String, CaseIterable, Sendable {
-    /// A line above the drop's visualizer; the text field is untouched until the end.
+    /// On the shelf the drop opens beside its capsule; the text field is untouched until the end.
     case drop
     /// At the caret, over the text field, through the highlight overlay.
     case text

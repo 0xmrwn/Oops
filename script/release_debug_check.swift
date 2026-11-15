@@ -14,14 +14,14 @@ import Foundation
             "DebugLogDirectory": "/tmp/should-not-write", "PerfHarness": "settings", "PerfSeconds": 30,
             "SettingsPreviewProviders": true, "SettingsPreviewUpdate": "available", "SettingsPreviewStats": true,
             "DebugDictation": true, "DebugActions": true, "DebugDictationModel": "/tmp/model.gguf",
-            "DebugDictationAudioFile": "/tmp/should-not-play.wav", "DebugLiveWordsLayout": "inline",
+            "DebugDictationAudioFile": "/tmp/should-not-play.wav",
         ])
         #if OOPS_PREVIEW
             precondition(DebugFlags.dictation && DebugFlags.dictationModel == "/tmp/model.gguf" && !DebugFlags.actions)
-            precondition(DebugFlags.dictationAudioFile == "/tmp/should-not-play.wav" && DebugFlags.liveWordsLayout == "inline")
+            precondition(DebugFlags.dictationAudioFile == "/tmp/should-not-play.wav")
         #else
             precondition(!DebugFlags.dictation && DebugFlags.dictationModel == nil && !DebugFlags.actions)
-            precondition(DebugFlags.dictationAudioFile == nil && DebugFlags.liveWordsLayout == nil)
+            precondition(DebugFlags.dictationAudioFile == nil)
         #endif
         precondition(!DebugFlags.labTriggers && DebugFlags.stubProvider == nil && DebugFlags.probeState == nil)
         precondition(DebugFlags.debugLogDirectory == nil && DebugFlags.perfHarness == nil && DebugFlags.perfSeconds == 0)

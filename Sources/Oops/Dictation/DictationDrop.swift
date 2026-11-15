@@ -106,7 +106,7 @@ struct DropAction {
     func show(_ state: DictationDropState, action: DropAction?)
     /// The drop leaves.
     func leave()
-    /// The words so far while a dictation streams, shown where Settings' Live words says (in the drop, or at the
+    /// The words so far while a dictation streams, shown where Settings' Live words says (on the drop's shelf, or at the
     /// caret through the highlight overlay, falling back to the drop where the overlay can't place them); nil, or
     /// words with nothing in them, takes them away. The session clears them before it writes and as a dictation ends.
     func showWords(_ words: LiveWords?)
@@ -144,10 +144,8 @@ extension DictationDropPosition {
     let loudness: DictationLoudnessFeed?
     /// The kept transcript's copy button was pressed; its icon turns into a check.
     var copied = false
-    /// The words so far while a dictation streams, when they show in the drop; nil shows none.
+    /// The words so far while a dictation streams, when they show on the drop's shelf; nil shows none.
     var words: LiveWords?
-    /// Debug only: the words take the state word's place in the capsule, instead of a line beside it.
-    let inlineWords = DebugFlags.liveWordsLayout == "inline"
     init(loudness: DictationLoudnessFeed? = nil) { self.loudness = loudness }
 }
 
@@ -174,9 +172,9 @@ extension DictationDropPosition {
     }
 
     func claim(busy: @escaping () -> Bool) -> Bool {
-        // Room for the line of live words beside the capsule, so placement keeps it off the text too.
-        let size = model.inlineWords ? CapsulePanel.standard : CGSize(width: 280, height: CapsulePanel.standard.height + DictationLivePreview.room)
-        return owner.claim(.dictate, busy: busy, size: size) { [model, capsule = owner.panel.model] in
+        // Room for the shelf of live words, so placement keeps it off the text too; the capsule sits centred on it.
+        let size = CGSize(width: DropShelf.width + 28, height: DropShelf.height + 28)
+        return owner.claim(.dictate, busy: busy, size: size, centred: true) { [model, capsule = owner.panel.model] in
             AnyView(DictationDropView(model: model, capsule: capsule))
         }
     }
