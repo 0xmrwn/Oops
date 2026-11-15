@@ -35,7 +35,7 @@ final class EngineExitTests: XCTestCase {
         try await engine.warmUp(model: URL(fileURLWithPath: model))
         _ = try await engine.transcribe([Float](repeating: 0, count: 16000))
         // What the app does as it quits, from the main thread with the model still held.
-        await MainActor.run { engine.shutDown() }
-        exit(0)
+        let freed = await MainActor.run { engine.shutDown() }
+        exit(freed ? 0 : 2)
     }
 }

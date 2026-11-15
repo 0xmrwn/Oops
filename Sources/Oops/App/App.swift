@@ -84,7 +84,10 @@ import OopsCore
         ClaudeCodeSignIn.cancel()
         session.editor.settle(timeout: 1)
         session.editor.switches.restoreAll()
-        DictationEngineProvider.shutDown()
+        // A stuck load or transcription would hang quit, logout and updates, which is worse than any crash. Past
+        // the wait the model is still loaded, so exit's static destructors would abort: end without running them.
+        // Everything above has already run, and nothing Oops keeps relies on them.
+        if !DictationEngineProvider.shutDown() { _exit(0) }
     }
 
     /// `pkill` and logout send SIGTERM, which would skip `applicationWillTerminate`: quit properly instead.

@@ -103,10 +103,18 @@ public actor TranscribeEngine: SpeechEngine {
 
     /// Frees the model before the process exits, after any run in progress. ggml keeps its Metal devices in a
     /// static list whose destructor, run by `exit`, aborts while a buffer of a loaded model is still alive; the
-    /// engine may hold one for `IdleRelease.after` past its last use. Blocks the caller, so never call it from the
-    /// engine's own queue.
-    public nonisolated func shutDown() {
-        queue.sync { assumeIsolated { $0.close() } }
+    /// engine may hold one for `IdleRelease.after` past its last use. Blocks the caller up to `limit`, so never call
+    /// it from the engine's own queue. False when a run still holds the queue at the limit: the model is then still
+    /// loaded and the caller decides how to exit.
+    public nonisolated func shutDown(within limit: Duration = .seconds(5)) -> Bool {
+        let done = DispatchSemaphore(value: 0)
+        queue.async { [self] in
+            assumeIsolated { $0.close() }
+            done.signal()
+        }
+        let (seconds, attoseconds) = limit.components
+        let nanoseconds = Int(seconds) * 1_000_000_000 + Int(attoseconds / 1_000_000_000)
+        return done.wait(timeout: .now() + .nanoseconds(nanoseconds)) == .success
     }
 
     private func close() {

@@ -71,7 +71,8 @@ final class EngineIdleReleaseTests: XCTestCase {
     func testShutDownFreesAtOnceAndNothingLoadsAfter() async throws {
         let (engine, _, models) = make()
         try await engine.load(model: url)
-        await MainActor.run { engine.shutDown() }
+        let freed = await MainActor.run { engine.shutDown() }
+        XCTAssertTrue(freed)
         XCTAssertEqual(models.freed, 1)
         do {
             try await engine.warmUp(model: url)
@@ -80,6 +81,23 @@ final class EngineIdleReleaseTests: XCTestCase {
             XCTAssertEqual(error, .notLoaded)
         }
         XCTAssertEqual(models.opened, [url])
+    }
+
+    func testShutDownGivesUpAtItsLimitWhileARunHoldsTheModel() async throws {
+        let stuck = Stuck()
+        let engine = TranscribeEngine(idleRelease: .standard) { _ throws(SpeechEngineError) in stuck }
+        try await engine.load(model: url)
+        let run = Task { try await engine.transcribe([0.1]) }
+        let (freed, waited) = await MainActor.run {
+            stuck.started.wait()
+            let start = ContinuousClock.now
+            return (engine.shutDown(within: .milliseconds(100)), ContinuousClock.now - start)
+        }
+        XCTAssertFalse(freed)
+        XCTAssertLessThan(waited, .seconds(2))
+        // Let the run end so the engine's queue doesn't outlive the test.
+        stuck.finish.signal()
+        _ = try? await run.value
     }
 
     func testLoadingAnotherModelFreesTheFirst() async throws {
@@ -139,6 +157,19 @@ private final class StandIn: LoadedModel {
     func run(_ samples: [Float], language: String?, vocabulary: VocabularyDelivery?) throws(SpeechEngineError) -> String {
         models.run(samples.count)
         return "\(samples.count) samples"
+    }
+}
+
+/// A model whose run never ends on its own, as a wedged native run would: it holds the engine's queue until
+/// the test signals `finish`.
+private final class Stuck: LoadedModel, Sendable {
+    let started = DispatchSemaphore(value: 0)
+    let finish = DispatchSemaphore(value: 0)
+
+    func run(_ samples: [Float], language: String?, vocabulary: VocabularyDelivery?) throws(SpeechEngineError) -> String {
+        started.signal()
+        finish.wait()
+        return ""
     }
 }
 
