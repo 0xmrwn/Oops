@@ -68,6 +68,20 @@ final class EngineIdleReleaseTests: XCTestCase {
         }
     }
 
+    func testShutDownFreesAtOnceAndNothingLoadsAfter() async throws {
+        let (engine, _, models) = make()
+        try await engine.load(model: url)
+        await MainActor.run { engine.shutDown() }
+        XCTAssertEqual(models.freed, 1)
+        do {
+            try await engine.warmUp(model: url)
+            XCTFail("loaded after shutting down")
+        } catch {
+            XCTAssertEqual(error, .notLoaded)
+        }
+        XCTAssertEqual(models.opened, [url])
+    }
+
     func testLoadingAnotherModelFreesTheFirst() async throws {
         let (engine, _, models) = make()
         try await engine.load(model: url)

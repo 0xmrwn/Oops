@@ -77,12 +77,14 @@ import OopsCore
         #endif
     }
 
-    /// Nothing Oops started outlives it: Claude Code processes and Chromium accessibility switches.
+    /// Nothing Oops started outlives it: Claude Code processes, Chromium accessibility switches and the speech
+    /// model, which `exit` must not find loaded.
     func applicationWillTerminate(_ notification: Notification) {
         ClaudeCode.endRunningProcesses()
         ClaudeCodeSignIn.cancel()
         session.editor.settle(timeout: 1)
         session.editor.switches.restoreAll()
+        DictationEngineProvider.shutDown()
     }
 
     /// `pkill` and logout send SIGTERM, which would skip `applicationWillTerminate`: quit properly instead.

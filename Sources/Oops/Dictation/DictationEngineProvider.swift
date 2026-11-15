@@ -10,7 +10,10 @@ enum DictationEngineProvider {
     /// One for the app: one model in memory, one queue for its work.
     private static let shared = TranscribeEngine()
     static func engine() -> (any SpeechEngine)? { shared }
+    /// Before the process exits: a model still loaded then makes ggml abort in its static destructors.
+    static func shutDown() { shared.shutDown() }
     #else
     static func engine() -> (any SpeechEngine)? { nil }
+    static func shutDown() {}
     #endif
 }

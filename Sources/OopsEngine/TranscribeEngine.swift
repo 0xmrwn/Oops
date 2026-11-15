@@ -42,6 +42,8 @@ public actor TranscribeEngine: SpeechEngine {
         /// A feed failed: no more live words, though `finish` still writes the one-shot text.
         var failed = false
     }
+    /// Set by `shutDown`: the process is exiting, so nothing loads again.
+    private var shut = false
 
     public init(idleRelease: IdleRelease = .standard) {
         self.init(idleRelease: idleRelease) { url throws(SpeechEngineError) in try TranscribeModel(url: url) }
@@ -56,6 +58,7 @@ public actor TranscribeEngine: SpeechEngine {
 
     public func load(model url: URL) throws(SpeechEngineError) {
         unload()
+        guard !shut else { throw .notLoaded }
         model = try open(url)
         modelURL = url
         releaseWhenIdle()
@@ -69,7 +72,7 @@ public actor TranscribeEngine: SpeechEngine {
 
     public func transcribe(_ samples: [Float], language: String? = nil,
                            vocabulary: VocabularyDelivery? = nil) throws(SpeechEngineError) -> String {
-        guard let modelURL else { throw .notLoaded }
+        guard let modelURL, !shut else { throw .notLoaded }
         defer { releaseWhenIdle() }
         let model = try reopen(modelURL)
         // The session runs only with no stream open; the stream ended here feeds nothing more.
@@ -91,9 +94,24 @@ public actor TranscribeEngine: SpeechEngine {
     /// The model, opened again if the idle release dropped it.
     func reopen(_ url: URL) throws(SpeechEngineError) -> any LoadedModel {
         if let model { return model }
+        // Exiting: a stream must not bring a model back while `exit` runs.
+        guard !shut else { throw .notLoaded }
         let opened = try open(url)
         model = opened
         return opened
+    }
+
+    /// Frees the model before the process exits, after any run in progress. ggml keeps its Metal devices in a
+    /// static list whose destructor, run by `exit`, aborts while a buffer of a loaded model is still alive; the
+    /// engine may hold one for `IdleRelease.after` past its last use. Blocks the caller, so never call it from the
+    /// engine's own queue.
+    public nonisolated func shutDown() {
+        queue.sync { assumeIsolated { $0.close() } }
+    }
+
+    private func close() {
+        unload()
+        shut = true
     }
 
     func releaseWhenIdle() {
