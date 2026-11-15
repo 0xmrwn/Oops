@@ -13,12 +13,6 @@ struct BackdropInk: NSViewRepresentable {
     static let isAvailable = BackdropInkView.backdropLayer(tones: nil) != nil
     /// How far the layer reaches past the content: its blur fades toward its own edges, which would thin the ink.
     static let reach: CGFloat = 24
-    /// How hard the tone is pushed to black or white. Marks take the gentler flip; words, which thin to nothing
-    /// where the ink passes the backdrop's own grey, take one steep enough to lose a letter at most.
-    static let contrast = 6.0, wordsContrast = 40.0
-    /// How far the words' ink leans to the appearance's own ink before it flips: clear glass lightens what is
-    /// behind it in the light appearance and darkens it in the dark one, so a mid-tone backdrop reads as that side.
-    static let wordsLean = 0.15
 
     /// The ink's two ends, in place of black and white: `light` over a light backdrop, `dark` over a dark one.
     struct Tones: Equatable {
@@ -36,11 +30,8 @@ struct BackdropInk: NSViewRepresentable {
     }
 
     var tones: Tones?
-    var contrast = BackdropInk.contrast
-    /// Added to the ink before it is pushed to its ends: below 0 leans to black, above to white.
-    var lean = 0.0
 
-    func makeNSView(context: Context) -> BackdropInkView { BackdropInkView(tones: tones, contrast: contrast, lean: lean) }
+    func makeNSView(context: Context) -> BackdropInkView { BackdropInkView(tones: tones) }
     func updateNSView(_ nsView: BackdropInkView, context: Context) { nsView.tones = tones }
 }
 
@@ -54,17 +45,16 @@ final class BackdropInkView: NSView {
                 backdrop.setValue(Self.colour(tones.dark - tones.light), forKeyPath: "filters.inkSpan.inputColor")
                 backdrop.setValue(Self.colour(tones.light), forKeyPath: "filters.inkBase.inputColor")
             } else {
-                backdrop.filters = Self.filters(tones: tones, contrast: contrast, lean: lean)
+                backdrop.filters = Self.filters(tones: tones)
             }
         }
     }
 
     private let backdrop: CALayer?
-    private let contrast: Double, lean: Double
 
-    init(tones: BackdropInk.Tones?, contrast: Double, lean: Double) {
-        self.tones = tones; self.contrast = contrast; self.lean = lean
-        backdrop = Self.backdropLayer(tones: tones, contrast: contrast, lean: lean)
+    init(tones: BackdropInk.Tones?) {
+        self.tones = tones
+        backdrop = Self.backdropLayer(tones: tones)
         super.init(frame: .zero)
         wantsLayer = true
     }
@@ -83,9 +73,8 @@ final class BackdropInkView: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    static func backdropLayer(tones: BackdropInk.Tones?, contrast: Double = BackdropInk.contrast, lean: Double = 0) -> CALayer? {
-        guard let type = NSClassFromString("CABackdropLayer") as? CALayer.Type,
-              let filters = filters(tones: tones, contrast: contrast, lean: lean) else { return nil }
+    static func backdropLayer(tones: BackdropInk.Tones?) -> CALayer? {
+        guard let type = NSClassFromString("CABackdropLayer") as? CALayer.Type, let filters = filters(tones: tones) else { return nil }
         let layer = type.init()
         layer.setValue(true, forKey: "windowServerAware")
         layer.setValue(0.25, forKey: "scale") // A tone needs no detail, and a quarter of the pixels costs less.
@@ -94,11 +83,11 @@ final class BackdropInkView: NSView {
     }
 
     /// Nil when this system lacks one of them.
-    private static func filters(tones: BackdropInk.Tones?, contrast: Double, lean: Double) -> [NSObject]? {
-        var filters = [filter("gaussianBlur", ["inputRadius": 10.0]), filter("colorSaturate", ["inputAmount": 0.0]), filter("colorInvert")]
-        // The lean is a refinement: a system without the filter keeps the plain flip.
-        if lean != 0, let brightness = filter("colorBrightness", ["inputAmount": lean]) { filters.append(brightness) }
-        filters.append(filter("colorContrast", ["inputAmount": contrast]))
+    private static func filters(tones: BackdropInk.Tones?) -> [NSObject]? {
+        var filters = [
+            filter("gaussianBlur", ["inputRadius": 10.0]), filter("colorSaturate", ["inputAmount": 0.0]),
+            filter("colorInvert"), filter("colorContrast", ["inputAmount": 6.0]),
+        ]
         if let tones {
             // Black to white becomes `light` to `dark`: each channel is `light + ink * (dark - light)`.
             filters += [filter("multiplyColor", ["name": "inkSpan", "inputColor": colour(tones.dark - tones.light)]),
@@ -148,9 +137,9 @@ extension View {
     }
 
     /// Recolours what this view draws with `BackdropInk` when `on`, keeping its shape and opacity.
-    @ViewBuilder func backdropInk(_ on: Bool, tones: BackdropInk.Tones? = nil, contrast: Double = BackdropInk.contrast, lean: Double = 0) -> some View {
+    @ViewBuilder func backdropInk(_ on: Bool, tones: BackdropInk.Tones? = nil) -> some View {
         if on {
-            hidden().overlay { BackdropInk(tones: tones, contrast: contrast, lean: lean).padding(-BackdropInk.reach).mask { self } }
+            hidden().overlay { BackdropInk(tones: tones).padding(-BackdropInk.reach).mask { self } }
         } else {
             self
         }

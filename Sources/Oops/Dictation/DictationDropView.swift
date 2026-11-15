@@ -2,8 +2,9 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// The dictation drop: Fix's clear glass capsule at its height, holding its visualizer and a word or two in the
-/// drop's type, with the same halo instead of a backing shape. It enters and leaves as Fix's drop does, on
+/// The dictation drop: a capsule of regular Liquid Glass at Fix's drop's height, holding its visualizer and a word
+/// or two in the drop's type. Everything it shows is the glass's own content in the system's foreground styles, so
+/// the system keeps it legible, in one colour, over whatever is behind. It enters and leaves as Fix's drop does, on
 /// the panel's `presented`. Its one action, when a state offers one, sits in the trailing cap as Fix's does;
 /// without one it has nothing to press and lets clicks through. While a dictation streams, the glass opens into a
 /// shelf on the side away from the edge the drop hugs (`DropShelf`), and its words so far show there
@@ -13,20 +14,12 @@ struct DictationDropView: View {
     /// The panel's model, read only for the entrance, the corner and the drop's width.
     @ObservedObject var capsule: CapsuleModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
 
     private static let font = DictationLivePreview.font
     private static let spacing: CGFloat = 7, padding: CGFloat = 16
     /// Between the label and the action's cap, as in Fix's drop.
     private static let gap: CGFloat = 6
-
-    private var increasedContrast: Bool { contrast == .increased }
-    private var ink: Color { scheme == .dark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09) }
-    private var halo: Color { increasedContrast || inked ? .clear : (scheme == .dark ? Color.black : .white).opacity(0.85) }
-    /// Reduce Transparency fills the drop, so the appearance's ink is already the right one.
-    private var inked: Bool { BackdropInk.isAvailable && !reduceTransparency }
 
     /// Computed rather than measured, so the glass and the pointer's hold area agree.
     private var width: CGFloat {
@@ -50,9 +43,8 @@ struct DictationDropView: View {
         let above = capsule.alignment.vertical != .top, words = words
         let height = EyesDropView.drop
         ZStack(alignment: above ? .bottom : .top) {
-            glass(open: words == nil ? 0 : 1, above: above)
             if let words {
-                DictationLivePreview(words: words, ink: ink, halo: halo, inked: inked)
+                DictationLivePreview(words: words)
                     .padding(.horizontal, 18)
                     .frame(height: DropShelf.height - height)
                     .frame(maxHeight: .infinity, alignment: above ? .top : .bottom)
@@ -61,7 +53,9 @@ struct DictationDropView: View {
             }
             drop.frame(width: width, height: height)
         }
-        .frame(width: DropShelf.width, height: DropShelf.height)
+        .frame(width: DropShelf.width, height: DropShelf.height, alignment: above ? .bottom : .top)
+        // The capsule and its shelf as one piece of glass, with everything above as its content.
+        .glassEffect(.regular, in: DropShelf(open: words == nil ? 0 : 1, capsule: width, above: above))
         .animation(shelfMotion, value: words == nil)
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.12), value: model.state)
         // From the capsule, wherever it sits in the panel.
@@ -82,25 +76,11 @@ struct DictationDropView: View {
         .accessibilityHidden(!capsule.presented)
     }
 
-    /// The capsule and its shelf as one piece of glass.
-    private func glass(open: CGFloat, above: Bool) -> some View {
-        let shape = DropShelf(open: open, capsule: width, above: above)
-        return ZStack {
-            if reduceTransparency { shape.fill(.background) }
-            GlassEffectContainer {
-                Color.clear.glassEffect(.clear, in: shape)
-            }
-        }
-    }
-
     private var drop: some View {
         HStack(spacing: 0) {
             HStack(spacing: Self.spacing) {
                 DropVoice(model: model, isDark: scheme == .dark, reduceMotion: reduceMotion)
-                    .voiceInk(inked, kind: model.visualizer, state: model.state, increasedContrast: increasedContrast)
                 Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
-                    .foregroundStyle(ink).modifier(Halo(color: halo))
-                    .backdropInk(inked)
             }
             .accessibilityHidden(true) // The drop's own label reads the state.
             if let action = model.action {
@@ -109,10 +89,12 @@ struct DictationDropView: View {
                 DropActionButton(symbol: model.copied ? "checkmark" : action.symbol, label: action.label) {
                     if !model.copied { action.perform() }
                 }
-                    .foregroundStyle(ink).help(action.label)
+                    .help(action.label)
             }
         }
-        .environment(\.backdropInked, inked)
+        .foregroundStyle(.primary)
+        // On regular glass the voices need no halo, which is what this says to them.
+        .environment(\.backdropInked, true)
         .padding(.leading, lead).padding(.trailing, model.action == nil ? Self.padding : 0)
     }
 }
