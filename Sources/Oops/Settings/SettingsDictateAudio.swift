@@ -4,6 +4,7 @@ import SwiftUI
 /// Dictate's microphone and what the Mac's sound does while a dictation records. Each applies to the next dictation.
 struct DictateAudioCard: View {
     @AppStorage(DictationAudioSettings.microphoneKey) private var microphone = ""
+    @State private var microphones = SettingsMicrophones()
     @AppStorage(DictationAudioSettings.keepReadyKey) private var keepReady = false
     @AppStorage(DictationAudioSettings.avoidBluetoothKey) private var avoidBluetooth = true
     @AppStorage(DictationAudioSettings.whileDictatingKey) private var whileDictating = DictationWhileDictating.nothing
@@ -17,7 +18,8 @@ struct DictateAudioCard: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") {
                 // The system default, then every microphone by name: the empty value is the default.
-                GlassMenu(title: "Microphone", choices: [("", "System default")], selection: $microphone)
+                let menu = SettingsMicrophones.menu(microphones.snapshot, avoidBluetooth: avoidBluetooth)
+                GlassMenu(title: "Microphone", choices: menu.choices, selection: $microphone, placeholder: menu.placeholder)
             }
             Divider()
             SettingRow(symbol: "bolt", title: "Keep the microphone ready") {

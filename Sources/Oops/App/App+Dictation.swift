@@ -18,7 +18,10 @@ extension AppDelegate {
             let source: any DictationAudioSource = DebugFlags.dictationAudioFile.map {
                 DictationAudioFile(url: URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath), pace: .realTime)
             } ?? DictationMicrophone(access: { forced ?? .current })
-            return DictationRecorder(source: source, preRoll: { DictationAudioSettings.pressPreRoll() })
+            let recorder = DictationRecorder(source: source, preRoll: { DictationAudioSettings.pressPreRoll() })
+            // The microphone switches input between recordings, never during one.
+            (source as? DictationMicrophone)?.watchCaptureIdle { [weak recorder] in await recorder?.isRecording == false }
+            return recorder
         }
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
