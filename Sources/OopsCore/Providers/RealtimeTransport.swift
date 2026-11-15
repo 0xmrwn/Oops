@@ -14,6 +14,13 @@ public protocol RealtimeSocket: Sendable {
     func close()
 }
 
+/// A WebSocket that never opened: the HTTP status the service answered the upgrade with, when it answered, and the
+/// system's error code. Neither carries the request.
+public struct RealtimeHandshakeError: Error, Equatable, Sendable {
+    public let status: Int?
+    public let domain: String, code: Int
+}
+
 /// The system's WebSocket. Nothing here logs the request: it carries the API key.
 public struct URLSessionRealtimeTransport: RealtimeTransport {
     public init() {}
@@ -22,18 +29,12 @@ public struct URLSessionRealtimeTransport: RealtimeTransport {
         let configuration = URLSessionConfiguration.ephemeral
         // A dictation that can't connect fails at once rather than waiting for the network to come back.
         configuration.waitsForConnectivity = false
-        let session = URLSession(configuration: configuration)
+        let handshake = Handshake()
+        let session = URLSession(configuration: configuration, delegate: handshake, delegateQueue: nil)
         let task = session.webSocketTask(with: request)
         task.resume()
-        // The handshake's outcome only surfaces on the first receive or send; a ping makes it explicit.
         do {
-            try await withTaskCancellationHandler {
-                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-                    task.sendPing { error in
-                        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
-                    }
-                }
-            } onCancel: { task.cancel() }
+            try await withTaskCancellationHandler { try await handshake.outcome() } onCancel: { task.cancel() }
             try Task.checkCancellation()
         } catch {
             // No socket is handed back to close, so the session is let go here.
@@ -42,6 +43,41 @@ public struct URLSessionRealtimeTransport: RealtimeTransport {
             throw error
         }
         return URLSessionRealtimeSocket(task: task, session: session)
+    }
+}
+
+/// Tells whether the upgrade opened a WebSocket. A refused upgrade (a bad key, a wrong URL) completes the task with
+/// an error and never opens it; a ping sent meanwhile is never answered, so the delegate is what says so.
+private final class Handshake: NSObject, URLSessionWebSocketDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var result: Result<Void, any Error>?
+    private var waiter: CheckedContinuation<Void, any Error>?
+
+    func outcome() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            lock.lock()
+            if let result { lock.unlock(); continuation.resume(with: result) } else { waiter = continuation; lock.unlock() }
+        }
+    }
+
+    private func settle(_ outcome: Result<Void, any Error>) {
+        lock.lock()
+        guard result == nil else { return lock.unlock() }
+        result = outcome
+        let waiting = waiter
+        waiter = nil
+        lock.unlock()
+        waiting?.resume(with: outcome)
+    }
+
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
+        settle(.success(()))
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: any Error?) {
+        let reason = error as NSError?
+        settle(.failure(RealtimeHandshakeError(status: (task.response as? HTTPURLResponse)?.statusCode,
+                                               domain: reason?.domain ?? "", code: reason?.code ?? 0)))
     }
 }
 

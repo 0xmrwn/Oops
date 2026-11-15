@@ -1,10 +1,12 @@
 import Foundation
+import OSLog
 
 /// One dictation over one realtime transcription connection. Audio appended before the session is ready waits; the
 /// turn is committed once, when the recording ends, and the completed transcript is the text to write. A failure
 /// at any point is kept and thrown by `finish`: the recording itself never notices. Nothing here logs the request
-/// (it carries the key), the audio or the words.
+/// (it carries the key), the audio or the words: only the kind of each event the service sends, and an error's code.
 public actor RealtimeTranscriptionClient: SpeechStream {
+    private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Realtime")
     public nonisolated let words: AsyncStream<LiveWords>
 
     private let request: URLRequest, transport: any RealtimeTransport
@@ -69,13 +71,37 @@ public actor RealtimeTranscriptionClient: SpeechStream {
     private func run() async {
         do {
             let socket = try await transport.connect(request)
+            Self.log.info("connected")
             guard !closed else { return socket.close() }
             self.socket = socket
             enqueue(RealtimeTranscription.sessionUpdate(languages: languages, keywords: keywords))
-            while !closed { handle(RealtimeTranscription.ServerEvent.parse(try await socket.receive())) }
+            while !closed {
+                let frame = try await socket.receive()
+                trace(frame)
+                handle(RealtimeTranscription.ServerEvent.parse(frame))
+            }
         } catch {
+            // The HTTP status of a refused upgrade, or the error's domain and code; never its text, which can quote
+            // the request.
+            if !closed {
+                if let refused = error as? RealtimeHandshakeError {
+                    Self.log.error("handshake refused status=\(refused.status ?? 0, privacy: .public) \(refused.domain, privacy: .public) \(refused.code, privacy: .public)")
+                } else {
+                    let reason = error as NSError
+                    Self.log.error("connection ended \(reason.domain, privacy: .public) \(reason.code, privacy: .public)")
+                }
+            }
             fail(.hostedFailed("connection"))
         }
+    }
+
+    /// The event's kind, and for an error what the service says is wrong without its message, which may quote the request.
+    private func trace(_ frame: String) {
+        guard let object = (try? JSONSerialization.jsonObject(with: Data(frame.utf8))) as? [String: Any],
+              let type = object["type"] as? String, !type.hasSuffix(".delta") else { return }
+        let error = object["error"] as? [String: Any]
+        let detail = error.map { " code=\($0["code"] as? String ?? "none") kind=\($0["type"] as? String ?? "none") param=\($0["param"] as? String ?? "none")" } ?? ""
+        Self.log.info("event \(type, privacy: .public)\(detail, privacy: .public)")
     }
 
     private func handle(_ event: RealtimeTranscription.ServerEvent) {
