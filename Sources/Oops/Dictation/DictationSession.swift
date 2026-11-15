@@ -97,7 +97,7 @@ import OSLog
     /// Another model was chosen while a dictation held the drop: it warms once that dictation is over.
     private var warmUpDeferred = false
     /// "While dictating", applied once a recording is intentional (`DictationRecordingEnvironment`).
-    private let environment: DictationRecordingEnvironment?
+    let environment: DictationRecordingEnvironment?
     /// When the last key-down was taken, which tells when its recording becomes intentional.
     private var lastPressedAt: ContinuousClock.Instant?
 
@@ -311,7 +311,7 @@ import OSLog
     }
 
     private func stop(at released: CaptureInstant?) {
-        environment?.recordingEnded()
+        environment?.recordingReleased()
         loudness.stop()
         drop.show(.transcribing)
         // A press during the transcription starts the next recording with live words of its own.

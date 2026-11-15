@@ -13,9 +13,9 @@ import Synchronization
 /// Each open chooses the input (`MicrophoneChoice`: the picked microphone, else the system default, passing over
 /// a Bluetooth default when Settings asks) and sets it on the engine's input unit, so the engine records from that
 /// device whatever the default does next. An open that chooses another device than the engine's builds a new
-/// engine. While open, a change of route or setting is noted and acted on only while capture is idle
-/// (`MicrophoneFollower`): the source then ends its ring and tells the loss, and the next open uses the new input.
-/// An engine that stops by itself (its device went away) ends the ring and tells the loss at once.
+/// engine. A change of route or setting is told to the recorder (`watchInputChange`), which has the source resolve
+/// its input again (`MicrophoneFollower`) only between recordings: a different input closes the source, and the next
+/// open uses it. An engine that stops by itself (its device went away) ends the ring and tells the loss at once.
 final class DictationMicrophone: DictationAudioSource {
     private struct Engine {
         let engine = AVAudioEngine()
@@ -40,12 +40,14 @@ final class DictationMicrophone: DictationAudioSource {
         var engine: Engine?
         var follower = MicrophoneFollower(selected: DictationAudioSettings.microphone(), routeGeneration: MicrophoneWatch.shared.generation)
         var checkScheduled = false
+        /// A change was seen, or a timed look came due, that the input has not been resolved against yet.
+        var changed = false
     }
 
     private let access: @Sendable () -> DictationMicrophoneAccess
     private let state = Mutex(State())
     private let lost = Mutex<(@Sendable () -> Void)?>(nil)
-    private let idle = Mutex<@Sendable () async -> Bool>({ false })
+    private let inputChanged = Mutex<(@Sendable () -> Void)?>(nil)
     /// Device changes are checked here, never on the thread that posted them: the engine may post while
     /// `open` holds the state's lock.
     private let changes = DispatchQueue(label: "oops.microphone.changes")
@@ -57,9 +59,7 @@ final class DictationMicrophone: DictationAudioSource {
 
     func watchLoss(_ lost: @escaping @Sendable () -> Void) { self.lost.withLock { $0 = lost } }
 
-    /// `idle` says whether capture is idle, so the open microphone may switch input: nothing records, no press
-    /// waits for audio, no release waits for its tail. Until told, it never switches while open.
-    func watchCaptureIdle(_ idle: @escaping @Sendable () async -> Bool) { self.idle.withLock { $0 = idle } }
+    func watchInputChange(_ changed: @escaping @Sendable () -> Void) { inputChanged.withLock { $0 = changed } }
 
     func open(into ring: DictationAudioRing) throws(DictationAudioError) -> Double {
         let access = access()
@@ -168,7 +168,7 @@ final class DictationMicrophone: DictationAudioSource {
         lost.withLock { $0 }?()
     }
 
-    /// Listens, once, for changes that can move the input: the open microphone resolves again while capture is idle.
+    /// Listens, once, for changes that can move the input.
     private func watchRoute() {
         watching.withLock { token in
             guard token == nil else { return }
@@ -176,39 +176,44 @@ final class DictationMicrophone: DictationAudioSource {
         }
     }
 
+    /// Told even while closed, so a ready recorder whose open found no microphone tries again.
     private func routeMayHaveChanged() {
-        guard state.withLock({ $0.engine?.isOpen == true }) else { return }
-        let idle = idle.withLock { $0 }
-        Task { [weak self, changes] in
-            let isIdle = await idle()
-            changes.async { [weak self] in self?.checkRoute(captureIdle: isIdle) }
-        }
+        state.withLock { $0.changed = true }
+        inputChanged.withLock { $0 }?()
     }
 
-    /// Hex's poll: a change is noted whenever it is seen, and the input resolved again once capture is idle. A
-    /// different input hands the source back through the loss; the same one is kept.
-    private func checkRoute(captureIdle: Bool) {
+    /// Hex's poll, run by the recorder between recordings: a change is noted whenever it is seen, and the input
+    /// resolved again once it is due. A different input closes the engine; the same one is kept.
+    func followInputChange() -> Bool {
+        guard state.withLock({ state in defer { state.changed = false }; return state.changed }) else { return false }
         let generation = MicrophoneWatch.shared.generation
         let snapshot = MicrophoneDevices.snapshot(), selected = DictationAudioSettings.microphone()
         let route = snapshot.route(avoidBluetooth: DictationAudioSettings.avoidBluetooth())
-        end { state in
+        return state.withLock { state in
             let now = ContinuousClock.now
             state.follower.requestSelection(selected, at: now)
-            guard state.engine?.isOpen == true else { return false }
-            if state.follower.poll(routeGeneration: generation, captureIdle: captureIdle, at: now) {
+            guard let current = state.engine, current.isOpen else { return false }
+            if state.follower.poll(routeGeneration: generation, captureIdle: true, at: now) {
                 let target = (try? Self.plan(selected: selected, snapshot, route)).flatMap { plan in snapshot.resolve(plan).map { (plan, $0) } }
                 let found: MicrophoneFollower.Resolved = target.map { plan, input in
                     input.uid == state.follower.input?.uid ? .unchanged(plan.selection)
                         : .input(MicrophoneFollower.InUse(uid: input.uid, name: input.name, selection: plan.selection))
                 } ?? .failed
-                if state.follower.resolved(found, captureIdle: captureIdle, at: now) == .reopened { return true }
+                if state.follower.resolved(found, captureIdle: true, at: now) == .reopened {
+                    current.discard()
+                    state.engine = nil
+                    state.follower.closed()
+                    return true
+                }
             }
             scheduleCheck(&state, now: now)
             return false
         }
     }
 
-    /// Looks again while a check waits for an idle capture or a missing microphone's next look.
+    func scheduleFallbackRetry() { state.withLock { scheduleCheck(&$0, now: .now) } }
+
+    /// Looks again while a missing or unopenable microphone's next look, or a failed resolve's retry, is pending.
     private func scheduleCheck(_ state: inout State, now: ContinuousClock.Instant) {
         guard let next = state.follower.nextAttempt, !state.checkScheduled else { return }
         state.checkScheduled = true

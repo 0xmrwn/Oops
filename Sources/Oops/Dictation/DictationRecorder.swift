@@ -154,6 +154,7 @@ actor DictationRecorder {
         ready = on
         closeGeneration += 1
         closeScheduled = false
+        if on, isOpen { source.scheduleFallbackRetry() }
         if on { openReady() } else if isOpen, !isRecording { closeSource() }
     }
 
@@ -169,6 +170,16 @@ actor DictationRecorder {
         if isRecording { inputLost?() } else { openReady() }
     }
 
+    /// The source's input may have to change. Only the recorder knows whether a recording runs, so it applies the
+    /// change here, between recordings: a press can't start on an input that is about to be replaced, and a
+    /// recording under way has it applied once it ends (`scheduleClose`). A ready source that found no microphone
+    /// tries again.
+    private func inputMayHaveChanged() {
+        guard !isRecording else { return }
+        if isOpen, !lostSource, source.followInputChange() { closeSource() }
+        openReady()
+    }
+
     /// Opens a ready source that is closed, or reopens one whose input went away, on the current input. Access
     /// missing, or no input, leaves it closed until the next press or change.
     private func openReady() {
@@ -180,8 +191,10 @@ actor DictationRecorder {
     private func openSource() throws(DictationAudioError) {
         ring.reset()
         source.watchLoss { [weak self] in Task { await self?.sourceLost() } }
+        source.watchInputChange { [weak self] in Task { await self?.inputMayHaveChanged() } }
         let rate = try source.open(into: ring)
         do { converter = try DictationAudioConverter(sourceRate: rate) } catch { source.close(); throw error }
+        if ready { source.scheduleFallbackRetry() }
         capture = DictationCapture()
         sourceThrough = nil
         isOpen = true
@@ -235,7 +248,9 @@ actor DictationRecorder {
 
     /// Closes the source once it has been idle for `keepAlive`, unless a recording starts first.
     private func scheduleClose() {
-        if ready { return openReady() }
+        // Opens a ready source again too, when it went away or found no microphone.
+        inputMayHaveChanged()
+        if ready { return }
         guard isOpen, !isRecording, !closeScheduled else { return }
         closeScheduled = true
         closeGeneration += 1

@@ -36,7 +36,14 @@ import OopsCore
         }
     }
 
-    /// The recording stopped, was discarded or cancelled: what it changed is restored, and a recording not yet
+    /// The recording was released: one not yet intentional never becomes so, and what an intentional one changed
+    /// stays until its release tail is captured (`recordingEnded`), so playback can't reach the end of the clip.
+    func recordingReleased() {
+        intent?.cancel()
+        intent = nil
+    }
+
+    /// The recording's audio is captured, or it was discarded or cancelled: what it changed is restored, and a recording not yet
     /// intentional never changes anything.
     func recordingEnded() {
         intent?.cancel()

@@ -13,11 +13,23 @@ protocol DictationAudioSource: AnyObject, Sendable {
     /// unplugged, or the default input changes): the source has ended its ring, and the next open uses the
     /// current input.
     func watchLoss(_ lost: @escaping @Sendable () -> Void)
+    /// `changed` is called, from any thread and whether open or not, when the input may have to change: the
+    /// default input, the inputs, the lid or a setting changed, or a timed look for a microphone came due.
+    func watchInputChange(_ changed: @escaping @Sendable () -> Void)
+    /// Resolves the input again after a change, called only between recordings, since replacing the input would
+    /// end one. True when the input changed: the source has closed, and the next open uses the new input.
+    func followInputChange() -> Bool
+    /// Schedules the pending look for a picked microphone that would not open, so a source kept ready returns to
+    /// it. Opened for one recording, the next open looks again anyway.
+    func scheduleFallbackRetry()
 }
 
 extension DictationAudioSource {
-    /// A file never loses its input.
+    /// A file never loses or changes its input.
     func watchLoss(_ lost: @escaping @Sendable () -> Void) {}
+    func watchInputChange(_ changed: @escaping @Sendable () -> Void) {}
+    func followInputChange() -> Bool { false }
+    func scheduleFallbackRetry() {}
 }
 
 enum DictationAudioError: Error, Equatable, Sendable {

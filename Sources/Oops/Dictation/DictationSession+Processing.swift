@@ -10,8 +10,11 @@ extension DictationSession {
         // The stream takes nothing more from the recording: the rest of the clip follows in order.
         await live?.release()
         // The recording is ended first, whatever else is missing: nothing may leave the microphone recording.
+        let stopped = await recorder.stop(at: released)
+        // Only now that the tail is in may playback come back, or it could add words to the clip.
+        environment?.recordingEnded()
         let samples: [Float]
-        switch await recorder.stop(at: released) {
+        switch stopped {
         case .samples(let recorded): samples = recorded
         case .discarded(let reason):
             // Nothing to transcribe, so a hosted stream never commits.

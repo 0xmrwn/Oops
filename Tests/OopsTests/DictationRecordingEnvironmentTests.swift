@@ -57,6 +57,26 @@ import XCTest
         }
     }
 
+    func testRecordingEnvironmentHoldsUntilTheReleaseTailIsCaptured() async throws {
+        let (environment, controller, journal) = environment(.pauseMedia)
+        // The microphone has heard up to the release and nothing after: the tail is waited for, past its bound.
+        let heard = Array(DictationSessionRun.speech().prefix(25_600))
+        let run = try DictationSessionRun(self, mode: .holdOnly, audio: heard, environment: environment) {
+            ChangingSource($0, from: DictationSessionRun.origin)
+        }
+        let pressed = ContinuousClock.now - .milliseconds(1_200)
+        run.session.shortcut(.pressed, at: DictationSessionRun.origin + .milliseconds(400), now: pressed)
+        try await run.until { _ = controller.waitUntilRestored(timeout: .seconds(2)); return journal.all == ["held pause"] }
+        run.session.shortcut(.released, at: DictationSessionRun.origin + .milliseconds(1_600), now: .now)
+        try await run.until { run.drop.states.last == .transcribing }
+        try await Task.sleep(for: .milliseconds(100))
+        _ = controller.waitUntilRestored(timeout: .seconds(2))
+        XCTAssertEqual(journal.all, ["held pause"], "media stays paused while the tail is captured")
+        try await run.until { run.drop.states.last == .left }
+        _ = controller.waitUntilRestored(timeout: .seconds(2))
+        XCTAssertEqual(journal.all, ["held pause", "restored pause"])
+    }
+
     func testRecordingEnvironmentRestoresACancelledRecording() async throws {
         let (environment, controller, journal) = environment(.mute)
         let run = try DictationSessionRun(self, mode: .tapOnly, environment: environment)
