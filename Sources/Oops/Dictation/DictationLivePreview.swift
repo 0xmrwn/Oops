@@ -24,6 +24,12 @@ struct DictationLivePreview: View {
             .contentTransition(.identity)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
+            // The first two lines fill from the top, so the first stays where it is when the second starts; past
+            // two, the newest stay in view and the oldest leave over the top.
+            .frame(minHeight: Self.height, alignment: .top)
+            // Its own height again: without this the frame above takes the two lines it is offered and the rest
+            // runs out below, so the words would stop at the first two lines.
+            .fixedSize(horizontal: false, vertical: true)
             .frame(height: Self.height, alignment: .bottom)
             .clipped()
             .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: words)
