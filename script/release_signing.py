@@ -12,6 +12,8 @@ NESTED_CODE = (f"{FRAMEWORK}/Versions/B/Autoupdate", f"{FRAMEWORK}/Versions/B/Up
 # A preview build's speech engine (OOPS_PREVIEW=1), and the microphone it listens through under hardened runtime.
 ENGINE = "Contents/Frameworks/CTranscribe.framework"
 AUDIO_INPUT = "com.apple.security.device.audio-input"
+# Also a preview's alone: Apple events to the media players that Dictate's Pause media pauses.
+APPLE_EVENTS = "com.apple.security.automation.apple-events"
 LIBRARY_VALIDATION = "com.apple.security.cs.disable-library-validation"
 
 
@@ -36,10 +38,11 @@ def sign(app, fingerprint, run, preview=False):
         run(command + [str(app / nested)])
     # Library validation only accepts frameworks from the app's own Team ID, which ad-hoc code lacks:
     # local builds may load their ad-hoc Sparkle. Developer ID builds never carry this (verify_signature),
-    # and only a preview build asks for the microphone.
+    # and only a preview build asks for the microphone and Automation.
     entitlements = {LIBRARY_VALIDATION: True} if not fingerprint else {}
     if preview:
         entitlements[AUDIO_INPUT] = True
+        entitlements[APPLE_EVENTS] = True
     if not entitlements:
         run(command + [str(app)])
         return
@@ -86,4 +89,8 @@ def verify_signature(app, fingerprint, run, preview=False):
             raise ValueError("a preview build must be signed with the audio-input entitlement")
         if AUDIO_INPUT in entitlements and not (preview and not code):
             raise ValueError(f"only a preview build's app may ask for the microphone (audio-input): {name}")
+        if preview and not code and entitlements.get(APPLE_EVENTS) is not True:
+            raise ValueError("a preview build must be signed with the apple-events entitlement")
+        if APPLE_EVENTS in entitlements and not (preview and not code):
+            raise ValueError(f"only a preview build's app may ask for Automation (apple-events): {name}")
     return DISTRIBUTION_SIGNING if fingerprint else LOCAL_SIGNING

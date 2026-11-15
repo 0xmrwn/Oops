@@ -29,8 +29,10 @@ UPDATE_SETTINGS = {
 }
 # Not needed by a non-sandboxed app at run time: the XPC services (sandboxed apps only) and build headers.
 FRAMEWORK_EXTRAS = ("XPCServices", "Headers", "PrivateHeaders", "Modules")
-# Only a preview build (OOPS_PREVIEW=1) carries the speech engine and asks for the microphone.
+# Only a preview build (OOPS_PREVIEW=1) carries the speech engine and asks for the microphone, and for the
+# Automation that Dictate's Pause media needs to tell Music, Spotify and VLC to pause.
 MICROPHONE_USAGE = "Oops listens while you dictate, and only then."
+AUTOMATION_USAGE = "Oops pauses this player while you dictate and resumes it after, when you choose Pause media."
 
 
 def validate_version(version, build_number):
@@ -158,6 +160,7 @@ def assemble(root, app, binary, version, build_number, run, settings=None, previ
     }
     if preview:
         info["NSMicrophoneUsageDescription"] = MICROPHONE_USAGE
+        info["NSAppleEventsUsageDescription"] = AUTOMATION_USAGE
     info.update(UPDATE_SETTINGS)
     info.update(plistlib.loads(partial.read_bytes()))
     info.update(settings or {})
@@ -167,11 +170,16 @@ def assemble(root, app, binary, version, build_number, run, settings=None, previ
 
 def verify_preview(app, info, preview):
     microphone = info.get("NSMicrophoneUsageDescription")
+    automation = info.get("NSAppleEventsUsageDescription")
     if preview and microphone != MICROPHONE_USAGE:
         raise ValueError(f"Info.plist NSMicrophoneUsageDescription: expected {MICROPHONE_USAGE!r}, got {microphone!r}")
+    if preview and automation != AUTOMATION_USAGE:
+        raise ValueError(f"Info.plist NSAppleEventsUsageDescription: expected {AUTOMATION_USAGE!r}, got {automation!r}")
     if not preview:
         if microphone is not None:
             raise ValueError("Info.plist asks for the microphone, which only a preview build may")
+        if automation is not None:
+            raise ValueError("Info.plist asks for Automation, which only a preview build may")
         engine = [path for path in sorted(app.rglob("*")) if path.name.startswith("CTranscribe")]
         if engine:
             raise ValueError(f"the speech engine is only for preview builds: {engine[0].relative_to(app)}")

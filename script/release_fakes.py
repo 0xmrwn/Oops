@@ -4,7 +4,7 @@ import plistlib
 import shutil
 from pathlib import Path
 
-from release_signing import AUDIO_INPUT, LIBRARY_VALIDATION
+from release_signing import APPLE_EVENTS, AUDIO_INPUT, LIBRARY_VALIDATION
 
 FINGERPRINT = "A" * 40
 DEVELOPER_ID = "flags=0x10000(runtime)\nAuthority=Developer ID Application: Example\nTeamIdentifier=ABCDEFGHIJ\nTimestamp=Nov 4, 2026\n"
@@ -75,7 +75,7 @@ class Inspector:
 
 
 def preview_entitlements(fingerprint=None):
-    return ({} if fingerprint else {LIBRARY_VALIDATION: True}) | {AUDIO_INPUT: True}
+    return ({} if fingerprint else {LIBRARY_VALIDATION: True}) | {AUDIO_INPUT: True, APPLE_EVENTS: True}
 
 
 class Signer:

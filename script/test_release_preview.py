@@ -1,4 +1,4 @@
-"""The preview build (OOPS_PREVIEW=1) is the only way the speech engine and the microphone reach a bundle."""
+"""The preview build (OOPS_PREVIEW=1) is the only way the speech engine, the microphone and Automation reach a bundle."""
 
 import os
 import plistlib
@@ -7,9 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from release_bundle import MICROPHONE_USAGE, assemble, verify
+from release_bundle import AUTOMATION_USAGE, MICROPHONE_USAGE, assemble, verify
 from release_fakes import DEVELOPER_ID, FINGERPRINT, Builder, Inspector, Signer, preview_entitlements, stage
-from release_signing import AUDIO_INPUT, ENGINE, FRAMEWORK, LIBRARY_VALIDATION, sign, verify_signature
+from release_signing import APPLE_EVENTS, AUDIO_INPUT, ENGINE, FRAMEWORK, LIBRARY_VALIDATION, sign, verify_signature
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -36,18 +36,24 @@ class PreviewBundleTests(unittest.TestCase):
         builder = self.build(preview=False)
         self.assertFalse(os.path.lexists(self.app / ENGINE))
         self.assertNotIn("NSMicrophoneUsageDescription", self.info())
+        self.assertNotIn("NSAppleEventsUsageDescription", self.info())
         self.assertEqual(sorted(builder.thinned), ["Autoupdate", "Sparkle"])
         self.assertEqual(self.verify(preview=False)["signing"], "ad-hoc, hardened runtime")
 
-    def test_a_normal_bundle_with_any_of_the_three_fails_verification(self):
+    def test_a_normal_bundle_with_any_preview_part_fails_verification(self):
         self.build(preview=False)
         with self.assertRaisesRegex(ValueError, "must not link CTranscribe"):
             self.verify(preview=False, linked=True)
         with self.assertRaisesRegex(ValueError, "only a preview build's app may ask for the microphone"):
             self.verify(preview=False, entitlements={LIBRARY_VALIDATION: True, AUDIO_INPUT: True})
+        with self.assertRaisesRegex(ValueError, "only a preview build's app may ask for Automation"):
+            self.verify(preview=False, entitlements={LIBRARY_VALIDATION: True, APPLE_EVENTS: True})
         info = self.info()
         (self.app / "Contents/Info.plist").write_bytes(plistlib.dumps(info | {"NSMicrophoneUsageDescription": "x"}))
         with self.assertRaisesRegex(ValueError, "asks for the microphone"):
+            self.verify(preview=False)
+        (self.app / "Contents/Info.plist").write_bytes(plistlib.dumps(info | {"NSAppleEventsUsageDescription": "x"}))
+        with self.assertRaisesRegex(ValueError, "asks for Automation"):
             self.verify(preview=False)
         (self.app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
         shutil.copytree(self.stage / "CTranscribe.framework", self.app / ENGINE, symlinks=True)
@@ -63,6 +69,7 @@ class PreviewBundleTests(unittest.TestCase):
             self.assertFalse(os.path.lexists(engine / "Versions/A" / name), name)
         self.assertEqual(sorted(builder.thinned), ["Autoupdate", "CTranscribe", "Sparkle"])
         self.assertEqual(self.info()["NSMicrophoneUsageDescription"], MICROPHONE_USAGE)
+        self.assertEqual(self.info()["NSAppleEventsUsageDescription"], AUTOMATION_USAGE)
         result = self.verify(preview=True, linked=True, entitlements=preview_entitlements())
         self.assertIn(f"{ENGINE}/Versions/A/CTranscribe", result["files"])
 
@@ -76,7 +83,14 @@ class PreviewBundleTests(unittest.TestCase):
             self.verify(preview=True, entitlements=preview_entitlements())
         with self.assertRaisesRegex(ValueError, "audio-input entitlement"):
             self.verify(preview=True, linked=True)
+        with self.assertRaisesRegex(ValueError, "apple-events entitlement"):
+            self.verify(preview=True, linked=True, entitlements={LIBRARY_VALIDATION: True, AUDIO_INPUT: True})
         info = self.info()
+        del info["NSAppleEventsUsageDescription"]
+        (self.app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
+        with self.assertRaisesRegex(ValueError, "NSAppleEventsUsageDescription"):
+            self.verify(preview=True, linked=True, entitlements=preview_entitlements())
+        info["NSAppleEventsUsageDescription"] = AUTOMATION_USAGE
         del info["NSMicrophoneUsageDescription"]
         (self.app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
         with self.assertRaisesRegex(ValueError, "NSMicrophoneUsageDescription"):
@@ -100,15 +114,16 @@ class PreviewSigningTests(unittest.TestCase):
         f"Oops.app/{FRAMEWORK}",
     ]
 
-    def test_normal_signing_never_adds_the_engine_or_the_audio_entitlement(self):
+    def test_normal_signing_never_adds_the_engine_or_the_preview_entitlements(self):
         for fingerprint in (None, FINGERPRINT):
             with self.subTest(fingerprint=fingerprint):
                 signer = Signer()
                 sign(self.app, fingerprint, signer)
                 self.assertEqual(signer.signed, [*self.sparkle, "Oops.app"])
                 self.assertNotIn(AUDIO_INPUT, signer.app_entitlements)
+                self.assertNotIn(APPLE_EVENTS, signer.app_entitlements)
 
-    def test_a_preview_signs_the_engine_after_sparkle_and_before_the_app_with_the_entitlement(self):
+    def test_a_preview_signs_the_engine_after_sparkle_and_before_the_app_with_the_entitlements(self):
         for fingerprint in (None, FINGERPRINT):
             with self.subTest(fingerprint=fingerprint):
                 signer = Signer()
@@ -122,15 +137,20 @@ class PreviewSigningTests(unittest.TestCase):
                         self.assertIsNone(entitlements)
 
     def test_a_preview_signed_with_developer_id_verifies_for_local_use(self):
-        inspector = Inspector(self.app, entitlements={AUDIO_INPUT: True}, details=DEVELOPER_ID)
+        inspector = Inspector(self.app, entitlements={AUDIO_INPUT: True, APPLE_EVENTS: True}, details=DEVELOPER_ID)
         self.assertEqual(
             verify_signature(self.app, FINGERPRINT, inspector, preview=True),
             "Developer ID, hardened runtime, secure timestamp",
         )
         with self.assertRaisesRegex(ValueError, "only a preview build's app"):
             verify_signature(self.app, FINGERPRINT, inspector)
-        inspector.entitlements = {}
+        inspector.entitlements = {APPLE_EVENTS: True}
         with self.assertRaisesRegex(ValueError, "audio-input entitlement"):
+            verify_signature(self.app, FINGERPRINT, inspector, preview=True)
+        with self.assertRaisesRegex(ValueError, "only a preview build's app may ask for Automation"):
+            verify_signature(self.app, FINGERPRINT, inspector)
+        inspector.entitlements = {AUDIO_INPUT: True}
+        with self.assertRaisesRegex(ValueError, "apple-events entitlement"):
             verify_signature(self.app, FINGERPRINT, inspector, preview=True)
 
 

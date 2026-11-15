@@ -118,18 +118,17 @@ final class CoreAudioVolume: OutputVolume {
 }
 
 /// Music, Spotify and VLC as macOS reports them running, told through `osascript` as Hex does. Only players Oops
-/// may already automate count: asking would open the Automation dialog in the middle of a dictation.
+/// may already automate count: asking would open the Automation dialog in the middle of a dictation, so Settings
+/// asks instead (`MediaPlayerPermissions`).
 final class SystemMediaPlayers: MediaPlayers {
     private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Dictation")
 
     func running() -> Set<MediaPlayer> {
-        let running = NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier.flatMap(MediaPlayer.init(bundleID:)) }
-        return Set(running.filter(Self.mayAutomate))
+        Self.runningPlayers().filter { MediaPlayerAutomation.system($0, asking: false) == .allowed }
     }
 
-    private static func mayAutomate(_ player: MediaPlayer) -> Bool {
-        guard let target = NSAppleEventDescriptor(bundleIdentifier: player.bundleID).aeDesc else { return false }
-        return AEDeterminePermissionToAutomateTarget(target, typeWildCard, typeWildCard, false) == noErr
+    static func runningPlayers() -> Set<MediaPlayer> {
+        Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier.flatMap(MediaPlayer.init(bundleID:)) })
     }
 
     func run(_ script: String) -> String? {
