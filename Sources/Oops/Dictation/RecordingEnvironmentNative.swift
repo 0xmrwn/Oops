@@ -124,7 +124,7 @@ final class SystemMediaPlayers: MediaPlayers {
     private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Dictation")
 
     func running() -> Set<MediaPlayer> {
-        Self.runningPlayers().filter { MediaPlayerAutomation.system($0, asking: false) == .allowed }
+        Self.runningPlayers().filter { MediaPlayerReading.system.answer($0) == .allowed }
     }
 
     static func runningPlayers() -> Set<MediaPlayer> {
