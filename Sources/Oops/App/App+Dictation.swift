@@ -18,7 +18,7 @@ extension AppDelegate {
             let source: any DictationAudioSource = DebugFlags.dictationAudioFile.map {
                 DictationAudioFile(url: URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath), pace: .realTime)
             } ?? DictationMicrophone(access: { forced ?? .current })
-            return DictationRecorder(source: source)
+            return DictationRecorder(source: source, preRoll: { DictationAudioSettings.pressPreRoll() })
         }
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
@@ -41,7 +41,8 @@ extension AppDelegate {
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
                                 status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup,
                                 escape: { [weak self] in self?.shortcuts.armCancel($0) },
-                                shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers })
+                                shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers },
+                                environment: recorder.map { _ in DictationRecordingEnvironment() })
     }
 
     /// Swaps text a dictation wrote for its cleanup, as Fix swaps a correction in: the modifiers up, the clipboard

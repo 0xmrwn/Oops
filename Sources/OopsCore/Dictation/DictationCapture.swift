@@ -20,7 +20,7 @@ public struct DictationCapture: Sendable {
     /// said as the shortcut goes up).
     public static let maxReleaseTail: Duration = .milliseconds(600)
     /// The pre-roll a microphone kept open ahead of the press can give: the start of a word said with the press.
-    public static let readyPreRoll: Duration = .milliseconds(450)
+    public static let readyPreRoll = DictationAudioSettings.preRoll
     /// How much past audio the timeline keeps for a recording's pre-roll and for a press handled late.
     static let timelineBufferDuration: Duration = .seconds(10)
     static let initialRecordingCapacity: Duration = .seconds(10)

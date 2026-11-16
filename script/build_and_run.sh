@@ -20,14 +20,14 @@ if [[ -n "$SIGNING_IDENTITY" && ! "$SIGNING_IDENTITY" =~ ^[[:xdigit:]]{40}$ ]]; 
   exit 1
 fi
 export CLANG_MODULE_CACHE_PATH="$ROOT_DIR/.build/clang-cache"
-# OOPS_PREVIEW=1 embeds the speech engine and asks for the microphone, in its own scratch path so switching
+# OOPS_PREVIEW=1 embeds the speech engine and asks for the microphone and Automation, in its own scratch path so switching
 # doesn't rebuild the normal one. Package.swift reads the same variable; anything but 1 is a normal build.
 PREVIEW=0
 SCRATCH=(--scratch-path "$ROOT_DIR/.build")
 if [[ "${OOPS_PREVIEW:-}" == 1 ]]; then
   PREVIEW=1
   SCRATCH=(--scratch-path "$ROOT_DIR/.build/preview")
-  echo "Preview build (OOPS_PREVIEW=1): speech engine and microphone included; for this Mac only." >&2
+  echo "Preview build (OOPS_PREVIEW=1): speech engine, microphone and Automation included; for this Mac only." >&2
 else
   unset OOPS_PREVIEW
 fi
@@ -96,15 +96,17 @@ cat >"$APP/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 /usr/libexec/PlistBuddy -c "Merge $STAGING_DIR/icon-info.plist" "$APP/Contents/Info.plist"
-# The same text as release_bundle.py's MICROPHONE_USAGE.
+# The same texts as release_bundle.py's MICROPHONE_USAGE and AUTOMATION_USAGE.
 MICROPHONE_USAGE="Oops listens while you dictate, and only then."
+AUTOMATION_USAGE="Oops pauses this player while you dictate and resumes it after, when you choose Pause media."
 ENTITLEMENTS=()
 if [[ $PREVIEW == 1 ]]; then
   /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string $MICROPHONE_USAGE" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Add :NSAppleEventsUsageDescription string $AUTOMATION_USAGE" "$APP/Contents/Info.plist"
   cat >"$STAGING_DIR/entitlements.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>com.apple.security.device.audio-input</key><true/></dict></plist>
+<plist version="1.0"><dict><key>com.apple.security.device.audio-input</key><true/><key>com.apple.security.automation.apple-events</key><true/></dict></plist>
 PLIST
   ENTITLEMENTS=(--entitlements "$STAGING_DIR/entitlements.plist")
 fi
@@ -158,15 +160,17 @@ ditto --norsrc --noextattr "$APP" "$DIST_APP"
 xattr -dr com.apple.FinderInfo "$DIST_APP" 2>/dev/null || true
 xattr -dr com.apple.ResourceFork "$DIST_APP" 2>/dev/null || true
 codesign --verify --deep --strict "$DIST_APP"
-# The engine, the microphone text and the entitlement come together, and only with OOPS_PREVIEW=1.
+# The engine, the microphone and Automation texts and entitlements come together, and only with OOPS_PREVIEW=1.
 verify_preview() {
-  local app=$1 found=0 entitled=0 described=0 entitlements
+  local app=$1 found=0 entitled=0 described=0 automates=0 automation=0 entitlements
   [[ -e "$app/Contents/Frameworks/CTranscribe.framework" ]] && found=1
   entitlements=$(codesign -d --entitlements - --xml "$app" 2>/dev/null || true)
   [[ $entitlements == *com.apple.security.device.audio-input* ]] && entitled=1
+  [[ $entitlements == *com.apple.security.automation.apple-events* ]] && automates=1
   /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$app/Contents/Info.plist" >/dev/null 2>&1 && described=1
-  if [[ "$found$entitled$described" != "$PREVIEW$PREVIEW$PREVIEW" ]]; then
-    echo "$app: engine $found, audio-input entitlement $entitled, microphone text $described; expected $PREVIEW for each (OOPS_PREVIEW=$PREVIEW)." >&2
+  /usr/libexec/PlistBuddy -c "Print :NSAppleEventsUsageDescription" "$app/Contents/Info.plist" >/dev/null 2>&1 && automation=1
+  if [[ "$found$entitled$described$automates$automation" != "$PREVIEW$PREVIEW$PREVIEW$PREVIEW$PREVIEW" ]]; then
+    echo "$app: engine $found, audio-input entitlement $entitled, microphone text $described, apple-events entitlement $automates, Automation text $automation; expected $PREVIEW for each (OOPS_PREVIEW=$PREVIEW)." >&2
     return 1
   fi
   [[ $PREVIEW == 1 ]] || return 0

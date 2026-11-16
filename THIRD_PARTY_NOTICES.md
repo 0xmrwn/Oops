@@ -41,7 +41,11 @@ under its own terms.
   `SpokenSymbols.swift`, `SpokenText.swift`) and their tests (`Tests/OopsCoreTests/Cleanup*Tests.swift`) are ported
   from its `src/dictation/filler_words.rs`, `spoken_formatting.rs` and `spoken_symbols.rs` (v3.4.0); the vocabulary
   (`Sources/OopsCore/Dictation/Vocabulary/VocabularyEntry.swift`, `VocabularyBias.swift`) and its tests from its
-  `src/dictation/vocabulary.rs` (revision 1b82cc0).
+  `src/dictation/vocabulary.rs` (revision 1b82cc0). What the Mac's sound does while dictating
+  (`Sources/OopsCore/Dictation/RecordingEnvironment*.swift`, `OutputDucking.swift`,
+  `Sources/Oops/Dictation/RecordingEnvironmentNative.swift`) and its tests
+  (`Tests/OopsCoreTests/RecordingEnvironment*Tests.swift`) are ported from its `src/audio/recording_environment.rs`,
+  `src/audio/recording_environment/ducking.rs` and `src/audio/output_ducking.rs` (v3.4.0).
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
   `src-tauri/src/transcription_coordinator.rs`; the vocabulary's fuzzy replacement

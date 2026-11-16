@@ -15,6 +15,8 @@ import OopsCore
     let shortcuts = HyperShortcuts()
     /// Only while dictation is switched on (`DebugFlags.dictation`).
     private(set) var dictation: DictationSession?
+    /// Keeps the dictation's microphone open while Settings asks for it.
+    private var dictationReadiness: DictationReadiness?
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         settings.show()
@@ -40,6 +42,7 @@ import OopsCore
         testEditor.onRestore = { [weak self] in self?.restoreInTry() }
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
         dictation = makeDictation()
+        dictationReadiness = dictation?.recorder.map { DictationReadiness(recorder: $0) }
         // Fix and Paste last dictation run on their press; their release ends nothing. Dictate hears both, at the
         // instants they happened, and Escape while it records.
         shortcuts.invoke = { [weak self] action, phase, instant in

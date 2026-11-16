@@ -95,25 +95,27 @@ final class DictationCaptureTests: XCTestCase {
         XCTAssertEqual(clip.samples.count { $0 == 2 }, 10_400)
     }
 
-    // Hex derives the pre-roll from the recording environment (muting or ducking keeps none, doing nothing
-    // keeps 450 ms); here the loop runs over the two pre-rolls that mapping yields.
+    // From v3.4.0 (8766d096), with the pre-roll from Hex's `hotkey_pre_roll` (`DictationAudioSettings.hotkeyPreRoll`).
     func testSuppressingAudioWhileDictatingKeepsNoPreRoll() throws {
-        for (preRoll, kept) in [(Duration.zero, 0), (DictationCapture.readyPreRoll, 7_200)] {
+        let behaviors: [(DictationWhileDictating, Int)] = [(.mute, 0), (.pauseMedia, 0), (.lowerAudio, 0), (.nothing, 7_200)]
+        for (behavior, kept) in behaviors {
+            let preRoll = DictationAudioSettings.hotkeyPreRoll(behavior)
             let origin = captureTime()
             var warm = DictationCapture()
             warm.ingest(repeated(0.25, 16_000), capturedThrough: origin)
             warm.startFromTimeline(origin, preRoll: preRoll)
-            XCTAssertEqual(warm.recordedFrom(0).count, kept, "\(preRoll)")
+            XCTAssertEqual(warm.recordedFrom(0).count, kept, "\(behavior)")
 
             // A press 200 ms past the newest audio: with no pre-roll, the audio still to arrive before the
             // press is dropped too.
             var ahead = DictationCapture()
             ahead.ingest(repeated(0.25, 16_000), capturedThrough: origin)
-            ahead.start(at: origin + .milliseconds(200), preRoll: preRoll)
+            let pressed = origin + .milliseconds(200)
+            ahead.start(at: pressed, preRoll: preRoll)
             ahead.ingest(repeated(0.5, 8_000), capturedThrough: origin + .milliseconds(500))
             let clip = try XCTUnwrap(ahead.finish(origin + .milliseconds(500)).clip, "expected transcription")
-            XCTAssertEqual(clip.pressSamples, kept, "\(preRoll)")
-            XCTAssertEqual(clip.samples.count, kept + 4_800, "\(preRoll)")
+            XCTAssertEqual(clip.pressSamples, kept, "\(behavior)")
+            XCTAssertEqual(clip.samples.count, kept + 4_800, "\(behavior)")
         }
     }
 

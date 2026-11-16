@@ -96,6 +96,10 @@ import OSLog
     private(set) var escapeChords: [UInt32] = []
     /// Another model was chosen while a dictation held the drop: it warms once that dictation is over.
     private var warmUpDeferred = false
+    /// "While dictating", applied once a recording is intentional (`DictationRecordingEnvironment`).
+    let environment: DictationRecordingEnvironment?
+    /// When the last key-down was taken, which tells when its recording becomes intentional.
+    private var lastPressedAt: ContinuousClock.Instant?
 
     /// `recorder` is nil, like `engine`, in a build without the speech engine, which may not touch the
     /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
@@ -112,10 +116,12 @@ import OSLog
          status: @escaping @MainActor (String) -> Void, cleanup: Cleanup = .none,
          askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() },
          escape: @escaping @MainActor ([UInt32]) -> Void = { _ in }, shortcutModifiers: @escaping @MainActor (_ cleanUp: Bool) -> UInt32? = { _ in nil },
-         copy: @escaping @MainActor (String) -> Void = { DictationSession.copyToClipboard($0) }) {
+         copy: @escaping @MainActor (String) -> Void = { DictationSession.copyToClipboard($0) },
+         environment: DictationRecordingEnvironment? = nil) {
         self.recorder = recorder; self.engine = engine; self.hostedEngine = hostedEngine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
         self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status; self.cleanup = cleanup
         self.askMicrophone = askMicrophone; self.escape = escape; self.shortcutModifiers = shortcutModifiers; self.copy = copy
+        self.environment = environment
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
         consumer = Task { [weak self] in
@@ -169,7 +175,7 @@ import OSLog
         switch event {
         case let .key(.pressed, capture, now, cleanUp):
             activation.mode = mode()
-            lastPress = capture; lastPressCleans = cleanUp
+            lastPress = capture; lastPressCleans = cleanUp; lastPressedAt = now
             await perform(activation.pressed(at: now), stoppingAt: capture)
         case let .key(.released, capture, now, _):
             lastRelease = capture
@@ -186,6 +192,7 @@ import OSLog
         case .cancel:
             guard activation.isRecording else { break }
             activation.cancel(recordingWasActive: true)
+            environment?.recordingEnded()
             endLive()
             loudness.stop()
             await recorder?.cancel(closingSource: true)
@@ -238,6 +245,7 @@ import OSLog
         case .start?: await start(at: lastPress)
         case .stop?: stop(at: instant)
         case .discard?:
+            environment?.recordingEnded()
             endLive()
             loudness.stop()
             await recorder?.cancel()
@@ -269,6 +277,7 @@ import OSLog
             return refuse(Self.failure(error))
         }
         activation.startResult(started: true)
+        environment?.recordingStarted(pressedAt: lastPressedAt ?? .now)
         Self.log.notice("recording mode=\(self.activation.sessionMode.rawValue, privacy: .public)")
         loudness.start { recorder.inputLevel }
         drop.show(.recording)
@@ -302,6 +311,7 @@ import OSLog
     }
 
     private func stop(at released: CaptureInstant?) {
+        environment?.recordingReleased()
         loudness.stop()
         drop.show(.transcribing)
         // A press during the transcription starts the next recording with live words of its own.

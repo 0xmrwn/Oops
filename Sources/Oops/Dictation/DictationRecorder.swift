@@ -3,9 +3,10 @@ import OopsCore
 /// The microphone side of a dictation, and the one type a dictation session calls: `start` on the press,
 /// `stop` on the release (or the second tap), `cancel` to drop a recording. Starting opens the source when
 /// it is closed; the source then stays open for `keepAlive` after a recording ends, so a quick second
-/// dictation loses no first syllable, and closes. Audio is drained from the source's ring every 10 ms,
-/// converted to 16 kHz and laid on the capture timeline, which places the press and release exactly
-/// whatever the block sizes and delays.
+/// dictation loses no first syllable, and closes. While kept ready (`keepReady`) it stays open between
+/// recordings instead, so each press finds the audio from just before it. Audio is drained from the source's
+/// ring every 10 ms, converted to 16 kHz and laid on the capture timeline, which places the press and release
+/// exactly whatever the block sizes and delays.
 actor DictationRecorder {
     /// How long the source stays open after a recording ends.
     static let keepAlive: Duration = .seconds(10)
@@ -32,7 +33,7 @@ actor DictationRecorder {
     }
 
     private let source: any DictationAudioSource
-    private let preRoll: Duration
+    private let preRoll: @Sendable () -> Duration
     private let now: @Sendable () -> CaptureInstant
     private let keepAliveSleep: @Sendable (Duration) async throws -> Void
     private let ring = DictationAudioRing()
@@ -44,6 +45,10 @@ actor DictationRecorder {
     private var sourceThrough: CaptureInstant?
     /// A press that came before the source's first block: the recording starts once the timeline is known.
     private var pendingPress: CaptureInstant?
+    /// The pre-roll read at the latest start, for a pending press.
+    private var pressPreRoll: Duration = .zero
+    /// The source stays open between recordings (`keepReady`).
+    private var ready = false
     private var drainer: Task<Void, Never>?
     /// Changes with every start, cancel and finish, so a stop waiting for its tail notices it lost its recording.
     private var take = 0
@@ -56,9 +61,10 @@ actor DictationRecorder {
     /// The source's input went away: it brings no more audio, and the next start opens it again.
     private var lostSource = false
 
-    /// `preRoll` is the audio kept from before each press (zero: the source opens on the press). `now`
-    /// reads the clock key events share; `keepAliveSleep` waits out the keep-alive.
-    init(source: any DictationAudioSource, preRoll: Duration = .zero, now: @escaping @Sendable () -> CaptureInstant = { .now() },
+    /// `preRoll` is the audio kept from before each press, read at each start: zero unless the source is kept
+    /// ready, since a source opened on the press holds nothing from before it. `now` reads the clock key events
+    /// share; `keepAliveSleep` waits out the keep-alive.
+    init(source: any DictationAudioSource, preRoll: @escaping @Sendable () -> Duration = { .zero }, now: @escaping @Sendable () -> CaptureInstant = { .now() },
          keepAliveSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.source = source; self.preRoll = preRoll; self.now = now; self.keepAliveSleep = keepAliveSleep
     }
@@ -83,7 +89,8 @@ actor DictationRecorder {
         if !isOpen { try openSource() }
         take += 1
         drain()
-        if capture.capturedThrough == nil { pendingPress = pressedAt } else { capture.start(at: pressedAt, preRoll: preRoll) }
+        pressPreRoll = preRoll()
+        if capture.capturedThrough == nil { pendingPress = pressedAt } else { capture.start(at: pressedAt, preRoll: pressPreRoll) }
     }
 
     /// Finishes the recording at `releasedAt` (now when nil): waits for the release tail's audio, then hands
@@ -110,7 +117,12 @@ actor DictationRecorder {
         guard case let .transcribe(clip) = capture.finish(endedAt: releasedAt, tail: tail), clip.durationMilliseconds > 0 else {
             return .discarded(.noAudio)
         }
-        if clip.isDigitalSilence { return .discarded(.digitalSilence) }
+        if clip.isDigitalSilence {
+            // As Hex's `reopen_silent_stream`: an input delivering exact zeros (some call apps leave it so) stays that
+            // way until reopened, which a ready source would otherwise never be.
+            if ready { lostSource = true }
+            return .discarded(.digitalSilence)
+        }
         if clip.isNearSilent { return .discarded(.silence) }
         return .samples(clip.transcriptionSamples)
     }
@@ -123,16 +135,27 @@ actor DictationRecorder {
     }
 
     /// Drops the recording, if any. `closingSource` closes the source at once rather than after the
-    /// keep-alive: a cancel asked for silence, and the microphone goes with the recording.
+    /// keep-alive: a cancel asked for silence, and the microphone goes with the recording, unless it is kept ready.
     func cancel(closingSource: Bool = false) {
         if isRecording {
             capture.cancel()
             pendingPress = nil
             take += 1
         } else if !closingSource { return }
-        guard closingSource else { return scheduleClose() }
+        guard closingSource, !ready else { return scheduleClose() }
         closeGeneration += 1
         if isOpen { closeSource() }
+    }
+
+    /// Keeps the source open between recordings (`on`), opening it now when it can: without microphone access
+    /// nothing opens, and nothing asks. Off, an idle source closes at once; one recording closes after it as usual.
+    func keepReady(_ on: Bool) {
+        guard on != ready else { return }
+        ready = on
+        closeGeneration += 1
+        closeScheduled = false
+        if on, isOpen { source.scheduleFallbackRetry() }
+        if on { openReady() } else if isOpen, !isRecording { closeSource() }
     }
 
     /// `handler` hears, from any thread, that a recording's input went away; what it captured is kept for
@@ -144,14 +167,34 @@ actor DictationRecorder {
     private func sourceLost() {
         drain()
         lostSource = isOpen
-        if isRecording { inputLost?() }
+        if isRecording { inputLost?() } else { openReady() }
+    }
+
+    /// The source's input may have to change. Only the recorder knows whether a recording runs, so it applies the
+    /// change here, between recordings: a press can't start on an input that is about to be replaced, and a
+    /// recording under way has it applied once it ends (`scheduleClose`). A ready source that found no microphone
+    /// tries again.
+    private func inputMayHaveChanged() {
+        guard !isRecording else { return }
+        if isOpen, !lostSource, source.followInputChange() { closeSource() }
+        openReady()
+    }
+
+    /// Opens a ready source that is closed, or reopens one whose input went away, on the current input. Access
+    /// missing, or no input, leaves it closed until the next press or change.
+    private func openReady() {
+        guard ready, !isRecording else { return }
+        if isOpen, lostSource { closeSource() }
+        if !isOpen { try? openSource() }
     }
 
     private func openSource() throws(DictationAudioError) {
         ring.reset()
         source.watchLoss { [weak self] in Task { await self?.sourceLost() } }
+        source.watchInputChange { [weak self] in Task { await self?.inputMayHaveChanged() } }
         let rate = try source.open(into: ring)
         do { converter = try DictationAudioConverter(sourceRate: rate) } catch { source.close(); throw error }
+        if ready { source.scheduleFallbackRetry() }
         capture = DictationCapture()
         sourceThrough = nil
         isOpen = true
@@ -199,12 +242,15 @@ actor DictationRecorder {
         capture.ingest(samples, capturedThrough: capturedThrough)
         if let pressedAt = pendingPress {
             pendingPress = nil
-            capture.start(at: pressedAt, preRoll: preRoll)
+            capture.start(at: pressedAt, preRoll: pressPreRoll)
         }
     }
 
     /// Closes the source once it has been idle for `keepAlive`, unless a recording starts first.
     private func scheduleClose() {
+        // Opens a ready source again too, when it went away or found no microphone.
+        inputMayHaveChanged()
+        if ready { return }
         guard isOpen, !isRecording, !closeScheduled else { return }
         closeScheduled = true
         closeGeneration += 1
@@ -216,7 +262,7 @@ actor DictationRecorder {
     }
 
     private func closeIfIdle(_ generation: Int) {
-        guard generation == closeGeneration, !isRecording, isOpen else { return }
+        guard generation == closeGeneration, !isRecording, !ready, isOpen else { return }
         closeScheduled = false
         closeSource()
     }

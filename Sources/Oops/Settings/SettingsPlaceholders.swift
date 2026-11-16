@@ -1,13 +1,11 @@
 import OopsCore
 import SwiftUI
 
-// Dictate and Actions as they are planned, drawn with the controls they will use and every one not yet
-// wired disabled. The dictation work replaces each control's constant with its setting: the shortcut and
-// the mode are live, as are the drop's visualizer, position and live words, Clean up and the vocabulary;
-// Actions comes with the action library.
+// Actions as it is planned, drawn with the controls it will use and every one not yet wired disabled; it comes
+// with the action library. Dictate's settings are all live.
 
-/// Dictate's settings: the shortcut and the mode, the speech model, cleanup, the drop and the vocabulary, with the
-/// planned microphone.
+/// Dictate's settings: the shortcut and the mode, the speech model, the drop, the microphone and audio, cleanup and
+/// the vocabulary.
 struct DictatePage: View {
     let store: ProviderStore
     var local = LocalModels.shared
@@ -40,8 +38,7 @@ struct DictatePage: View {
             DictateModelCard(store: store, local: local, keyboards: keyboards)
             DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
             DictateDropCard(store: store, local: local)
-            SettingRow(symbol: "mic.and.signal.meter", title: "Microphone") { menu("Microphone", ["System default"]) }
-                .settingsSurface().disabled(true)
+            DictateAudioCard()
             DictateCleanupCard(store: store)
             Button { vocabulary = true } label: {
                 SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }.contentShape(Rectangle())
@@ -49,11 +46,6 @@ struct DictatePage: View {
             .buttonStyle(.plain)
             .settingsSurface()
         }
-    }
-
-    /// The first value is the one the setting will start with.
-    private func menu(_ title: String, _ values: [String]) -> some View {
-        GlassMenu(title: title, choices: values.map { ($0, $0) }, selection: .constant(values[0]))
     }
 }
 
