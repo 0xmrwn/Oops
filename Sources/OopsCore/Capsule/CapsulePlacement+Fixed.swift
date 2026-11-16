@@ -24,6 +24,6 @@ public extension CapsulePlacement {
         let topEdge = max(screen.visible.minY, screen.full.minY + screen.safeAreaTop)
         let y = position == .top ? topEdge + margin : screen.visible.maxY - margin - size.height
         let rect = CGRect(x: screen.visible.midX - size.width / 2, y: y, width: size.width, height: size.height)
-        return Placement(envelope: clamp(rect, into: screen.visible), corner: .bottom, strategy: .screen)
+        return Placement(envelope: clamp(rect, into: screen.visible), corner: position == .top ? .top : .bottom, strategy: .screen)
     }
 }

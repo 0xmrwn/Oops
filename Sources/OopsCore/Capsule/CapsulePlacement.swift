@@ -21,8 +21,9 @@ public enum CapsulePlacement {
             self.caret = caret; self.previousCharacter = previousCharacter
         }
     }
-    /// The envelope corner the capsule hugs, so a longer label grows away from the anchor.
-    public enum Corner: Sendable { case bottomTrailing, topTrailing, bottomLeading, topLeading, bottom }
+    /// The envelope corner the capsule hugs, so a longer label grows away from the anchor. `top` is a drop fixed to
+    /// the top of the screen, which hugs that edge however tall its envelope is.
+    public enum Corner: Sendable { case bottomTrailing, topTrailing, bottomLeading, topLeading, bottom, top }
     public enum Strategy: String, Sendable { case composer, composerBelow, caret, caretAbove, window, screen }
     public struct Placement: Equatable, Sendable {
         /// The area the capsule may occupy at its largest.

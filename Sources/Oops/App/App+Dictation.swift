@@ -1,3 +1,4 @@
+import Foundation
 import OopsCore
 
 extension AppDelegate {
@@ -12,10 +13,16 @@ extension AppDelegate {
         case "undetermined": .undetermined
         default: nil
         }
-        let recorder = engine.map { _ in DictationRecorder(source: DictationMicrophone(access: { forced ?? .current })) }
+        let recorder = engine.map { _ in
+            // A WAV in place of the microphone, so a dictation can be checked with nobody speaking.
+            let source: any DictationAudioSource = DebugFlags.dictationAudioFile.map {
+                DictationAudioFile(url: URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath), pace: .realTime)
+            } ?? DictationMicrophone(access: { forced ?? .current })
+            return DictationRecorder(source: source)
+        }
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
-        let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedGeometry() }
+        let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedCaret() }
         let providers = preferences.providers, local = LocalModels.shared
         startSpeechModels(providers, local)
         let vocabulary = VocabularyStore.shared
@@ -24,7 +31,11 @@ extension AppDelegate {
             small: { SmallCleanups.saved }, language: { providers.dictationCleanupLanguage(local, override: DebugFlags.dictationModel) },
             mode: { DictationCleanupMode.saved },
             backend: { try providers.cleanupBackend() }, replace: { await Self.replace($0, with: $1, in: editor) })
-        return DictationSession(recorder: recorder, engine: engine,
+        // A model file from the debug override is what a check means to run: its audio never goes to a hosted engine.
+        let hosted: @MainActor () -> (any SpeechEngine)? = {
+            DebugFlags.dictationModel?.isEmpty == false ? nil : providers.dictationHostedEngine(local)
+        }
+        return DictationSession(recorder: recorder, engine: engine, hostedEngine: hosted,
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,

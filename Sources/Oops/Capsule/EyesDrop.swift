@@ -38,7 +38,7 @@ struct EyesDropView: View {
     @State private var start = Date()
     /// The drawn width, animated by `morph`.
     @State private var shown: CGFloat = Self.drop
-    static let drop: CGFloat = 46
+    nonisolated static let drop: CGFloat = 46
     /// Glass left at the drop's centre: enough to keep the eyes legible while the lens still shows.
     static let centerGlass = 0.45
     /// Tabular digits, so a timing doesn't jitter the drop's width.

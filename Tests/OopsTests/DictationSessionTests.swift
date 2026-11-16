@@ -321,6 +321,11 @@ import XCTest
         states.append(.left)
         journal?("left")
     }
+
+    /// Each live words update, nil for each clearing.
+    private(set) var words: [LiveWords?] = []
+
+    func showWords(_ words: LiveWords?) { self.words.append(words) }
 }
 
 @MainActor final class FakeInsert {

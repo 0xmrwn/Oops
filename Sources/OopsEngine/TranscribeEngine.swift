@@ -26,11 +26,22 @@ public actor TranscribeEngine: SpeechEngine {
     private let idleRelease: IdleRelease
     private let open: @Sendable (URL) throws(SpeechEngineError) -> any LoadedModel
     /// Kept across an idle release, so the next use can reload; forgotten by `unload`.
-    private var modelURL: URL?
-    private var model: any LoadedModel?
+    private(set) var modelURL: URL?
+    private(set) var model: any LoadedModel?
     /// The pending release, and which use it follows: a later use makes it stale.
     private(set) var idleTask: Task<Void, Never>?
     private var uses = 0
+    /// The stream open on the model's session, which holds one at a time.
+    var stream: OpenStream?
+    /// Streams started so far, numbering each one, so a stream a newer one replaced feeds nothing.
+    var streams = 0
+
+    struct OpenStream {
+        let id: Int
+        let handle: TranscribeStream
+        /// A feed failed: no more live words, though `finish` still writes the one-shot text.
+        var failed = false
+    }
 
     public init(idleRelease: IdleRelease = .standard) {
         self.init(idleRelease: idleRelease) { url throws(SpeechEngineError) in try TranscribeModel(url: url) }
@@ -60,20 +71,32 @@ public actor TranscribeEngine: SpeechEngine {
                            vocabulary: VocabularyDelivery? = nil) throws(SpeechEngineError) -> String {
         guard let modelURL else { throw .notLoaded }
         defer { releaseWhenIdle() }
-        let model: any LoadedModel
-        if let held = self.model { model = held } else { model = try open(modelURL) }
-        self.model = model
+        let model = try reopen(modelURL)
+        // The session runs only with no stream open; the stream ended here feeds nothing more.
+        if stream != nil {
+            model.resetStream()
+            stream = nil
+        }
         return try model.run(samples, language: language, vocabulary: vocabulary)
     }
 
     public func unload() {
         idleTask?.cancel()
         idleTask = nil
+        stream = nil
         model = nil
         modelURL = nil
     }
 
-    private func releaseWhenIdle() {
+    /// The model, opened again if the idle release dropped it.
+    func reopen(_ url: URL) throws(SpeechEngineError) -> any LoadedModel {
+        if let model { return model }
+        let opened = try open(url)
+        model = opened
+        return opened
+    }
+
+    func releaseWhenIdle() {
         idleTask?.cancel()
         uses += 1
         let use = uses, idleRelease = idleRelease
@@ -84,7 +107,8 @@ public actor TranscribeEngine: SpeechEngine {
     }
 
     private func release(after use: Int) {
-        guard use == uses, !Task.isCancelled else { return }
+        // An open stream needs the model's session; each of its feeds starts the idle time again.
+        guard use == uses, !Task.isCancelled, stream == nil else { return }
         model = nil
         idleTask = nil
     }

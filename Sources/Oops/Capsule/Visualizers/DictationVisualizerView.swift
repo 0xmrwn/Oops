@@ -12,7 +12,7 @@ struct DictationVisualizerView: View {
     var live: (@MainActor () -> Float)?
     let isDark: Bool
     let reduceMotion: Bool
-    @Environment(\.backdropInked) private var inked
+    @Environment(\.voiceOnRegularGlass) private var onRegularGlass
 
     /// The space each kind draws in, inside the drop's 46 pt height. The ripple takes a cap of the drop, as
     /// Fix's eyes do; the waveforms take a strip as tall as a line of the drop's text with its halo.
@@ -33,7 +33,7 @@ struct DictationVisualizerView: View {
         Group {
             if !phase.isLive {
                 Image(systemName: phase.symbol).font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark, inked: inked).halo))
+                    .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark, onRegularGlass: onRegularGlass).halo))
             } else {
                 switch kind {
                 case .hex: hexVisualizer(phase: phase, loudness: loudness, live: live, isDark: isDark, reduceMotion: reduceMotion)
@@ -48,12 +48,17 @@ struct DictationVisualizerView: View {
 }
 
 /// The drop's ink and halo, for marks drawn rather than typed: the same tones as its text, so a voice reads
-/// over any backdrop with no backing shape. Increase Contrast's solid glass needs no halo, and neither does
-/// ink that follows the backdrop (`BackdropInk`): it contrasts by itself, and a halo would be inked over too.
+/// over any backdrop with no backing shape. Increase Contrast's solid glass needs no halo, and neither does a
+/// voice on regular glass, which keeps its content legible by itself.
 struct VoiceInk {
     let ink: Color, halo: Color
-    init(isDark: Bool, increasedContrast: Bool = false, inked: Bool = false) {
+    init(isDark: Bool, increasedContrast: Bool = false, onRegularGlass: Bool = false) {
         ink = isDark ? .white : Color(red: 0.06, green: 0.06, blue: 0.09)
-        halo = increasedContrast || inked ? .clear : (isDark ? Color.black : .white).opacity(0.85)
+        halo = increasedContrast || onRegularGlass ? .clear : (isDark ? Color.black : .white).opacity(0.85)
     }
+}
+
+extension EnvironmentValues {
+    /// Whether the voice sits on regular glass, as the dictation drop's does, and so needs no halo.
+    @Entry var voiceOnRegularGlass = false
 }

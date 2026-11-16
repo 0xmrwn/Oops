@@ -115,6 +115,13 @@ actor DictationRecorder {
         return .samples(clip.transcriptionSamples)
     }
 
+    /// The recording's 16 kHz samples from `offset` on, once every block the source wrote is taken in: what a
+    /// streaming engine hears while the key is still held. Empty when nothing records or nothing is new.
+    func recorded(from offset: Int) -> [Float] {
+        drain()
+        return Array(capture.recordedSamples(from: offset))
+    }
+
     /// Drops the recording, if any. `closingSource` closes the source at once rather than after the
     /// keep-alive: a cancel asked for silence, and the microphone goes with the recording.
     func cancel(closingSource: Bool = false) {

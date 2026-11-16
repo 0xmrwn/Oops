@@ -50,6 +50,13 @@ final class CapsulePlacementFixedTests: XCTestCase {
         XCTAssertTrue(external.visible.contains(fixed(.bottom, on: [external, builtIn])))
     }
 
+    func testTheTopHugsTheTopEdgeAndTheBottomTheBottom() {
+        // However tall the envelope (a dictation drop with room for its live words), the drop stays by its edge.
+        let tall = CGSize(width: 252, height: 78)
+        XCTAssertEqual(CapsulePlacement.fixed(.top, envelope: tall, screens: [builtIn]).corner, .top)
+        XCTAssertEqual(CapsulePlacement.fixed(.bottom, envelope: tall, screens: [builtIn]).corner, .bottom)
+    }
+
     func testAnchoredWithoutAnAnchorFallsBackToTheBottom() {
         XCTAssertEqual(DictationDropPosition.anchored.resolved(hasAnchor: false), .bottom)
         XCTAssertEqual(DictationDropPosition.anchored.resolved(hasAnchor: true), .anchored)

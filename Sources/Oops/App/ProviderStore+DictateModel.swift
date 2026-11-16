@@ -19,19 +19,25 @@ struct DictateModelOption: Identifiable, Equatable {
         reference = .local(model.id); name = model.name; streams = model.streams
         languages = model.languageChoices; automatic = model.automaticLanguage
     }
+
+    /// OpenAI's transcription takes any language by its two-letter code, or detects it.
+    init(openAI reference: VoiceModelReference) {
+        self.reference = reference; name = "GPT-Live-Transcribe"; streams = true
+        languages = [SpeechLanguage.auto] + SpeechLanguage.known.filter { $0.count == 2 }; automatic = SpeechLanguage.auto
+    }
 }
 
 extension ProviderStore {
-    /// Dictate's model menu: the installed models. A provider's voice model has no way to transcribe yet, so
-    /// it isn't offered.
+    /// Dictate's model menu: the installed models, then OpenAI's live transcription when an OpenAI key is set up.
     func dictateOptions(_ local: LocalModels) -> [DictateModelOption] {
-        local.installed.map(DictateModelOption.init)
+        local.installed.map(DictateModelOption.init) + (openAIDictateReference.map { [DictateModelOption(openAI: $0)] } ?? [])
     }
 
-    /// The model dictation uses: the selection, or the first installed model in place of a provider's, which
-    /// can't transcribe yet.
-    private func dictateModel(_ local: LocalModels) -> VoiceModelReference? {
+    /// The model dictation uses: the selection, or the first installed model in place of a provider's voice model
+    /// that can't transcribe (OpenAI's stands while its key does).
+    func dictateModel(_ local: LocalModels) -> VoiceModelReference? {
         guard case .provider? = dictateSelection.model else { return dictateSelection.model }
+        if dictateSelection.model == openAIDictateReference { return dictateSelection.model }
         return local.installed.first.map { .local($0.id) }
     }
 
@@ -73,6 +79,7 @@ extension ProviderStore {
     /// The selected language in the engine's terms; nil under Automatic, with the debug override, or for a model
     /// that takes no hint.
     func dictationLanguageHint(_ local: LocalModels, override: String?) -> String? {
+        if override?.isEmpty != false, dictatesWithOpenAI(local) { return openAILanguage }
         guard override?.isEmpty != false, case .local(let id)? = dictateModel(local),
               let model = SpeechModelCatalog.model(id: id), local.isInstalled(id) else { return nil }
         return model.runtimeLanguageHint(for: dictateLanguage(for: DictateModelOption(model)))
@@ -82,6 +89,7 @@ extension ProviderStore {
     /// from the debug override, whose kind isn't known, gets fuzzy replacement.
     func dictationVocabulary(_ local: LocalModels, override: String?, entries: [VocabularyEntry]) -> VocabularyDelivery? {
         guard !entries.isEmpty else { return nil }
+        if override?.isEmpty != false, dictatesWithOpenAI(local) { return VocabularyRouting.delivery(of: entries, to: .openAI) }
         guard override?.isEmpty != false else { return .fuzzyReplacement(entries.map(\.term)) }
         guard case .local(let id)? = dictateModel(local), let model = SpeechModelCatalog.model(id: id) else { return nil }
         return VocabularyRouting.delivery(of: entries, to: .local(model.architecture))
@@ -92,6 +100,7 @@ extension ProviderStore {
     /// holds, and nil (fillers kept) for a file the catalog doesn't pin.
     func dictationCleanupLanguage(_ local: LocalModels, override: String?) -> String? {
         if let override, !override.isEmpty { return SpeechModelCatalog.model(atPath: override)?.automaticLanguage }
+        if dictatesWithOpenAI(local) { return openAILanguage }
         return dictateOption(local).map(dictateLanguage(for:))
     }
 

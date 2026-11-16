@@ -16,6 +16,7 @@ extension SpeechModelCatalog {
         // Hex buffers it with its largest context, its most accurate and least compute-intensive setting.
         streams: true,
         streamingChunk: SpeechModelStreamingChunk(leftMilliseconds: 5600, chunkMilliseconds: 1040, rightMilliseconds: 1040),
+        liveContext: .chunked(chunkMilliseconds: 160, lookaheadMilliseconds: 160),
         acceptsLanguageHint: true, supportsLanguageDetection: false, license: .nvidiaOpenModel,
         wordErrorRate: 1.60, realtime: "~163x")
 
@@ -110,7 +111,7 @@ extension SpeechModelCatalog {
             byteCount: 751_094_240,
             sha256: "b94545b313b3223fda7b2857a52681da813935c2127643d1e9ff0c23d988089c"),
         architecture: .parakeet, variant: "nemotron-3.5-asr-streaming-0.6b",
-        languages: .many(nemotron35Languages), streams: true,
+        languages: .many(nemotron35Languages), streams: true, liveContext: .cacheAware(lookaheadFrames: 0),
         acceptsLanguageHint: true, supportsLanguageDetection: true,
         runtimeLanguages: nemotron35Locales, license: .openMDW,
         wordErrorRate: 3.05, realtime: "~25x")
