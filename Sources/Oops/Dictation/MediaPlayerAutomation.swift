@@ -1,4 +1,5 @@
 import AppKit
+import os
 import OopsCore
 
 /// Whether macOS lets Oops send Apple events to a player, which Pause media needs to pause and resume it.
@@ -22,13 +23,45 @@ enum MediaPlayerAutomation: Equatable, Sendable {
     }
 }
 
+/// macOS's answer without asking, given up after a limit. Reading it waits on the player itself, and a player that
+/// never answers (a long-running Spotify can) would otherwise hold Pause media, and every restore queued behind it,
+/// for good. A player whose last reading is still waiting is unknown at once, so stuck readings never pile up.
+final class MediaPlayerReading: Sendable {
+    private let read: @Sendable (MediaPlayer) -> MediaPlayerAutomation
+    private let limit: Duration
+    private let waiting = OSAllocatedUnfairLock<Set<MediaPlayer>>(initialState: [])
+
+    init(limit: Duration = .milliseconds(500), read: @escaping @Sendable (MediaPlayer) -> MediaPlayerAutomation) {
+        self.limit = limit
+        self.read = read
+    }
+
+    static let system = MediaPlayerReading { MediaPlayerAutomation.system($0, asking: false) }
+
+    func answer(_ player: MediaPlayer) -> MediaPlayerAutomation {
+        guard waiting.withLock({ $0.insert(player).inserted }) else { return .unknown }
+        let answer = OSAllocatedUnfairLock<MediaPlayerAutomation?>(initialState: nil), done = DispatchSemaphore(value: 0)
+        Thread.detachNewThread { [read, waiting] in
+            let result = read(player)
+            answer.withLock { $0 = result }
+            waiting.withLock { _ = $0.remove(player) }
+            done.signal()
+        }
+        let seconds = Double(limit.components.seconds) + Double(limit.components.attoseconds) / 1e18
+        guard done.wait(timeout: .now() + seconds) == .success else { return .unknown }
+        return answer.withLock { $0 } ?? .unknown
+    }
+}
+
 /// Pause media's Settings side: asks macOS for each running player while the person is choosing, so a dictation
 /// never has to, and names the players it refused. The players and macOS's answers come in, so tests use fakes.
 struct MediaPlayerPermissions: Sendable {
     var running: @MainActor @Sendable () -> Set<MediaPlayer>
     var automation: @Sendable (MediaPlayer, _ asking: Bool) -> MediaPlayerAutomation
 
-    static let system = MediaPlayerPermissions(running: { SystemMediaPlayers.runningPlayers() }, automation: MediaPlayerAutomation.system)
+    static let system = MediaPlayerPermissions(running: { SystemMediaPlayers.runningPlayers() }) { player, asking in
+        asking ? MediaPlayerAutomation.system(player, asking: true) : MediaPlayerReading.system.answer(player)
+    }
 
     /// The running players macOS refused, after asking for each one never asked when `asking`.
     @MainActor func refused(asking: Bool) async -> [MediaPlayer] { await refused(among: running(), asking: asking) }

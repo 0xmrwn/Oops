@@ -53,6 +53,35 @@ final class MediaPlayerPermissionsTests: XCTestCase {
         XCTAssertEqual(refused, [.vlc])
     }
 
+    func testAReadingReturnsMacOSAnswer() {
+        let reading = MediaPlayerReading { $0 == .music ? .allowed : .refused }
+        XCTAssertEqual(reading.answer(.music), .allowed)
+        XCTAssertEqual(reading.answer(.spotify), .refused)
+    }
+
+    func testAPlayerThatNeverAnswersIsUnknownAndIsNotReadAgainUntilItAnswers() {
+        let reads = Mutex(0), release = DispatchSemaphore(value: 0)
+        let reading = MediaPlayerReading(limit: .milliseconds(50)) { player in
+            reads.withLock { $0 += 1 }
+            if player == .spotify { release.wait(); release.signal() }
+            return .allowed
+        }
+        let start = ContinuousClock.now
+        XCTAssertEqual(reading.answer(.spotify), .unknown)
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
+        XCTAssertEqual(reading.answer(.spotify), .unknown)
+        XCTAssertEqual(reading.answer(.music), .allowed, "one stuck player holds no other")
+        XCTAssertEqual(reads.withLock { $0 }, 2)
+
+        release.signal()
+        let answered = expectation(description: "read again once the stuck reading returned")
+        DispatchQueue.global().async {
+            while reading.answer(.spotify) != .allowed { usleep(10000) }
+            answered.fulfill()
+        }
+        wait(for: [answered], timeout: 5)
+    }
+
     func testTheCardSaysNothingWithoutARefusedPlayerAndNamesEachOneOtherwise() {
         XCTAssertNil(MediaPlayerPermissions.problem([]))
         XCTAssertEqual(MediaPlayerPermissions.problem([.spotify]), "To pause Spotify, allow Oops under Automation in System Settings.")
