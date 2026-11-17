@@ -213,9 +213,10 @@ extension DictationDropPosition {
             locating = nil
             let geometry = located?.geometry
             self.geometry = geometry; style = located?.style
-            model.pageDark = style?.pageIsDark
             // Read at each dictation, so a change in Settings applies to the next one.
             let position = DictationDropPosition.saved.resolved(hasAnchor: geometry?.element != nil)
+            // The field's page is behind the drop only when the drop sits by the field; at a screen edge it follows the system.
+            model.pageDark = position == .anchored ? style?.pageIsDark : nil
             panel.present(geometry: geometry, fixed: position == .anchored ? nil : position)
             settle()
             if let words { route(words) }
