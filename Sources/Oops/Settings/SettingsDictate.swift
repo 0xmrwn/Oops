@@ -69,7 +69,7 @@ struct DictateDropCard: View {
     @AppStorage(DictationDropPosition.key) private var position = DictationDropPosition.anchored
     @AppStorage(DictationLiveWordsPlace.key) private var place = DictationLiveWordsPlace.drop
 
-    private static let visualizers: [(value: DictationVisualizer, label: String)] = [(.hex, "Hex"), (.wave, "Wave"), (.ripple, "Ripple")]
+    private static let visualizers: [(value: DictationVisualizer, label: String)] = [(.hex, "Hex"), (.string, "String"), (.wave, "Wave")]
     private static let positions: [(value: DictationDropPosition, label: String)] = [(.anchored, "By the text"), (.top, "Top"), (.bottom, "Bottom")]
     private static let places: [(value: DictationLiveWordsPlace, label: String)] = [(.drop, "In the drop"), (.text, "At the caret")]
 

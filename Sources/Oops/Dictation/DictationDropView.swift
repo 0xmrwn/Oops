@@ -2,12 +2,13 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// The dictation drop: a capsule of regular Liquid Glass at Fix's drop's height, holding its visualizer and a word
-/// or two in the drop's type. Everything it shows is the glass's own content in the system's foreground styles, so
-/// the system keeps it legible, in one colour, over whatever is behind. It enters and leaves as Fix's drop does, on
-/// the panel's `presented`. Its one action, when a state offers one, sits in the trailing cap as Fix's does;
-/// without one it has nothing to press and lets clicks through. While a dictation streams, the glass opens into a
-/// shelf on the side away from the edge the drop hugs (`DropShelf`), and its words so far show there
+/// The dictation drop: a capsule of regular Liquid Glass at Fix's drop's height, holding its voice, or its symbol
+/// and a word or two in the drop's type (`DictationCapsule`). Work under way and a plain success say nothing: the
+/// capsule's shape tells the state. Everything it shows is the glass's own content in the system's foreground
+/// styles, so the system keeps it legible, in one colour, over whatever is behind. It enters and leaves as Fix's
+/// drop does, on the panel's `presented`. Its one action, when a state offers one, sits in the trailing cap as
+/// Fix's does; without one it has nothing to press and lets clicks through. While a dictation streams, the glass
+/// opens into a shelf on the side away from the edge the drop hugs (`DropShelf`), and its words so far show there
 /// (`DictationLivePreview`).
 struct DictationDropView: View {
     let model: DictationDropModel
@@ -16,27 +17,11 @@ struct DictationDropView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
-    private static let font = DictationLivePreview.font
-    private static let spacing: CGFloat = 7, padding: CGFloat = 16
-    /// Between the label and the action's cap, as in Fix's drop.
-    private static let gap: CGFloat = 6
-
-    /// Computed rather than measured, so the glass and the pointer's hold area agree.
-    private var width: CGFloat {
-        let text = (model.state.text as NSString).size(withAttributes: [.font: Self.font]).width.rounded(.up)
-        return lead + voice.width + Self.spacing + text + (model.action == nil ? Self.padding : Self.gap + EyesDropView.drop)
-    }
+    private var width: CGFloat { DictationCapsuleLayout(model.state, action: model.action != nil).width }
 
     /// The words on the shelf: a recording's, while it has any.
     private var words: LiveWords? { model.state == .recording ? model.words : nil }
     private var shelfMotion: Animation { reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.12) }
-
-    private var voice: CGSize { DictationVisualizerView.size(model.visualizer, phase: model.state) }
-    /// The ripple sits centred in the drop's leading cap, as Fix's eyes do; the strips sit a little into it.
-    private var lead: CGFloat {
-        guard model.state.isLive else { return Self.padding }
-        return model.visualizer == .ripple ? (EyesDropView.drop - voice.width) / 2 : Self.padding - 4
-    }
 
     /// The page's appearance where the field tells it, the system's otherwise: the glass and all it holds take it.
     private var dark: Bool { model.pageDark ?? (scheme == .dark) }
@@ -54,7 +39,9 @@ struct DictationDropView: View {
                     // They come in once the shelf is there to hold them, and go at once as it folds: never over the page.
                     .transition(.asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.2).delay(0.15)), removal: .identity))
             }
-            drop.frame(width: width, height: height)
+            DictationCapsule(state: model.state, action: model.action, copied: model.copied) {
+                DropVoice(model: model, isDark: dark, reduceMotion: reduceMotion)
+            }
         }
         .frame(width: DropShelf.width, height: DropShelf.height, alignment: above ? .bottom : .top)
         // The capsule and its shelf as one piece of glass, with everything above as its content.
@@ -69,7 +56,6 @@ struct DictationDropView: View {
                    value: capsule.presented)
         .onAppear { capsule.width = width }
         .onChange(of: model.state) { capsule.width = self.width }
-        .onChange(of: model.visualizer) { capsule.width = self.width }
         .onChange(of: model.action?.label) { capsule.width = self.width }
         .allowsHitTesting(model.action != nil)
         // Contained, not ignored: ignoring would swallow the action's button, leaving it reachable only as a
@@ -78,27 +64,6 @@ struct DictationDropView: View {
         .accessibilityLabel(model.state.text)
         .accessibilityHidden(!capsule.presented)
         .environment(\.colorScheme, dark ? .dark : .light)
-    }
-
-    private var drop: some View {
-        HStack(spacing: 0) {
-            HStack(spacing: Self.spacing) {
-                DropVoice(model: model, isDark: dark, reduceMotion: reduceMotion)
-                Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
-            }
-            .accessibilityHidden(true) // The drop's own label reads the state.
-            if let action = model.action {
-                Color.clear.frame(width: Self.gap)
-                // Once pressed, Copy's icon turns into a check, and pressing again does nothing.
-                DropActionButton(symbol: model.copied ? "checkmark" : action.symbol, label: action.label) {
-                    if !model.copied { action.perform() }
-                }
-                    .help(action.label)
-            }
-        }
-        .foregroundStyle(.primary)
-        .environment(\.voiceOnRegularGlass, true)
-        .padding(.leading, lead).padding(.trailing, model.action == nil ? Self.padding : 0)
     }
 }
 

@@ -205,6 +205,17 @@ struct DotScopeTests {
         #expect(dark.x > warm.x && dark.y > warm.y && dark.z > warm.z) // The ink's ramp needs dark above light.
     }
 
+    @Test func `monochrome is neutral, and darker on light glass than on dark`() {
+        let pose = DotScopePose(
+            width: 0, height: 0, activeSpan: 0, activeCenter: 0, leadingInset: 0, trailingInset: 0, opacity: 1,
+            scale: 1, softness: 0, cool: 1, fail: 0, glow: 0, grid: 0, live: 1
+        )
+        let light = DotScopePalette.palette(isDark: false, pose: pose, monochrome: true).core
+        let dark = DotScopePalette.palette(isDark: true, pose: pose, monochrome: true).core
+        #expect(light.x < dark.x)
+        for core in [light, dark] { #expect(core.x == core.y && core.y == core.z) }
+    }
+
     @Test func `reduced motion yields the still form`() {
         func run(reduceMotion: Bool) -> DotScopePose {
             let sim = DotScopeSimulation(tuning: .hud)

@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Debug builds only: `-DictationDropProbe light|dark|grey` shows the real dictation drop, in its floating panel,
 /// over a plain window standing in for a page of that colour whose field reports its text colour, driven by the
-/// synthetic voice through listening, transcribing and written on a loop. `-DictationDropProbeGlass app` keeps the
+/// synthetic voice and its words through listening, transcribing and written on a loop. `-DictationDropProbeGlass app` keeps the
 /// field's colour from the drop, so its glass follows the system as before. It shows the panel's glass over another
 /// window as it sits over another app, which the lab's in-window glass cannot.
 @MainActor final class DictationDropProbe {
@@ -49,12 +49,21 @@ import SwiftUI
         }
     }
 
-    /// The lab's loop: listening through the voice's speech, then transcribing, then written.
+    private static let words = "so I was thinking about it and we could move the meeting to Friday if that works for you".split(separator: " ")
+        .map(String.init)
+
+    /// The lab's loop: listening through the voice's speech, with its words, then transcribing, then written.
     private func step(_ time: Double) {
-        let state: DictationDropState = switch time.truncatingRemainder(dividingBy: SyntheticLoudness.period) {
+        let lap = time.truncatingRemainder(dividingBy: SyntheticLoudness.period)
+        let state: DictationDropState = switch lap {
         case ..<10.2: .recording
         case ..<11.3: .transcribing
         default: .written
+        }
+        // Words arrive with the voice, about three a second, so the shelf opens as it does in a dictation.
+        if state == .recording, lap > 2.5, let drop {
+            let heard = Self.words.prefix(Int((lap - 2.5) * 3)).joined(separator: " ")
+            drop.showWords(heard.isEmpty ? nil : LiveWords(stable: heard))
         }
         guard state != shown, let drop else { return }
         shown = state

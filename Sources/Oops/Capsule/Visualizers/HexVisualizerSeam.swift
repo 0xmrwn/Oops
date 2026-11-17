@@ -8,21 +8,29 @@ func hexVisualizer(phase: DictationDropState, loudness: Float, live: (@MainActor
     var decibels: (@MainActor () -> Float)?
     if let live { decibels = { @MainActor in scopeDecibels(live()) } }
     return DotScopeView(phase: phase.scopePhase, loudness: scopeDecibels(loudness), liveLoudness: decibels, isDark: isDark,
-                        reduceMotion: reduceMotion)
+                        reduceMotion: reduceMotion, tuning: scopeTuning)
 }
 
-/// The scope levels itself from decibels, so the smoothed level goes back onto the range it was mapped from;
-/// 0 reads as silence, below the scope's noise floor.
-private func scopeDecibels(_ level: Float) -> Float {
-    level <= 0 ? -80 : DictationLoudness.floorDBFS + level * (DictationLoudness.ceilingDBFS - DictationLoudness.floorDBFS)
-}
+/// The scope as wide as its drop, fading into the caps, in neutral greys: the drop's shape tells its state, so
+/// the scope need not turn warm or cool. Its own levelling is off: the loudness it is given is levelled already,
+/// and levelling again draws a shout no bigger than speech.
+private let scopeTuning: DotScopeTuning = {
+    var tuning = DotScopeTuning.bar(fade: 30, spacing: 3.2)
+    tuning.autoLevel = false
+    tuning.monochrome = true
+    return tuning
+}()
+
+/// The scope's decibels, as its unlevelled mapping reads them (-40 silent to -10 full), on a curve that keeps
+/// speech well below a shout. Silence still reads a little, so a listening scope breathes rather than goes flat.
+private func scopeDecibels(_ level: Float) -> Float { -40 + 30 * (0.12 + 0.88 * pow(max(level, 0), 1.3)) }
 
 private extension DictationDropState {
     var scopePhase: DotScopePhase {
         switch self {
         case .recording: .recording
-        case .transcribing: .processing
-        case .ready, .written, .cleaningUp, .failed, .kept, .copied: .failed
+        case .transcribing, .cleaningUp: .processing
+        case .ready, .written, .failed, .kept, .copied: .failed
         }
     }
 }

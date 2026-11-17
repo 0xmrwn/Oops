@@ -47,6 +47,8 @@ package struct DotScopeTuning: Equatable, Sendable {
     package var phosphor: Float = 0.60
     package var glow: Float = 1.0
     package var saturation: Float = 1.0
+    /// Neutral greys for the voice and its shimmer alike, in place of the warm and cool pairs.
+    package var monochrome: Bool = false
     package var shimmerPass: Float = 0.55
     package var shimmer: Float = 1.0
     package var transition: Float = 0.28
@@ -189,7 +191,9 @@ package struct DotScopePalette: Equatable, Sendable {
     }
 
     /// Matches OpenCode iOS `pearlPalette(dark:)` (`DotScopeView.swift:363-372`).
-    package static func palette(isDark: Bool, pose: DotScopePose, saturation: Float = 1.0) -> DotScopePalette {
+    /// `monochrome` takes neutral greys, dark enough on light glass, where desaturating the warm pair leaves
+    /// luminance greys too light to read; a failure still turns them coral.
+    package static func palette(isDark: Bool, pose: DotScopePose, saturation: Float = 1.0, monochrome: Bool = false) -> DotScopePalette {
         let you = isDark
             ? SIMD3<Float>(0.86, 0.83, 0.77)
             : SIMD3<Float>(0.62, 0.53, 0.40)
@@ -223,8 +227,9 @@ package struct DotScopePalette: Equatable, Sendable {
             )
         }
 
-        let base = mix3(mix3(you, agent, pose.cool), coral, pose.fail)
-        let core = mix3(mix3(youCore, agentCore, pose.cool), coralCore, pose.fail)
+        let grey = SIMD3<Float>(repeating: isDark ? 0.80 : 0.34), greyCore = SIMD3<Float>(repeating: isDark ? 0.98 : 0.10)
+        let base = mix3(monochrome ? grey : mix3(you, agent, pose.cool), coral, pose.fail)
+        let core = mix3(monochrome ? greyCore : mix3(youCore, agentCore, pose.cool), coralCore, pose.fail)
 
         return DotScopePalette(
             base: sat(base, saturation),
