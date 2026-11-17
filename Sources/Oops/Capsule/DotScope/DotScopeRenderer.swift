@@ -46,7 +46,8 @@ final class DotScopeRenderer {
         let palette = DotScopePalette.palette(
             isDark: isDark,
             pose: pose,
-            saturation: simulation.tuning.saturation
+            saturation: simulation.tuning.saturation,
+            monochrome: simulation.tuning.monochrome
         )
         let scale = Float(max(1.0, metalLayer.contentsScale))
         let resX = Float(metalLayer.drawableSize.width)

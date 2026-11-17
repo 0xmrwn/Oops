@@ -51,18 +51,17 @@ enum DebugFlags {
 
     // MARK: Labs, end-to-end runs and profiling
 
-    /// `-DictationDropLab YES`: the dictation drop over three backdrops, driven by a synthetic voice, in a
-    /// window of its own (DictationDropLab). `-DictationDropLabVisualizer hex|wave|ripple`,
-    /// `-DictationDropLabAppearance light|dark`, `-DictationDropLabPhase auto|listening|transcribing|failed`,
-    /// `-DictationDropLabReduceMotion YES` and `-DictationDropLabSilence YES` set its controls at launch.
+    /// `-DictationDropLab YES`: the dictation drop's capsule over four backdrops, driven by a synthetic voice, in a
+    /// window of its own (DictationDropLab). `-DictationDropLabVisualizer hex|string|wave` (none for all of them),
+    /// `-DictationDropLabPhase auto|listening|transcribing|cleaning-up|written|failed`, `-DictationDropLabAppearance light|dark`,
+    /// `-DictationDropLabGlass app|page`, `-DictationDropLabReduceMotion YES` and `-DictationDropLabSilence YES` set its
+    /// controls at launch.
     static var dictationDropLab: Bool { bool("DictationDropLab") }
     static func dictationDropLab(_ control: String) -> String? { string("DictationDropLab" + control) }
     /// `-DictationDropProbe light|dark|grey`: the real dictation drop over a page of that colour (DictationDropProbe);
     /// `-DictationDropProbeGlass app` keeps its glass in the system's appearance.
     static var dictationDropProbe: String? { string("DictationDropProbe") }
     static var dictationDropProbeGlass: String? { string("DictationDropProbeGlass") }
-    /// `-DictationVisualizerSnapshots <dir>`: renders each voice visualizer's moments to PNGs and exits.
-    static var dictationVisualizerSnapshots: URL? { string("DictationVisualizerSnapshots").map { URL(fileURLWithPath: $0) } }
 
     /// Lab triggers over distributed notifications (`fixtures/composer-lab/tools/trigger.swift`), and
     /// capture in the lab apps the editor policy doesn't cover.

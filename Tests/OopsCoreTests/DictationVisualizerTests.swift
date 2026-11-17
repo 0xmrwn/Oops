@@ -6,11 +6,18 @@ final class DictationVisualizerTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "DictationVisualizerTests"))
         defaults.removePersistentDomain(forName: "DictationVisualizerTests")
         XCTAssertEqual(DictationVisualizer.stored(in: defaults), .hex)
-        defaults.set("ripple", forKey: DictationVisualizer.defaultsKey)
-        XCTAssertEqual(DictationVisualizer.stored(in: defaults), .ripple)
+        defaults.set("string", forKey: DictationVisualizer.defaultsKey)
+        XCTAssertEqual(DictationVisualizer.stored(in: defaults), .string)
         defaults.set("gone", forKey: DictationVisualizer.defaultsKey)
         XCTAssertEqual(DictationVisualizer.stored(in: defaults), .hex)
         defaults.removePersistentDomain(forName: "DictationVisualizerTests")
+    }
+
+    func testAStoredRippleFallsBackToHex() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "DictationVisualizerRippleTests"))
+        defaults.set("ripple", forKey: DictationVisualizer.defaultsKey)
+        XCTAssertEqual(DictationVisualizer.stored(in: defaults), .hex)
+        defaults.removePersistentDomain(forName: "DictationVisualizerRippleTests")
     }
 
     // MARK: History
@@ -65,54 +72,6 @@ final class DictationVisualizerTests: XCTestCase {
         history.advance(to: 30, level: 0.6)
         XCTAssertEqual((0..<3).map { history[$0] }, [0, 0, 0])
         XCTAssertEqual(history.next, 0.6)
-    }
-
-    // MARK: Ripple
-
-    func testSilenceSendsNoRings() {
-        var emitter = RippleEmitter()
-        for frame in 0..<240 { emitter.step(time: Double(frame) / 120, level: 0) }
-        XCTAssertTrue(emitter.rings.isEmpty)
-    }
-
-    func testAnOnsetSendsOneRingAndAHeldLevelNoMore() {
-        var emitter = RippleEmitter()
-        for frame in 0..<12 { emitter.step(time: Double(frame) / 120, level: 0) }
-        for frame in 12..<120 { emitter.step(time: Double(frame) / 120, level: 0.6) }
-        XCTAssertEqual(emitter.rings.count, 1)
-        XCTAssertEqual(emitter.rings.first?.amplitude, 0.6)
-    }
-
-    func testARingTakesThePeakOfTheAttackThatSentIt() {
-        var emitter = RippleEmitter()
-        emitter.step(time: 0, level: 0)
-        for (frame, level) in [Float(0.15), 0.4, 0.8, 0.95, 0.7, 0.5].enumerated() { emitter.step(time: Double(frame + 1) / 120, level: level) }
-        XCTAssertEqual(emitter.rings.map(\.amplitude), [0.95])
-    }
-
-    func testRingsExpireAfterTheirLifetime() {
-        var emitter = RippleEmitter()
-        emitter.step(time: 0, level: 0)
-        emitter.step(time: 0.01, level: 0.7)
-        XCTAssertEqual(emitter.rings.count, 1)
-        emitter.step(time: 0.01 + RippleEmitter.lifetime, level: 0.7)
-        XCTAssertTrue(emitter.rings.isEmpty)
-    }
-
-    func testSpeechSendsRingsAtAboutItsSyllableRateAndNeverCloserThanTheRefractoryGap() {
-        var emitter = RippleEmitter()
-        var births: [Double] = []
-        // The first phrase of the synthetic curve: 9 syllables between 2.0 s and about 4.2 s.
-        for frame in Int(1.5 * 120)..<Int(4.6 * 120) {
-            let time = Double(frame) / 120
-            emitter.step(time: time, level: SyntheticLoudness.level(at: time))
-            if let ring = emitter.rings.last, ring.born == time { births.append(time) }
-        }
-        XCTAssertGreaterThanOrEqual(births.count, 7)
-        XCTAssertLessThanOrEqual(births.count, 10)
-        for (earlier, later) in zip(births, births.dropFirst()) {
-            XCTAssertGreaterThanOrEqual(later - earlier, RippleEmitter.refractory - 1e-9)
-        }
     }
 }
 

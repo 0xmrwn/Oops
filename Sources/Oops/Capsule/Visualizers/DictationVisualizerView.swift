@@ -2,8 +2,8 @@ import OopsCore
 import SwiftUI
 
 /// The dictation drop's voice, in whichever kind Settings picked. Every kind takes the same input: the drop's
-/// state and a loudness from 0 to 1, already smoothed, updated at the display's rate. A failure, and the
-/// word that the microphone is ready, show the drop's symbol rather than a voice, as the drop always has.
+/// state and a loudness from 0 to 1, already smoothed, updated at the display's rate. A state with no voice
+/// shows the drop's symbol instead.
 struct DictationVisualizerView: View {
     let kind: DictationVisualizer
     let phase: DictationDropState
@@ -14,22 +14,19 @@ struct DictationVisualizerView: View {
     let reduceMotion: Bool
     @Environment(\.voiceOnRegularGlass) private var onRegularGlass
 
-    /// The space each kind draws in, inside the drop's 46 pt height. The ripple takes a cap of the drop, as
-    /// Fix's eyes do; the waveforms take a strip as tall as a line of the drop's text with its halo.
-    /// A failure takes the drop's symbol width.
-    static func size(_ kind: DictationVisualizer, phase: DictationDropState) -> CGSize {
-        guard phase.isLive else { return CGSize(width: 18, height: 18) }
-        return switch kind {
-        // The scope's own widths: full while it follows the voice, narrower for its shimmer.
-        case .hex: CGSize(width: CGFloat(phase == .recording ? DotScopeTuning.hud.width : DotScopeTuning.hud.processingWidth),
-                          height: CGFloat(DotScopeTuning.hud.height))
-        case .wave: CGSize(width: 64, height: 26)
-        case .ripple: CGSize(width: 40, height: 40)
+    /// The space a state's voice draws in. Every kind fills the drop's 46 pt capsule and fades into its caps:
+    /// wide while it listens, narrower while work is under way, so the state shows in the glass's shape before
+    /// anything in it is read. A state with no voice takes the drop's symbol width.
+    static func size(_ phase: DictationDropState) -> CGSize {
+        switch phase {
+        case .recording: CGSize(width: 168, height: EyesDropView.drop)
+        case .transcribing, .cleaningUp: CGSize(width: 96, height: EyesDropView.drop)
+        case .ready, .written, .failed, .kept, .copied: CGSize(width: 18, height: 18)
         }
     }
 
     var body: some View {
-        let size = Self.size(kind, phase: phase)
+        let size = Self.size(phase)
         Group {
             if !phase.isLive {
                 Image(systemName: phase.symbol).font(.system(size: 13, weight: .semibold))
@@ -37,8 +34,8 @@ struct DictationVisualizerView: View {
             } else {
                 switch kind {
                 case .hex: hexVisualizer(phase: phase, loudness: loudness, live: live, isDark: isDark, reduceMotion: reduceMotion)
+                case .string: StringVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
                 case .wave: WaveVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
-                case .ripple: RippleVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
                 }
             }
         }

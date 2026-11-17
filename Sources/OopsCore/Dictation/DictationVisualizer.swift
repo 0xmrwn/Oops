@@ -6,10 +6,10 @@ import Foundation
 public enum DictationVisualizer: String, CaseIterable, Sendable {
     /// A dot scope.
     case hex
-    /// The last second of loudness, as mirrored bars scrolling away from the newest.
+    /// A few hairline strands fanning out from one line as the voice is heard.
+    case string
+    /// The voice as it was heard, as mirrored bars scrolling away from the newest.
     case wave
-    /// Rings sent out from a small core on each syllable's onset.
-    case ripple
 
     public static let defaultsKey = "DictationVisualizer"
     public static let standard = Self.hex
@@ -80,57 +80,4 @@ public struct LoudnessHistory: Sendable, Equatable {
         head = (head + 1) % capacity
         samples[head] = value
     }
-}
-
-/// Rings for the ripple: one on each onset (a rise in loudness over its recent level), so syllables send out
-/// rings at the rate they are spoken while a held level sends none. A ring's amplitude is the peak of the
-/// attack that sent it.
-public struct RippleEmitter: Sendable, Equatable {
-    public struct Ring: Sendable, Equatable {
-        public var born: Double
-        public var amplitude: Float
-    }
-
-    /// Seconds a ring lives.
-    public static let lifetime = 0.9
-    /// Quieter than this sends nothing: room noise left by the smoothing.
-    public static let floor: Float = 0.1
-    /// How far the level must rise over its recent level to count as an onset.
-    public static let rise: Float = 0.08
-    /// The shortest gap between rings: speech is at most about seven syllables a second.
-    public static let refractory = 0.14
-    public static let capacity = 8
-    /// Seconds the recent level takes to follow loudness: slower than a syllable's attack, so the attack shows
-    /// as a rise.
-    static let follow = 0.15
-
-    public private(set) var rings: [Ring] = []
-    private var recent: Float = 0
-    private var lastTime: Double?
-    private var lastRing = -Double.infinity
-
-    public init() { rings.reserveCapacity(Self.capacity) }
-
-    public mutating func step(time: Double, level: Float) {
-        let level = min(max(level, 0), 1)
-        rings.removeAll { time - $0.born >= Self.lifetime }
-        let dt = lastTime.map { max(time - $0, 0) } ?? 0
-        lastTime = time
-        // An onset is caught early in its attack: the ring takes the level the attack goes on to reach.
-        if let last = rings.indices.last, time - rings[last].born < Self.refractory, level > rings[last].amplitude {
-            rings[last].amplitude = level
-            recent = level
-        } else if level >= Self.floor, level - recent >= Self.rise, time - lastRing >= Self.refractory {
-            if rings.count == Self.capacity { rings.removeFirst() }
-            rings.append(Ring(born: time, amplitude: level))
-            lastRing = time
-            // Re-armed only by a further rise, or by a dip and a new attack.
-            recent = level
-        } else {
-            recent += (level - recent) * Float(1 - exp(-dt / Self.follow))
-        }
-    }
-
-    /// No rings, as a new recording starts.
-    public mutating func reset() { self = Self() }
 }
