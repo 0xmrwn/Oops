@@ -57,6 +57,10 @@ enum DebugFlags {
     /// `-DictationDropLabReduceMotion YES` and `-DictationDropLabSilence YES` set its controls at launch.
     static var dictationDropLab: Bool { bool("DictationDropLab") }
     static func dictationDropLab(_ control: String) -> String? { string("DictationDropLab" + control) }
+    /// `-DictationDropProbe light|dark|grey`: the real dictation drop over a page of that colour (DictationDropProbe);
+    /// `-DictationDropProbeGlass app` keeps its glass in the system's appearance.
+    static var dictationDropProbe: String? { string("DictationDropProbe") }
+    static var dictationDropProbeGlass: String? { string("DictationDropProbeGlass") }
     /// `-DictationVisualizerSnapshots <dir>`: renders each voice visualizer's moments to PNGs and exits.
     static var dictationVisualizerSnapshots: URL? { string("DictationVisualizerSnapshots").map { URL(fileURLWithPath: $0) } }
 

@@ -146,6 +146,9 @@ extension DictationDropPosition {
     var copied = false
     /// The words so far while a dictation streams, when they show on the drop's shelf; nil shows none.
     var words: LiveWords?
+    /// Whether the page under the drop is dark, as the field's text colour says; nil follows the system. The glass
+    /// takes the page's appearance, so it reads as part of the page rather than as a grey slab over it.
+    var pageDark: Bool?
     init(loudness: DictationLoudnessFeed? = nil) { self.loudness = loudness }
 }
 
@@ -210,6 +213,7 @@ extension DictationDropPosition {
             locating = nil
             let geometry = located?.geometry
             self.geometry = geometry; style = located?.style
+            model.pageDark = style?.pageIsDark
             // Read at each dictation, so a change in Settings applies to the next one.
             let position = DictationDropPosition.saved.resolved(hasAnchor: geometry?.element != nil)
             panel.present(geometry: geometry, fixed: position == .anchored ? nil : position)
