@@ -38,6 +38,9 @@ struct DictationDropView: View {
         return model.visualizer == .ripple ? (EyesDropView.drop - voice.width) / 2 : Self.padding - 4
     }
 
+    /// The page's appearance where the field tells it, the system's otherwise: the glass and all it holds take it.
+    private var dark: Bool { model.pageDark ?? (scheme == .dark) }
+
     var body: some View {
         // The shelf opens away from the edge the drop hugs, which is the side the text is on.
         let above = capsule.alignment.vertical != .top, words = words
@@ -74,12 +77,13 @@ struct DictationDropView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(model.state.text)
         .accessibilityHidden(!capsule.presented)
+        .environment(\.colorScheme, dark ? .dark : .light)
     }
 
     private var drop: some View {
         HStack(spacing: 0) {
             HStack(spacing: Self.spacing) {
-                DropVoice(model: model, isDark: scheme == .dark, reduceMotion: reduceMotion)
+                DropVoice(model: model, isDark: dark, reduceMotion: reduceMotion)
                 Text(model.state.text).font(Font(Self.font)).lineLimit(1).fixedSize()
             }
             .accessibilityHidden(true) // The drop's own label reads the state.

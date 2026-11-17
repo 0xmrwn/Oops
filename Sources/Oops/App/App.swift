@@ -136,6 +136,11 @@ import OopsCore
         if let directory = DebugFlags.setupSnapshots { SetupSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.settingsSnapshots { SettingsSnapshots.render(to: directory); exit(0) }
         if let directory = DebugFlags.dictationVisualizerSnapshots { DictationVisualizerSnapshots.render(to: directory); exit(0) }
+        if let kind = DebugFlags.dictationDropProbe {
+            let probe = DictationDropProbe()
+            DispatchQueue.main.async { probe.show(kind) }
+            withExtendedLifetime(probe) { app.run() }; return
+        }
         if DebugFlags.dictationDropLab {
             let lab = DictationDropLab()
             DispatchQueue.main.async { lab.show() }
