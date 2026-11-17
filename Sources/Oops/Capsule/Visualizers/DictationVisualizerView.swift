@@ -33,7 +33,10 @@ struct DictationVisualizerView: View {
                     .foregroundStyle(VoiceInk(isDark: isDark).ink).modifier(Halo(color: VoiceInk(isDark: isDark, onRegularGlass: onRegularGlass).halo))
             } else {
                 switch kind {
-                case .hex: hexVisualizer(phase: phase, loudness: loudness, live: live, isDark: isDark, reduceMotion: reduceMotion)
+                // Without Metal, or its shader, the scope would draw nothing in a drop that has no words: Wave stands in.
+                case .hex where DotScopeMetalPipeline.shared != nil:
+                    hexVisualizer(phase: phase, loudness: loudness, live: live, isDark: isDark, reduceMotion: reduceMotion)
+                case .hex: WaveVisualizer(phase: phase, loudness: live.map { $0() } ?? loudness, isDark: isDark, reduceMotion: reduceMotion)
                 case .string: StringVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
                 case .wave: WaveVisualizer(phase: phase, loudness: loudness, isDark: isDark, reduceMotion: reduceMotion)
                 }

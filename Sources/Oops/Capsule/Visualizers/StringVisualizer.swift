@@ -78,8 +78,9 @@ enum StringDrawing {
         }
 
         // Working strands run faster than silent ones, so transcribing reads as busier rather than as silence.
+        // Only the time spent working runs faster, so the strands carry on from where listening left them.
         var t = reduceMotion ? 0 : time
-        if case .transcribing = frame.mode { t *= 1.8 }
+        if case .transcribing(let since) = frame.mode { t += 0.8 * since }
         for strand in strands {
             let path = Path { path in
                 for (index, u) in us.enumerated() {

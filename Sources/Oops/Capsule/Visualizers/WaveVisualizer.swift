@@ -50,7 +50,8 @@ enum WaveDrawing {
         // Each bar: where it sits, the level it shows, how far it has come out (or, ahead of the voice, how faint it is), and whether it is the live one.
         var marks: [(x: CGFloat, level: Double, gain: Double, live: Bool)] = []
         if reduceMotion {
-            let half = Int((width - 44) / pitch) / 2
+            // Never below zero: the drop animates its width through sizes too narrow for any bar.
+            let half = max(Int((width - 44) / pitch) / 2, 0)
             for index in -half...half {
                 let distance = Double(abs(index)) / Double(max(half, 1))
                 marks.append((midX + CGFloat(index) * pitch, Double(frame.live) * (1 - 0.7 * distance * distance), 1, false))
