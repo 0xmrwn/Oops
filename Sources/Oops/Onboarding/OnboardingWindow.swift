@@ -133,6 +133,9 @@ private struct OnboardingView: View {
     @State private var microphone: MicrophoneStep
     @State private var accessibility = AccessibilityStep()
     @State private var tryIt: TryItStep
+    @State private var dictateTry: DictateTryStep
+    /// Try it has moved from Fix's beat to the spoken one.
+    @State private var speaking = false
     @State private var home: HomeStep
     @State private var step = Step.hello
     /// The companion drop has left Hello's finale for the step's header.
@@ -143,11 +146,14 @@ private struct OnboardingView: View {
     init(preferences: Preferences?, presentation: WelcomePresentation, close: @escaping () -> Void) {
         self.presentation = presentation
         _features = State(initialValue: FeaturesStep(saves: preferences != nil))
-        _speech = State(initialValue: OnboardingSpeechModel(providers: preferences?.providers))
+        let speech = OnboardingSpeechModel(providers: preferences?.providers)
+        _speech = State(initialValue: speech)
         _providers = State(initialValue: ProviderStep(preferences: preferences))
         let shortcut = ShortcutStep(saves: preferences != nil)
         _shortcut = State(initialValue: shortcut)
-        _dictateShortcut = State(initialValue: ShortcutStep(saves: preferences != nil, action: .dictate))
+        let dictateShortcut = ShortcutStep(saves: preferences != nil, action: .dictate)
+        _dictateShortcut = State(initialValue: dictateShortcut)
+        _dictateTry = State(initialValue: DictateTryStep(preferences: preferences, keys: dictateShortcut, speech: speech))
         _microphone = State(initialValue: MicrophoneStep(saves: preferences != nil))
         // Try it's Change records with the Shortcut step's own recorder.
         _tryIt = State(initialValue: TryItStep(preferences: preferences, shortcuts: shortcut))
@@ -163,6 +169,14 @@ private struct OnboardingView: View {
     /// Whether the steps cover `feature`: all of today's flow is Fix's, and the choice decides once it is asked.
     private func asksFor(_ feature: OnboardingFeature) -> Bool {
         setup.contains(.features) ? features.chosen.contains(feature) : feature == .fix
+    }
+
+    /// Fix's try is done: its reply is sent, and Léa's next question waits for a spoken answer.
+    private func speak() {
+        dictateTry.earlier = tryIt.conversation.messages + [(tryIt.sentText, true)]
+        // The replay's thread is Hello's cinema, the live one dinner plans.
+        if !tryIt.isLive { dictateTry.question = "want me to grab you a drink?" }
+        withAnimation(.easeInOut(duration: 0.45)) { speaking = true }
     }
 
     private func advance() {
@@ -196,7 +210,11 @@ private struct OnboardingView: View {
             case .accessibility:
                 AccessibilityStepView(step: accessibility, next: advance).transition(.opacity)
             case .tryIt:
-                TryItStepView(step: tryIt, next: advance).transition(.opacity)
+                if speaking || !asksFor(.fix) {
+                    DictateTryView(step: dictateTry, fix: tryIt, next: advance).transition(.opacity)
+                } else {
+                    TryItStepView(step: tryIt, next: asksFor(.dictate) ? speak : advance).transition(.opacity)
+                }
             case .home:
                 HomeStepView(step: home).transition(.opacity)
             }
@@ -254,7 +272,7 @@ private struct OnboardingView: View {
             if resumable, now != .hello { UserDefaults.standard.set(now.rawValue, forKey: OnboardingWindow.resumeKey) }
         }
         .environment(\.onboardingEffectsVisible, presentation.visible)
-        .onDisappear { director.stop(); providers.stop(); shortcut.stop(); dictateShortcut.stop(); accessibility.stop(); tryIt.stop() }
+        .onDisappear { director.stop(); providers.stop(); shortcut.stop(); dictateShortcut.stop(); accessibility.stop(); tryIt.stop(); dictateTry.stop() }
     }
 
     /// The pill's "Use an OpenAI key": the Provider step's own API setup, opened on OpenAI, from whichever step this is.
