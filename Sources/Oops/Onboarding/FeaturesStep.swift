@@ -12,8 +12,8 @@ import SwiftUI
     init(saves: Bool) {
         self.saves = saves
         let saved = UserDefaults.standard.stringArray(forKey: Self.key)
-        if OnboardingWindow.finished {
-            // Show welcome: what is on now.
+        if saves, OnboardingWindow.finished {
+            // Show welcome: what is on now. A run that saves nothing plays a first run.
             chosen = Set(OnboardingFeature.allCases.filter { ShortcutSettings.shared.shortcut($0.action) != nil })
         } else if saves, let saved {
             chosen = Set(saved.compactMap(OnboardingFeature.init(rawValue:)))
