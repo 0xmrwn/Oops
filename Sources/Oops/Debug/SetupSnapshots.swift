@@ -74,6 +74,13 @@ import SwiftUI
             write(HomeStepView(step: step), dot: 4, eyes: (step.look, 0, 0), wallpaper: wallpaper, size: size, to: directory.appendingPathComponent("home-\(name).png"))
         }
         writeProvider(to: directory, size: size, wallpaper: wallpaper)
+        let choices: [(String, Set<OnboardingFeature>)] = [("1-both", [.fix, .dictate]), ("2-fix", [.fix]), ("3-dictate", [.dictate]), ("4-none", [])]
+        for (name, chosen) in choices {
+            let step = FeaturesStep(saves: false)
+            step.seed(chosen)
+            write(FeaturesStepView(step: step) {}, dot: 0, steps: OnboardingStep.setup(for: chosen, choice: true).count, eyes: (step.look, 0, 0),
+                  wallpaper: wallpaper, size: size, to: directory.appendingPathComponent("features-\(name).png"))
+        }
     }
 
     private static func writeProvider(to directory: URL, size: CGSize, wallpaper: CGImage) {
@@ -123,12 +130,12 @@ import SwiftUI
         }
     }
 
-    private static func write(_ content: some View, dot: Int, eyes: (CGSize, Double, Double)?, wallpaper: CGImage, size: CGSize, to url: URL) {
+    private static func write(_ content: some View, dot: Int, steps: Int = 5, eyes: (CGSize, Double, Double)?, wallpaper: CGImage, size: CGSize, to url: URL) {
         do {
             let view = ZStack {
                 Image(decorative: wallpaper, scale: 1).resizable()
                 content
-                OnboardingProgress(steps: 5, current: dot).onboardingFooterRow(.center)
+                OnboardingProgress(steps: steps, current: dot).onboardingFooterRow(.center)
             }
             .overlayPreferenceValue(OnboardingDropKey.self) { anchors in
                 GeometryReader { proxy in

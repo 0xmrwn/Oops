@@ -1,4 +1,5 @@
 import AppKit
+import OopsCore
 import SwiftUI
 
 /// The first-run window: Hello, then the setup steps. Shown on the first launch and from About →
@@ -87,6 +88,7 @@ import SwiftUI
         guard preferences != nil else { return }
         UserDefaults.standard.set(true, forKey: Self.finishedKey)
         UserDefaults.standard.removeObject(forKey: Self.resumeKey)
+        UserDefaults.standard.removeObject(forKey: FeaturesStep.key)
     }
 
     /// Closing ends Hello (its sounds included) and releases the window, as Settings does.
@@ -112,11 +114,7 @@ import SwiftUI
 }
 
 private struct OnboardingView: View {
-    enum Step: String {
-        case hello, provider, shortcut, accessibility, tryIt, home
-        /// The steps after Hello, which the dots count.
-        static let setup: [Step] = [.provider, .shortcut, .accessibility, .tryIt, .home]
-    }
+    typealias Step = OnboardingStep
     let close: () -> Void
     let presentation: WelcomePresentation
     /// A first run not finished yet: it remembers its step. Show welcome replays from Hello and remembers nothing.
@@ -124,6 +122,7 @@ private struct OnboardingView: View {
     /// The step an unfinished onboarding left off at, which it reopens at instead of Hello.
     private let resume: Step?
     @State private var director = HelloDirector()
+    @State private var features: FeaturesStep
     @State private var providers: ProviderStep
     @State private var shortcut: ShortcutStep
     @State private var accessibility = AccessibilityStep()
@@ -137,6 +136,7 @@ private struct OnboardingView: View {
 
     init(preferences: Preferences?, presentation: WelcomePresentation, close: @escaping () -> Void) {
         self.presentation = presentation
+        _features = State(initialValue: FeaturesStep(saves: preferences != nil))
         _providers = State(initialValue: ProviderStep(preferences: preferences))
         let shortcut = ShortcutStep(saves: preferences != nil)
         _shortcut = State(initialValue: shortcut)
@@ -148,7 +148,17 @@ private struct OnboardingView: View {
         resume = resumable ? UserDefaults.standard.string(forKey: OnboardingWindow.resumeKey).flatMap(Step.init(rawValue:)) : nil
     }
 
+    /// The steps after Hello, which the dots count: the ones the chosen features need.
+    private var setup: [Step] { Step.setup(for: features.chosen, choice: DebugFlags.dictation) }
+
+    private func advance() {
+        guard let index = setup.firstIndex(of: step), index + 1 < setup.count else { return }
+        withAnimation(.easeInOut(duration: 0.45)) { step = setup[index + 1] }
+    }
+
     var body: some View {
+        // The first step waits for Hello's finale to clear.
+        let entrance = AnyTransition.opacity.animation(.easeOut(duration: 0.45).delay(0.3))
         ZStack {
             HelloScene(director: director, handedOff: step != .hello, visible: presentation.visible) { begin() }
                 .disabled(step != .hello)
@@ -156,23 +166,21 @@ private struct OnboardingView: View {
                 .accessibilityHidden(step != .hello)
             switch step {
             case .hello: EmptyView()
+            case .features:
+                FeaturesStepView(step: features) { features.commit(); advance() }.transition(entrance)
             case .provider:
-                ProviderStepView(step: providers, next: { withAnimation(.easeInOut(duration: 0.45)) { step = .shortcut } })
-                    .transition(.opacity.animation(.easeOut(duration: 0.45).delay(0.3)))
+                ProviderStepView(step: providers, next: advance).transition(setup.first == .provider ? entrance : .opacity)
             case .shortcut:
-                ShortcutStepView(step: shortcut) { withAnimation(.easeInOut(duration: 0.45)) { step = .accessibility } }
-                    .transition(.opacity)
+                ShortcutStepView(step: shortcut, next: advance).transition(.opacity)
             case .accessibility:
-                AccessibilityStepView(step: accessibility) { withAnimation(.easeInOut(duration: 0.45)) { step = .tryIt } }
-                    .transition(.opacity)
+                AccessibilityStepView(step: accessibility, next: advance).transition(.opacity)
             case .tryIt:
-                TryItStepView(step: tryIt) { withAnimation(.easeInOut(duration: 0.45)) { step = .home } }
-                    .transition(.opacity)
+                TryItStepView(step: tryIt, next: advance).transition(.opacity)
             case .home:
                 HomeStepView(step: home).transition(.opacity)
             }
             if step != .hello {
-                OnboardingProgress(steps: Step.setup.count, current: Step.setup.firstIndex(of: step) ?? 0)
+                OnboardingProgress(steps: setup.count, current: setup.firstIndex(of: step) ?? 0)
                     .onboardingFooterRow(.center)
                     .transition(.opacity)
             }
@@ -218,10 +226,10 @@ private struct OnboardingView: View {
     private func begin() {
         if reduceMotion {
             dropAtStep = true
-            withAnimation(.easeOut(duration: 0.2)) { step = .provider }
+            withAnimation(.easeOut(duration: 0.2)) { step = setup[0] }
             return
         }
-        step = .provider
+        step = setup[0]
         DispatchQueue.main.async {
             withAnimation(.spring(duration: 0.85 * DebugFlags.brandTransitionScale, bounce: 0.18)) { dropAtStep = true }
         }
@@ -232,6 +240,7 @@ private struct OnboardingView: View {
             else if step == .shortcut { (shortcut.look, shortcut.lid, shortcut.check) }
             else if step == .accessibility { (accessibility.look, accessibility.lid, accessibility.check) }
             else if step == .home { (home.look, 0, 0) }
+            else if step == .features { (features.look, 0, 0) }
             else if providers.showingAPI {
                 (CGSize(width: providers.api.enteringKey ? -0.65 : 0, height: providers.api.passed ? 0 : providers.api.enteringKey ? -0.25 : 0.65), providers.api.busy ? 0.25 : providers.api.error == nil ? 0 : 0.55,
                  providers.api.passed ? 1 : 0)

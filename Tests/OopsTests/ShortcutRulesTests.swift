@@ -26,6 +26,11 @@ import XCTest
         XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: fixDefault, dictation: false), .chord(fixDefault))
     }
 
+    func testFixSwitchedOffRegistersNothingAndReportsNothing() {
+        XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: nil, dictation: true, off: true), .off)
+        XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: fixDefault, dictation: true, off: true), .off)
+    }
+
     func testDictateRegistersOnlyWhileDictationIsOn() {
         XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: chord, dictation: false), .off)
     }
