@@ -86,13 +86,23 @@ struct HelloChatApp: View {
                     VStack(spacing: u(2)) { avatar("L", warm: true); Text("Léa").font(.system(size: u(10.5))) }.padding(.vertical, u(7))
                     Divider()
                     VStack(spacing: u(4)) {
-                        Spacer()
                         Text("Today 10:21").font(.system(size: u(9.5))).foregroundStyle(.secondary)
                         bubble("grabbing popcorn?", out: true).frame(maxWidth: .infinity, alignment: .trailing)
                         Text("Read 10:22").font(.system(size: u(9.5))).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .trailing)
                         bubble("where are you?? movie starts in 10", out: false).frame(maxWidth: .infinity, alignment: .leading)
+                        if state.sent {
+                            bubble(state.draft.after, out: true).frame(maxWidth: .infinity, alignment: .trailing)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                        if state.answered {
+                            bubble(HelloDraft.question, out: false).frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
                     .padding(.horizontal, u(12)).padding(.vertical, u(8))
+                    // The thread sits on the composer and scrolls up under the header as it grows.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxHeight: .infinity, alignment: .bottom).clipped()
                     HStack(alignment: .bottom, spacing: u(7)) {
                         helloSymbol("plus", u(11)).frame(width: u(26), height: u(26)).background(Circle().fill(.black.opacity(0.08)))
                         HelloDraftText(state: state, size: u(13))

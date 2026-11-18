@@ -9,6 +9,10 @@ import SwiftUI
     /// The corrected words' highlight, 0…1, as on the Try page.
     var flash = 0.0
     var caret = false
+    /// The spoken beat, in the chat: the fixed draft is sent, Léa has answered, and the dictated reply is in.
+    var sent = false
+    var answered = false
+    var spoken: String?
     /// On the desktop; the waiting windows appear as the camera pulls back.
     var shown = true
     let drop = CapsuleModel()
@@ -42,8 +46,9 @@ struct HelloDraftText: View {
 
     private var text: Text {
         let draft = state.draft
-        let shown = state.corrected ? draft.after : String(draft.before.prefix(state.typed ?? draft.before.count))
-        let flashed = state.corrected ? draft.diff.afterRanges : []
+        // Once the draft is sent the field is empty until the dictated reply lands in it, whole.
+        let shown = state.sent ? state.spoken ?? "" : state.corrected ? draft.after : String(draft.before.prefix(state.typed ?? draft.before.count))
+        let flashed = state.corrected && !state.sent ? draft.diff.afterRanges : []
         var result = Text(verbatim: "")
         for run in Self.runs(shown, flashed: flashed) {
             var piece = Text(verbatim: run.text)
@@ -54,7 +59,7 @@ struct HelloDraftText: View {
             }
             result = Text("\(result)\(piece.customAttribute(HelloRun(kind: run.kind)))")
         }
-        if state.typed != nil, !state.corrected { result = Text("\(result)\(Text(verbatim: " ").customAttribute(HelloRun(kind: .caret)))") }
+        if state.typed != nil, !state.corrected || (state.sent && state.spoken == nil) { result = Text("\(result)\(Text(verbatim: " ").customAttribute(HelloRun(kind: .caret)))") }
         return result
     }
 

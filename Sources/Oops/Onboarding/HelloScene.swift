@@ -56,7 +56,7 @@ struct HelloScene: View {
         }
         .overlayPreferenceValue(HelloFieldsKey.self) { fields in
             if !director.desktopDismissed {
-                GeometryReader { proxy in drops(fields, in: proxy) }.allowsHitTesting(false)
+                GeometryReader { proxy in drops(fields, in: proxy); voiceDrop(fields, in: proxy) }.allowsHitTesting(false)
             }
         }
         .overlayPreferenceValue(HelloWindowKey.self) { window in
@@ -87,6 +87,7 @@ struct HelloScene: View {
         }
         .frame(width: canvas.width * HelloZoom.factor, height: canvas.height * HelloZoom.factor, alignment: .topLeading)
         .scaleEffect(director.zoomed ? 1 : 1 / HelloZoom.factor)
+        .offset(y: director.lifted ? -u(43) : 0)
         .frame(width: canvas.width, height: canvas.height)
     }
 
@@ -124,6 +125,19 @@ struct HelloScene: View {
                     // The glass's edge on the field's corner (the view pads it by 14), its bottom just above.
                     .position(x: rtl ? field.minX - 14 * k + box / 2 : field.maxX + 14 * k - box / 2, y: field.minY - 27 * k)
             }
+        }
+    }
+
+    /// The spoken beat's drop, under the chat's field: the app's own dictation drop at the camera's zoom, its capsule
+    /// just below the window as an anchored drop sits when the field is at the bottom.
+    @ViewBuilder private func voiceDrop(_ fields: [HelloDraft.App: Anchor<CGRect>], in proxy: GeometryProxy) -> some View {
+        if let anchor = fields[director.typed.id] {
+            // A touch under the real drop's size against the text, so its shelf clears the stage's edge.
+            let field = proxy[anchor], k = dropScale * 0.85, height = DropShelf.height + 28
+            DictationDropView(model: director.voice, capsule: director.voiceCapsule)
+                .environment(\.colorScheme, .dark)
+                .scaleEffect(k)
+                .position(x: field.midX, y: field.maxY + (10 + height / 2) * k)
         }
     }
 

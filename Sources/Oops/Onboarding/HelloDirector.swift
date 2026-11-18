@@ -1,4 +1,5 @@
 import AppKit
+import OopsCore
 import SwiftUI
 
 /// Runs Hello: the drop wakes alone and becomes a chat window, a draft
@@ -8,11 +9,17 @@ import SwiftUI
     enum Stage { case entrance, desktop, finale }
     let typed = HelloWindowState(HelloDraft.typed)
     let waiting = HelloDraft.waiting.map { HelloWindowState($0) }
+    /// The spoken beat's drop: the real dictation drop, following an acted voice.
+    let voice: DictationDropModel
+    let voiceCapsule = CapsuleModel()
+    @ObservationIgnored private let loudness = DictationLoudnessFeed()
     var all: [HelloWindowState] { [typed] + waiting }
     var stage = Stage.entrance
     private(set) var desktopDismissed = false
     /// Close on the first window, which the pull-back leaves for the whole desktop.
     var zoomed = true
+    /// The camera rises a little for the spoken beat, making room under the window for the dictation drop.
+    var lifted = false
     /// The entrance: a lone drop that wakes, looks at the viewer, then stretches into the first window.
     var seedShown = false
     var seedLook = CGSize(width: 0, height: 0.2)
@@ -28,6 +35,13 @@ import SwiftUI
     @ObservationIgnored private var sounds: HelloSounds?
     private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || DebugFlags.brandReduceMotion }
 
+    init() {
+        voice = DictationDropModel(loudness: loudness)
+        // Under the window, over the wallpaper: the thread it answers stays in view, and its shelf opens downward.
+        voice.pageDark = true
+        voiceCapsule.alignment = .top
+    }
+
     func play() {
         task?.cancel()
         prepareSounds()
@@ -36,7 +50,7 @@ import SwiftUI
         }
     }
 
-    func stop() { task?.cancel(); sounds?.stop() }
+    func stop() { task?.cancel(); sounds?.stop(); loudness.stop() }
 
     @discardableResult private func prepareSounds() -> HelloSounds? {
         guard Sounds.enabled else { return nil }
@@ -49,6 +63,7 @@ import SwiftUI
         guard stage != .finale else { return }
         task?.cancel()
         sounds?.finish()
+        loudness.stop(); voiceCapsule.presented = false; lifted = false
         ([typed] + waiting).forEach { $0.drop.presented = false; $0.corrected = true; $0.typed = nil; $0.shown = true }
         seedShown = false; windowShown = true; zoomed = false
         showFinale(fade: 0.5)
@@ -71,6 +86,7 @@ import SwiftUI
         try await pause(0.28)
         try await correct(typed)
         try await pause(0.8)
+        if DebugFlags.dictation { try await speak() }
         try await pullBack()
         try await wave()
         try await pause(1.7)
@@ -104,6 +120,8 @@ import SwiftUI
         seedLook = CGSize(width: 0, height: 0.2); seedLid = 1
         finaleLook = CGSize(width: -0.9, height: 0.35); finaleLid = 0.55
         typed.typed = 0; typed.corrected = false; typed.shown = true
+        typed.sent = false; typed.answered = false; typed.spoken = nil
+        loudness.stop(); voiceCapsule.presented = false; voice.words = nil; lifted = false
         for state in waiting { state.typed = nil; state.corrected = false; state.shown = false }
         ([typed] + waiting).forEach { $0.drop.presented = false; $0.flash = 0 }
     }
@@ -127,6 +145,45 @@ import SwiftUI
         try await pause(0.3)
         withAnimation(.easeInOut(duration: 0.7)) { windowShown = true }
         try await pause(0.75)
+    }
+
+    /// The spoken beat, Dictate's own moment before the pull-back: the fixed draft is sent, Léa answers, and the reply
+    /// is dictated. The words gather on the drop's shelf while the voice runs, then land in the draft at once, as a
+    /// real dictation's do. No voice is played; the drop follows an acted level.
+    private func speak() async throws {
+        typed.drop.presented = false
+        try await pause(0.35)
+        withAnimation(.spring(duration: 0.45, bounce: 0.2)) { typed.sent = true }
+        try await pause(0.9)
+        withAnimation(.spring(duration: 0.45, bounce: 0.2)) { typed.answered = true }
+        try await pause(1.0)
+        typed.caret = true
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.7, bounce: 0.1)) { lifted = true }
+        try await pause(0.35)
+        voice.state = .recording; voice.words = nil
+        voiceCapsule.presented = true
+        Sounds.play(.start, after: 0.075)
+        let began = CACurrentMediaTime()
+        loudness.start { HelloVoice.level(at: CACurrentMediaTime() - began) }
+        try await pause(0.5)
+        var heard = ""
+        for word in HelloDraft.spoken.split(separator: " ") {
+            heard += (heard.isEmpty ? "" : " ") + word
+            voice.words = LiveWords(stable: heard)
+            try await pause(0.16 + 0.035 * Double(word.count))
+        }
+        try await pause(0.35)
+        loudness.stop()
+        voice.state = .transcribing
+        try await pause(0.45)
+        voice.words = nil
+        withAnimation(.easeInOut(duration: 0.12)) { typed.spoken = HelloDraft.spoken }
+        typed.caret = false
+        voiceCapsule.presented = false
+        Sounds.play(.success, after: 0.13)
+        try await pause(0.9)
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.7, bounce: 0.1)) { lifted = false }
+        try await pause(0.6)
     }
 
     /// Human typing: uneven gaps, longer at spaces, a key sound per keystroke.
