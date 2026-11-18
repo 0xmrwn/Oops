@@ -60,7 +60,8 @@ struct FeaturesStepView: View {
             }
             .shadow(color: .black.opacity(0.35), radius: 3)
         }
-        .toggleStyle(.switch).controlSize(.large)
+        // White ink like Home's switch: the accent colour would be the only colour Oops adds to the step.
+        .toggleStyle(.switch).controlSize(.large).tint(.white.opacity(0.85))
         .padding(.horizontal, 24)
         .frame(width: 560, height: 92)
         .contentShape(.rect(cornerRadius: 24))
