@@ -24,7 +24,9 @@ import SwiftUI
     /// The onboarding window's identifier: the step only listens to keys pressed there.
     static let window = NSUserInterfaceItemIdentifier("onboarding")
 
-    private(set) var shortcut = ShortcutSettings.shared.shortcut(.correct)
+    /// Fix text, or Dictate: the feature whose shortcut the keycaps record.
+    @ObservationIgnored let action: ShortcutSettings.Action
+    private(set) var shortcut: Shortcut?
     private(set) var phase = Phase.waiting
     private(set) var error: String?
     /// Modifiers and the key held right now.
@@ -47,7 +49,19 @@ import SwiftUI
     /// Whether the shortcut had been pressed before Change: cancelling goes back to that.
     @ObservationIgnored private var acceptedBeforeChange = false
 
-    init(saves: Bool) { self.saves = saves }
+    init(saves: Bool, action: ShortcutSettings.Action = .correct) {
+        self.saves = saves; self.action = action
+        shortcut = ShortcutSettings.shared.shortcut(action) ?? Self.suggestion(action)
+    }
+
+    /// Dictate has no default, so first run suggests one: ⌃⌘X, a neighbour of Fix's ⌃⌘W that macOS leaves free,
+    /// unless another action already has it. Pressing it is what saves it.
+    private static func suggestion(_ action: ShortcutSettings.Action) -> Shortcut? {
+        guard action == .dictate, let x = KeyboardLayout.keyCode(for: "x") else { return nil }
+        let chord = Shortcut(keyCode: x, modifiers: UInt32(controlKey | cmdKey))
+        let taken = ShortcutSettings.Action.allCases.contains { ShortcutSettings.shared.shortcut($0) == chord }
+        return taken ? nil : chord
+    }
 
     /// ⌃⌥⇧⌘ in the system's order.
     private static let modifiers: [(flag: NSEvent.ModifierFlags, glyph: String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
@@ -71,7 +85,7 @@ import SwiftUI
             Cap(id: index, label: modifier.glyph, lit: held.contains(modifier.flag) ? 1 : 0, down: held.contains(modifier.flag))
         }
         // A registered hotkey never reaches the app as a key: live in Try it, the hotkey reports it.
-        let down = key == UInt16(shortcut.keyCode) || ShortcutSettings.shared.down == .correct
+        let down = key == UInt16(shortcut.keyCode) || ShortcutSettings.shared.down == action
         caps.append(Cap(id: 4, label: Shortcut.keyName(shortcut.keyCode), lit: down ? 1 : 0, down: down))
         return caps
     }
@@ -217,7 +231,7 @@ import SwiftUI
         if UInt32(event.keyCode) == shortcut?.keyCode, !event.isARepeat { press(event.keyCode) }
         guard pressed == shortcut else { return false }
         if mirroring { return heard?() ?? false }
-        if !event.isARepeat { accept() }
+        if !event.isARepeat, let shortcut { record(shortcut) }
         return true
     }
 
@@ -253,7 +267,7 @@ import SwiftUI
     private func save(_ chord: Shortcut) throws {
         let settings = ShortcutSettings.shared
         guard saves else { return }
-        try settings.set(.correct, chord == settings.defaultShortcut(.correct) ? nil : chord)
+        try settings.set(action, chord == settings.defaultShortcut(action) ? nil : chord)
         // Saving registers the hotkeys again; here they stay paused.
         settings.pause()
     }
