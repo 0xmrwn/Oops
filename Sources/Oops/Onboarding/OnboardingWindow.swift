@@ -129,6 +129,8 @@ private struct OnboardingView: View {
     @State private var wantsOpenAI = false
     @State private var providers: ProviderStep
     @State private var shortcut: ShortcutStep
+    @State private var dictateShortcut: ShortcutStep
+    @State private var microphone: MicrophoneStep
     @State private var accessibility = AccessibilityStep()
     @State private var tryIt: TryItStep
     @State private var home: HomeStep
@@ -145,6 +147,8 @@ private struct OnboardingView: View {
         _providers = State(initialValue: ProviderStep(preferences: preferences))
         let shortcut = ShortcutStep(saves: preferences != nil)
         _shortcut = State(initialValue: shortcut)
+        _dictateShortcut = State(initialValue: ShortcutStep(saves: preferences != nil, action: .dictate))
+        _microphone = State(initialValue: MicrophoneStep(saves: preferences != nil))
         // Try it's Change records with the Shortcut step's own recorder.
         _tryIt = State(initialValue: TryItStep(preferences: preferences, shortcuts: shortcut))
         _home = State(initialValue: HomeStep(saves: preferences != nil))
@@ -155,6 +159,11 @@ private struct OnboardingView: View {
 
     /// The steps after Hello, which the dots count: the ones the chosen features need.
     private var setup: [Step] { Step.setup(for: features.chosen, choice: DebugFlags.dictation) }
+
+    /// Whether the steps cover `feature`: all of today's flow is Fix's, and the choice decides once it is asked.
+    private func asksFor(_ feature: OnboardingFeature) -> Bool {
+        setup.contains(.features) ? features.chosen.contains(feature) : feature == .fix
+    }
 
     private func advance() {
         guard let index = setup.firstIndex(of: step), index + 1 < setup.count else { return }
@@ -181,7 +190,9 @@ private struct OnboardingView: View {
             case .provider:
                 ProviderStepView(step: providers, next: leaveProvider).transition(setup.first == .provider ? entrance : .opacity)
             case .shortcut:
-                ShortcutStepView(step: shortcut, next: advance).transition(.opacity)
+                ShortcutStepView(fix: asksFor(.fix) ? shortcut : nil, dictate: asksFor(.dictate) ? dictateShortcut : nil,
+                                 microphone: microphone, next: advance)
+                    .transition(.opacity)
             case .accessibility:
                 AccessibilityStepView(step: accessibility, next: advance).transition(.opacity)
             case .tryIt:
@@ -243,7 +254,7 @@ private struct OnboardingView: View {
             if resumable, now != .hello { UserDefaults.standard.set(now.rawValue, forKey: OnboardingWindow.resumeKey) }
         }
         .environment(\.onboardingEffectsVisible, presentation.visible)
-        .onDisappear { director.stop(); providers.stop(); shortcut.stop(); accessibility.stop(); tryIt.stop() }
+        .onDisappear { director.stop(); providers.stop(); shortcut.stop(); dictateShortcut.stop(); accessibility.stop(); tryIt.stop() }
     }
 
     /// The pill's "Use an OpenAI key": the Provider step's own API setup, opened on OpenAI, from whichever step this is.
@@ -278,9 +289,16 @@ private struct OnboardingView: View {
         }
     }
 
+    /// The eyes follow whichever recorder is on stage: Dictate's once Fix's is in, or alone.
+    private var shortcutEyes: (CGSize, Double, Double) {
+        let keys = asksFor(.dictate) && (!asksFor(.fix) || shortcut.phase == .accepted) ? dictateShortcut : shortcut
+        let refused = microphone.state == .refused
+        return (keys.look, refused ? 0.55 : keys.lid, refused ? 0 : keys.check)
+    }
+
     private func companion(in rect: CGRect) -> some View {
         let eyes: (CGSize, Double, Double) = if !dropAtStep { (BrandWordmark.characterLook(director.finaleLook), director.finaleLid, 0) }
-            else if step == .shortcut { (shortcut.look, shortcut.lid, shortcut.check) }
+            else if step == .shortcut { shortcutEyes }
             else if step == .accessibility { (accessibility.look, accessibility.lid, accessibility.check) }
             else if step == .home { (home.look, 0, 0) }
             else if step == .features { (features.look, 0, 0) }

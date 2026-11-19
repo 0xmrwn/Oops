@@ -44,7 +44,7 @@ import SwiftUI
         for (name, set) in moments {
             let step = ShortcutStep(saves: false)
             set(step)
-            write(ShortcutStepView(step: step) {}, dot: 1, eyes: (step.look, step.lid, step.check), wallpaper: wallpaper, size: size,
+            write(ShortcutStepView(fix: step, dictate: nil, microphone: MicrophoneStep(saves: false)) {}, dot: 1, eyes: (step.look, step.lid, step.check), wallpaper: wallpaper, size: size,
                   to: directory.appendingPathComponent("shortcut-\(name).png"))
         }
         for (name, phase) in [("1-waiting", AccessibilityStep.Phase.waiting), ("2-in-settings", .inSettings), ("3-granted", .granted)] {
