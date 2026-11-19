@@ -131,7 +131,7 @@ import SwiftUI
         seedLook = CGSize(width: 0, height: 0.2); seedLid = 1
         finaleLook = CGSize(width: -0.9, height: 0.35); finaleLid = 0.55
         typed.typed = 0; typed.corrected = false; typed.shown = true
-        typed.sent = false; typed.answered = false; typed.spoken = nil
+        typed.sent = false; typed.answered = false; typed.spoken = nil; typed.heard = nil
         loudness.stop(); voiceCapsule.presented = false; voice.words = nil; lifted = false
         for state in waiting { state.typed = nil; state.corrected = false; state.shown = false }
         ([typed] + waiting).forEach { $0.drop.presented = false; $0.flash = 0 }
@@ -159,8 +159,8 @@ import SwiftUI
     }
 
     /// The spoken beat, Dictate's own moment before the pull-back: the fixed draft is sent, Léa answers, and the reply
-    /// is dictated. The words gather on the drop's shelf while the voice runs, then land in the draft at once, as a
-    /// real dictation's do. No voice is played; the drop follows an acted level.
+    /// is dictated. The words show past the caret while the voice runs, lighter than the field's text, then are written
+    /// at once, as a real dictation's are with live words in the text. No voice is played; the drop follows an acted level.
     private func speak() async throws {
         typed.drop.presented = false
         try await pause(0.35)
@@ -180,15 +180,14 @@ import SwiftUI
         var heard = ""
         for word in HelloDraft.spoken.split(separator: " ") {
             heard += (heard.isEmpty ? "" : " ") + word
-            voice.words = LiveWords(stable: heard)
+            typed.heard = heard
             try await pause(0.16 + 0.035 * Double(word.count))
         }
         try await pause(0.35)
         loudness.stop()
         voice.state = .transcribing
         try await pause(0.45)
-        voice.words = nil
-        withAnimation(.easeInOut(duration: 0.12)) { typed.spoken = HelloDraft.spoken }
+        withAnimation(.easeInOut(duration: 0.12)) { typed.spoken = HelloDraft.spoken; typed.heard = nil }
         typed.caret = false
         voiceCapsule.presented = false
         Sounds.play(.success, after: 0.13)
