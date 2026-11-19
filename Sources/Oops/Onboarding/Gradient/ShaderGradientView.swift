@@ -32,7 +32,8 @@ final class GradientMetalView: MTKView, MTKViewDelegate {
     @MainActor private weak static var sharedRenderer: GradientRenderer?
     @MainActor private static var rendererBuild: Task<GradientRenderer?, Never>?
 
-    @MainActor private static func acquireRenderer() async -> GradientRenderer? {
+    /// A window that holds this before it shows has its wallpaper in its first frame, not a black one.
+    @MainActor static func acquireRenderer() async -> GradientRenderer? {
         if let sharedRenderer { return sharedRenderer }
         if let rendererBuild { return await rendererBuild.value }
 
@@ -60,6 +61,7 @@ final class GradientMetalView: MTKView, MTKViewDelegate {
         preferredFramesPerSecond = 60
         delegate = self
         updateDrawing()
+        if let ready = Self.sharedRenderer { renderer = ready; return }
         Task { [weak self] in
             let renderer = await Self.acquireRenderer()
             guard let self, !dismantled else { return }
