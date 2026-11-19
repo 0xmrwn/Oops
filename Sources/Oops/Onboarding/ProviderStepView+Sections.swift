@@ -57,7 +57,7 @@ extension ProviderStepView {
                     section(.accounts, labelled: labelled) { ForEach(accounts) { item($0) } }
                     if !servers.isEmpty { section(.thisMac, labelled: labelled) { ForEach(servers) { item($0) } } }
                 }
-                section(.own, labelled: labelled) { apiItem }
+                if step.listed { section(.own, labelled: labelled) { apiItem } }
             }
         }
     }
