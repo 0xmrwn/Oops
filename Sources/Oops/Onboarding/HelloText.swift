@@ -13,6 +13,8 @@ import SwiftUI
     var sent = false
     var answered = false
     var spoken: String?
+    /// The words heard so far while the reply is dictated: they show past the caret, as live words do in a field.
+    var heard: String?
     /// On the desktop; the waiting windows appear as the camera pulls back.
     var shown = true
     let drop = CapsuleModel()
@@ -62,6 +64,8 @@ struct HelloDraftText: View {
             result = Text("\(result)\(piece.customAttribute(HelloRun(kind: run.kind)))")
         }
         if state.typed != nil, !state.corrected || (state.sent && state.spoken == nil) { result = Text("\(result)\(Text(verbatim: " ").customAttribute(HelloRun(kind: .caret)))") }
+        // The real overlay's ink: the field's own colour, lighter until the words are written.
+        if state.sent, state.spoken == nil, let heard = state.heard { result = Text("\(result)\(Text(verbatim: heard).foregroundStyle(color.opacity(0.55)))") }
         return result
     }
 
