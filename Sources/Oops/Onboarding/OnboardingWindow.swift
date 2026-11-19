@@ -123,6 +123,10 @@ private struct OnboardingView: View {
     private let resume: Step?
     @State private var director = HelloDirector()
     @State private var features: FeaturesStep
+    @State private var speech: OnboardingSpeechModel
+    /// The step to come back to once the Provider step, opened from the pill, has set up an OpenAI key.
+    @State private var detour: Step?
+    @State private var wantsOpenAI = false
     @State private var providers: ProviderStep
     @State private var shortcut: ShortcutStep
     @State private var accessibility = AccessibilityStep()
@@ -137,6 +141,7 @@ private struct OnboardingView: View {
     init(preferences: Preferences?, presentation: WelcomePresentation, close: @escaping () -> Void) {
         self.presentation = presentation
         _features = State(initialValue: FeaturesStep(saves: preferences != nil))
+        _speech = State(initialValue: OnboardingSpeechModel(providers: preferences?.providers))
         _providers = State(initialValue: ProviderStep(preferences: preferences))
         let shortcut = ShortcutStep(saves: preferences != nil)
         _shortcut = State(initialValue: shortcut)
@@ -167,9 +172,14 @@ private struct OnboardingView: View {
             switch step {
             case .hello: EmptyView()
             case .features:
-                FeaturesStepView(step: features) { features.commit(); advance() }.transition(entrance)
+                FeaturesStepView(step: features) {
+                    features.commit()
+                    if features.chosen.contains(.dictate) { speech.start() }
+                    advance()
+                }
+                .transition(entrance)
             case .provider:
-                ProviderStepView(step: providers, next: advance).transition(setup.first == .provider ? entrance : .opacity)
+                ProviderStepView(step: providers, next: leaveProvider).transition(setup.first == .provider ? entrance : .opacity)
             case .shortcut:
                 ShortcutStepView(step: shortcut, next: advance).transition(.opacity)
             case .accessibility:
@@ -192,6 +202,15 @@ private struct OnboardingView: View {
             }
                 .keyboardShortcut(.cancelAction).focusable(false).opacity(0).accessibilityHidden(true)
         }
+        .overlay(alignment: .topTrailing) {
+            if speech.started, step != .hello, step != .home, features.chosen.contains(.dictate) {
+                SpeechModelPill(speech: speech, useOpenAIKey: useOpenAIKey)
+                    .padding(.top, 16).padding(.trailing, 20)
+                    .transition(.scale(scale: 0.7, anchor: .trailing).combined(with: .opacity))
+                    .environment(\.colorScheme, .dark)
+            }
+        }
+        .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: speech.started)
         .overlayPreferenceValue(OnboardingDropKey.self) { anchors in
             GeometryReader { proxy in
                 // Try it has the real drop, over its composer.
@@ -212,7 +231,12 @@ private struct OnboardingView: View {
             }
             if DebugFlags.brandReview { director.skip(); return }
             #endif
-            if let resume { director.skip(); step = resume; dropAtStep = true; return }
+            if let resume {
+                director.skip(); step = resume; dropAtStep = true
+                // A relaunch mid-way picks the download up where it stopped.
+                if resume != .features, setup.contains(.features), features.chosen.contains(.dictate) { speech.start() }
+                return
+            }
             director.play()
         }
         .onChange(of: step) { _, now in
@@ -220,6 +244,25 @@ private struct OnboardingView: View {
         }
         .environment(\.onboardingEffectsVisible, presentation.visible)
         .onDisappear { director.stop(); providers.stop(); shortcut.stop(); accessibility.stop(); tryIt.stop() }
+    }
+
+    /// The pill's "Use an OpenAI key": the Provider step's own API setup, opened on OpenAI, from whichever step this is.
+    private func useOpenAIKey() {
+        speech.pause()
+        wantsOpenAI = true
+        if step != .provider { detour = step; withAnimation(.easeInOut(duration: 0.45)) { step = .provider } }
+        providers.openAPI(preset: ProviderPreset(id: "openai"))
+    }
+
+    /// Past the Provider step: a key set up for dictation makes OpenAI its model; without one the download resumes.
+    private func leaveProvider() {
+        if wantsOpenAI {
+            wantsOpenAI = false
+            if let reference = OnboardingWindow.shared.preferences?.providers.openAIDictateReference { speech.useOpenAI(reference) } else { speech.resume() }
+        }
+        guard let back = detour else { return advance() }
+        detour = nil
+        withAnimation(.easeInOut(duration: 0.45)) { step = back }
     }
 
     /// Set up: the drop appears exactly over the finale's own, which hides, then flies to the step.
