@@ -61,13 +61,10 @@ struct SpeechModelCard: View {
             tag
             VStack(alignment: .leading, spacing: 11) {
                 SpeechModelFact(strong: picks.shortestWait == model.id) { SpeechModelWaitBars(wait: model.wait); Text(model.wait.label) }
-                    .help(SpeechModelHelp.wait(model.wait))
                 if let accuracy = model.accuracy {
                     SpeechModelFact(strong: picks.mostAccurate == model.id) { Image(systemName: "scope"); Text(SpeechModelRow.percent(accuracy)) }
-                        .help(SpeechModelHelp.accuracy)
                 }
                 SpeechModelFact(strong: picks.mostLanguages == model.id) { Image(systemName: "globe"); Text(model.languageSummary) }
-                    .help(SpeechModelHelp.languages(model))
             }
             .padding(.top, 22).padding(.bottom, 22)
             Spacer(minLength: 0)
@@ -85,17 +82,18 @@ struct SpeechModelCard: View {
     }
 
     private var tag: some View {
-        let (symbol, title, help) = switch choice.recommendation {
-        case .recommended: ("star.fill", "Recommended", "The best balance of wait and accuracy for this language")
-        case .mostAccurate: ("scope", "Most accurate", "The fewest wrong words for this language")
-        case .fastest: ("bolt.fill", "Fastest", "The shortest wait for this language")
-        case .vocabulary: ("character.book.closed", "Vocabulary", SpeechModelHelp.vocabulary)
+        let (symbol, title) = switch choice.recommendation {
+        case .recommended: ("star.fill", "Recommended")
+        case .mostAccurate: ("scope", "Most accurate")
+        case .fastest: ("bolt.fill", "Fastest")
+        case .vocabulary: ("character.book.closed", "Vocabulary")
         }
         return Label(title, systemImage: symbol).labelStyle(.titleAndIcon)
             .font(.system(size: 12, weight: .semibold))
             .padding(.horizontal, 9).frame(height: 22)
             .background(.primary.opacity(0.16), in: .capsule)
-            .help(help)
+            // The one tag whose word needs saying.
+            .help(choice.recommendation == .vocabulary ? SpeechModelHelp.vocabulary : "")
     }
 }
 
@@ -137,7 +135,7 @@ struct SpeechModelRow: View {
     var body: some View {
         Self.layout(mark: model.maker, name: model.name, wait: figures ? model.wait : nil,
                     accuracy: figures ? model.accuracy : nil, inUse: actions.inUse(model)) {
-            Label(model.languageSummary, systemImage: "globe").help(SpeechModelHelp.languages(model))
+            Label(model.languageSummary, systemImage: "globe")
             if model.vocabularyUse == .prompt {
                 Label("Vocabulary", systemImage: "character.book.closed").help(SpeechModelHelp.vocabulary)
             }
@@ -160,13 +158,11 @@ struct SpeechModelRow: View {
             }
             Spacer(minLength: 8)
             Group {
-                if let wait {
-                    SpeechModelFact(strong: false) { SpeechModelWaitBars(wait: wait); Text(wait.label) }.help(SpeechModelHelp.wait(wait))
-                }
+                if let wait { SpeechModelFact(strong: false) { SpeechModelWaitBars(wait: wait); Text(wait.label) } }
             }
             .frame(width: Self.wait, alignment: .leading)
             Text(accuracy.map(percent) ?? "").font(.system(size: 13.5)).monospacedDigit().secondaryText()
-                .frame(width: Self.accuracy, alignment: .leading).help(SpeechModelHelp.accuracy)
+                .frame(width: Self.accuracy, alignment: .leading)
             HStack(spacing: 6) { action() }.frame(width: Self.action, alignment: .trailing)
         }
         .padding(.horizontal, 8).frame(minHeight: 56)
@@ -198,7 +194,7 @@ struct SpeechModelOnline: View {
                     } else if let reference {
                         button("Use") { actions.use(reference) }
                     } else {
-                        button("Add key", action: addKey).help("Opens Providers, where an OpenAI API key goes")
+                        button("Add key", action: addKey)
                     }
                 }
                 .frame(width: SpeechModelAction.width)
@@ -215,25 +211,10 @@ struct SpeechModelOnline: View {
     }
 }
 
-/// What a fact means, on hover: the picker itself carries no explaining lines.
+/// The words the picker explains on hover: the ones a first reader wouldn't know.
 enum SpeechModelHelp {
     static let accuracy = "Words it gets right out of 100 on a public test. The tests differ between models."
     static let vocabulary = "Follows your vocabulary: the names and unusual words you list under Dictate → Vocabulary"
-
-    static func wait(_ wait: SpeechModelWait) -> String {
-        switch wait {
-        case .live: "Writes while you talk"
-        case .underASecond: "The text arrives under a second after you stop"
-        case .seconds: "The text arrives about two seconds after you stop"
-        }
-    }
-
-    /// The names, or the first of them and how many more.
-    static func languages(_ model: SpeechModel) -> String {
-        let names = model.languages.codes.map(SpeechLanguage.name(of:))
-        guard names.count > 12 else { return names.joined(separator: ", ") }
-        return names.prefix(12).joined(separator: ", ") + " and \(names.count - 12) more"
-    }
 }
 
 struct TightLabel: LabelStyle {
@@ -261,7 +242,7 @@ struct SpeechModelAction: View {
                 main { button("Use", symbol: nil) { actions.use(.local(model.id)) } }
             case .notInstalled:
                 main { button(model.downloadSize, symbol: "arrow.down") { actions.download(model) } }
-                    .help("Download, then use it").accessibilityLabel("Download \(model.name), \(model.downloadSize)")
+                    .accessibilityLabel("Download \(model.name), \(model.downloadSize)")
             case .failed(let message):
                 main { button("Retry", symbol: "exclamationmark.triangle") { actions.download(model) } }
                     .help(message).accessibilityLabel("\(message) Retry downloading \(model.name)")

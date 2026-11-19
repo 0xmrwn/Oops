@@ -178,7 +178,7 @@ private struct SpeechModelList: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 Spacer()
-                Text("Wait").frame(width: SpeechModelRow.wait, alignment: .leading).help("How long the text takes once you stop talking")
+                Text("Wait").frame(width: SpeechModelRow.wait, alignment: .leading)
                 Text("Accuracy").frame(width: SpeechModelRow.accuracy, alignment: .leading).help(SpeechModelHelp.accuracy)
                 Color.clear.frame(width: SpeechModelRow.action, height: 1)
             }
