@@ -2,8 +2,8 @@ import SwiftUI
 
 /// A sketch of System Settings' Accessibility list (`AccessibilityStep.paneName`) in onboarding's
 /// own glass and white ink, not a copy of it: the pane's icon, name and description, two other apps'
-/// rows and Oops's, dashed with its switch off until the permission is on. A ghost drop falls into
-/// that row every few seconds, the motion to make.
+/// rows and Oops's, dashed with its switch off until the permission is on. A ghost drop rises into
+/// that row every few seconds, the motion to make: System Settings opens above the drop to drag.
 struct AccessibilityListSketch: View {
     let granted: Bool
     let demo: Bool
@@ -95,21 +95,21 @@ private struct SketchSwitch: View {
     }
 }
 
-/// The motion to make: a small drop falls from above into Oops's row, settles, fades, and again.
+/// The motion to make: a small drop rises from below into Oops's row, settles, fades, and again.
 private struct GhostDrop: View {
-    private struct Frame { var y: CGFloat = -130; var opacity = 0.0; var scale = 1.3 }
+    private struct Frame { var y: CGFloat = 130; var opacity = 0.0; var scale = 1.3 }
 
     var body: some View {
         ZStack {
             Color.clear.glassEffect(.clear, in: .circle)
-            DashEyes(look: CGSize(width: 0, height: 0.8), lid: 0, ink: .white, halo: .black.opacity(0.3)).padding(5)
+            DashEyes(look: CGSize(width: 0, height: -0.8), lid: 0, ink: .white, halo: .black.opacity(0.3)).padding(5)
         }
         .frame(width: 28, height: 28)
         .keyframeAnimator(initialValue: Frame(), repeating: true) { content, frame in
             content.offset(y: frame.y).opacity(frame.opacity).scaleEffect(frame.scale)
         } keyframes: { _ in
             KeyframeTrack(\.y) {
-                LinearKeyframe(-130, duration: 0.6)
+                LinearKeyframe(130, duration: 0.6)
                 SpringKeyframe(0, duration: 0.9, spring: .bouncy(duration: 0.6, extraBounce: 0.05))
                 LinearKeyframe(0, duration: 1.9)
             }

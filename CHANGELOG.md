@@ -9,6 +9,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - A fix no longer pauses for a second when another app has left a modifier key marked as held.
 - The welcome window no longer flashes its desktop of app windows, or a black frame, as it opens.
 - In setup, the provider list no longer shows API provider alone while Oops looks for ChatGPT and Claude Code: it arrives last, under what was found.
+- In setup, the hint on the Accessibility step now moves the way you drag: Oops rises into the list from below.
 
 ## 0.1.4
 
