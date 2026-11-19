@@ -26,6 +26,8 @@ import SwiftUI
     /// The rows on screen: they land one by one once detection is done.
     private(set) var shown: [Row] = []
     private(set) var looking = true
+    /// Every row detection found has landed: the API item comes last, so it is never the only choice in view.
+    private(set) var listed = false
     private var running = false
     private(set) var selected: Row?
     private(set) var proof = Proof.idle
@@ -149,7 +151,9 @@ import SwiftUI
             withAnimation(reduceMotion ? nil : .spring(duration: 0.55, bounce: 0.28)) { shown.append(row); look = Self.look(at: index) }
             try? await pause(.seconds(0.17))
         }
-        guard !Task.isCancelled, !showingAPI else { return }
+        guard !Task.isCancelled else { return }
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.55, bounce: 0.28)) { listed = true }
+        guard !showingAPI else { return }
         #if DEBUG
         if let id = DebugFlags.onboardingSetUp, let preset = ProviderPreset(id: id) { return openAPI(preset: preset) }
         #endif
@@ -332,7 +336,7 @@ import SwiftUI
     /// Sets a moment directly, for `-SetupSnapshots`: detection done, every row landed, the preferred one proven.
     func seed(_ found: ProviderFindings, proof: Proof = .idle, signingIn: Row? = nil) {
         task = Task {}
-        findings = found; shown = found.rows; looking = false
+        findings = found; shown = found.rows; looking = false; listed = true
         selected = found.preferred; self.proof = found.preferred == nil ? .idle : proof
         self.signingIn = signingIn == .chatGPT; signingInToClaude = signingIn == .claude
         if case .passed = proof { check = 1; look = .zero } else { look = Self.look(at: 0) }

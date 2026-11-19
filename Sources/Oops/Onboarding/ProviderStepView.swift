@@ -87,7 +87,7 @@ struct ProviderStepView: View {
         GlassEffectContainer(spacing: fit.spacing) {
             VStack(spacing: fit.spacing) {
                 if let visible = fit.visible, !step.shown.isEmpty { scrolling(visible) } else { detectedRows }
-                apiItem
+                if step.listed { apiItem.transition(landing) }
             }
         }
     }
@@ -144,7 +144,12 @@ struct ProviderStepView: View {
                                  loading: step.signingInToClaude) { step.signIn(.claude) }
             }
         }
-        .transition(reduceMotion ? .opacity : .asymmetric(insertion: .offset(y: 18).combined(with: .opacity).combined(with: .scale(scale: 0.96)), removal: .opacity))
+        .transition(landing)
+    }
+
+    /// How an item lands in the list.
+    private var landing: AnyTransition {
+        reduceMotion ? .opacity : .asymmetric(insertion: .offset(y: 18).combined(with: .opacity).combined(with: .scale(scale: 0.96)), removal: .opacity)
     }
 
     var apiItem: some View {
