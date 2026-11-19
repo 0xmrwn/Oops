@@ -41,29 +41,38 @@ struct SpeechModelPickerOverlay: View {
     }
 }
 
-/// The picker: the language's picks as cards, or every model as a list. A download selects its model once it
-/// is installed, whether or not the picker is still open.
+/// The picker: the language's picks as cards, every model on this Mac as a list, or the ones a provider runs
+/// online. A download selects its model once it is installed, whether or not the picker is still open.
 struct SpeechModelPickerPanel: View {
     let target: SpeechModelPickerTarget
     let store: ProviderStore
     let local: LocalModels
     let close: () -> Void
-    @State private var all = false
+    @State private var shown = Shown.picks
+
+    private enum Shown: Hashable { case picks, all, online }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let picks = SpeechModelPicks(language: target.language, models: local.models)
         VStack(alignment: .leading, spacing: 18) {
             header
-            if all {
+            switch shown {
+            case .all:
                 // The scroller runs in the panel's own margin, clear of the buttons.
-                ScrollView { SpeechModelList(picks: picks, openAI: openAI, actions: actions).padding(.trailing, 14) }
+                ScrollView { SpeechModelList(picks: picks, actions: actions).padding(.trailing, 14) }
                     .scrollBounceBehavior(.basedOnSize)
                     .frame(height: 536)
                     .padding(.trailing, -14)
                     .focusEffectDisabled()
                     .transition(.opacity)
-            } else {
+            case .online:
+                SpeechModelOnline(reference: store.openAIDictateReference, actions: actions) {
+                    close()
+                    store.setUpOpenAITranscription()
+                }
+                .transition(.opacity)
+            case .picks:
                 cards(picks).transition(.opacity)
             }
         }
@@ -72,7 +81,7 @@ struct SpeechModelPickerPanel: View {
         .fixedSize(horizontal: false, vertical: true)
         .glassEffect(.regular, in: .rect(cornerRadius: 26))
         .glassEdge(RoundedRectangle(cornerRadius: 26), outside: true)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: all)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: shown)
         .task { await local.refresh() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Speech model")
@@ -89,7 +98,9 @@ struct SpeechModelPickerPanel: View {
                 .overlay { Capsule().strokeBorder(.primary.opacity(0.22), lineWidth: 0.5) }
                 .accessibilityLabel("For \(DictateModelCard.name(target.language))")
             Spacer(minLength: 8)
-            GlassChoice(title: "Models", choices: [(false, "Picks"), (true, "All")], selection: $all)
+            // A keyboard switches to a model on this Mac, so its picker has no Online.
+            GlassChoice(title: "Models", choices: [(.picks, "Picks"), (.all, "All")] + (target.offersOpenAI ? [(Shown.online, "Online")] : []),
+                        selection: $shown)
             Button(action: close) {
                 Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).frame(width: 8, height: 14)
             }
@@ -124,8 +135,6 @@ struct SpeechModelPickerPanel: View {
         }
     }
 
-    private var openAI: VoiceModelReference? { target.offersOpenAI ? store.openAIDictateReference : nil }
-
     private var actions: SpeechModelActions {
         SpeechModelActions(
             state: { local.state($0) },
@@ -138,7 +147,7 @@ struct SpeechModelPickerPanel: View {
 
     private func name(of reference: VoiceModelReference) -> String {
         if case .local(let id) = reference, let model = SpeechModelCatalog.model(id: id) { return model.name }
-        return DictateModelOption(openAI: reference).name
+        return DictateModelOption.openAIName
     }
 
     private func maker(of reference: VoiceModelReference) -> SpeechModelMaker? {
@@ -163,7 +172,6 @@ struct SpeechModelActions {
 /// were measured in their own languages.
 private struct SpeechModelList: View {
     let picks: SpeechModelPicks
-    let openAI: VoiceModelReference?
     let actions: SpeechModelActions
 
     var body: some View {
@@ -175,10 +183,6 @@ private struct SpeechModelList: View {
                 Color.clear.frame(width: SpeechModelRow.action, height: 1)
             }
             .font(.caption).secondaryText().padding(.horizontal, 8).padding(.bottom, 4)
-            if let openAI {
-                SpeechModelRow.OpenAI(reference: openAI, actions: actions)
-                Divider().padding(.leading, 42)
-            }
             let listed = picks.picks.map(\.model) + picks.others
             ForEach(Array(listed.enumerated()), id: \.element.id) { index, model in
                 if index > 0 { Divider().padding(.leading, 42) }

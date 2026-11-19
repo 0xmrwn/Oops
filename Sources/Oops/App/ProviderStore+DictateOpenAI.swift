@@ -4,13 +4,28 @@ import OopsCore
 extension ProviderStore {
     static let openAITranscriptionModel = RealtimeTranscription.model
 
-    /// The OpenAI API provider with a key, which is what makes OpenAI's realtime transcription available. Nil in the
-    /// screenshot preview, which holds no keys.
-    var openAITranscriptionProvider: Provider? {
-        providers.first { provider in
-            guard case .api(let preset) = provider.kind, hasKey(provider.id) else { return false }
+    /// The OpenAI API providers, with a key or not.
+    private var openAIProviders: [Provider] {
+        providers.filter { provider in
+            guard case .api(let preset) = provider.kind else { return false }
             return preset == "openai" || provider.baseURL.flatMap { URL(string: $0)?.host } == "api.openai.com"
         }
+    }
+
+    /// The OpenAI API provider with a key, which is what makes OpenAI's realtime transcription available. Nil in the
+    /// screenshot preview, which holds no keys.
+    var openAITranscriptionProvider: Provider? { openAIProviders.first { hasKey($0.id) } }
+
+    /// Where the key that turns OpenAI's transcription on is entered: the OpenAI provider's page when there is
+    /// one, else a new provider filled in for OpenAI.
+    func setUpOpenAITranscription() {
+        if let existing = openAIProviders.first {
+            openProvider = existing.id
+        } else {
+            startDraft()
+            chooseDraftPreset(ProviderPreset(id: "openai"))
+        }
+        wantsProvidersPage = true
     }
 
     var openAIDictateReference: VoiceModelReference? {

@@ -175,26 +175,43 @@ struct SpeechModelRow: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(name)
     }
+}
 
-    /// OpenAI's live transcription, there once an OpenAI key is set up: nothing to download.
-    struct OpenAI: View {
-        let reference: VoiceModelReference
-        let actions: SpeechModelActions
+/// The models a provider runs instead of this Mac: OpenAI's live transcription, used with an OpenAI API key.
+/// Without one, its button leads to where the key is entered.
+struct SpeechModelOnline: View {
+    /// Nil until an OpenAI key is set up.
+    let reference: VoiceModelReference?
+    let actions: SpeechModelActions
+    let addKey: () -> Void
 
-        var body: some View {
-            let option = DictateModelOption(openAI: reference), inUse = actions.current() == reference
-            SpeechModelRow.layout(mark: .openAI, name: option.name, wait: .live, accuracy: nil, inUse: inUse) {
-                Label("Online", systemImage: "cloud")
+    var body: some View {
+        let inUse = reference != nil && actions.current() == reference
+        VStack(alignment: .leading, spacing: 12) {
+            SpeechModelRow.layout(mark: .openAI, name: DictateModelOption.openAIName, wait: .live, accuracy: nil, inUse: inUse) {
+                Label("OpenAI", systemImage: "cloud")
+                Label("Any language", systemImage: "globe")
             } action: {
                 Group {
-                    if inUse { SpeechModelInUse(outlined: true) } else {
-                        Button { actions.use(reference) } label: { Text("Use").fontWeight(.medium).frame(maxWidth: .infinity) }
-                            .buttonStyle(.settingsGlass).controlSize(.large)
+                    if inUse {
+                        SpeechModelInUse(outlined: true)
+                    } else if let reference {
+                        button("Use") { actions.use(reference) }
+                    } else {
+                        button("Add key", action: addKey).help("Opens Providers, where an OpenAI API key goes")
                     }
                 }
                 .frame(width: SpeechModelAction.width)
             }
+            // What changes when the model is not on this Mac; a fact, said once.
+            Label("Your voice is sent to the provider, and its use is billed to your key.", systemImage: "arrow.up.forward.circle")
+                .font(.caption).labelStyle(TightLabel()).secondaryText().padding(.horizontal, 8)
         }
+    }
+
+    private func button(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title).fontWeight(.medium).frame(maxWidth: .infinity) }
+            .buttonStyle(.settingsGlass).controlSize(.large)
     }
 }
 
