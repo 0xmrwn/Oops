@@ -58,6 +58,8 @@ private struct KeyboardMappingRow: View {
 
     private func map(_ id: String) {
         guard id != Self.more else { return pick() }
+        // Picked from the menu: it stands over a download still coming in for this keyboard.
+        SpeechModelPicker.shared.chose(for: source.id)
         guard let model = SpeechModelCatalog.model(id: id) else { return keyboards.setMapping(nil, for: source.id) }
         guard keyboards.mapping(source.id)?.modelID != id else { return }
         keyboards.setMapping(KeyboardModelChoice(modelID: id, language: source.language(for: model, fallback: model.automaticLanguage)),
@@ -67,9 +69,9 @@ private struct KeyboardMappingRow: View {
     private func pick() {
         let language = source.languages.lazy
             .map { $0.split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init) ?? $0 }
-            .first { code in SpeechLanguage.listed.contains { $0.code == code } } ?? "en"
+            .first(where: SpeechLanguage.isKnown) ?? "en"
         SpeechModelPicker.shared.target = SpeechModelPickerTarget(
-            language: language, offersOpenAI: false,
+            id: source.id, language: language, offersOpenAI: false,
             current: { keyboards.mapping(source.id).map { .local($0.modelID) } },
             choose: { if case .local(let id) = $0 { map(id) } })
     }

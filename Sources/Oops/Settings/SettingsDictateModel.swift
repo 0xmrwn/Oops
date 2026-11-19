@@ -44,7 +44,7 @@ struct DictateModelCard: View {
     private func pick(_ current: DictateModelOption?) {
         let language = current.map(store.dictateLanguage(for:))
             ?? SpeechLanguage.firstRun(preferred: Locale.preferredLanguages, keyboards: KeyboardInputSources.shared.enabled().map(\.languages))
-        SpeechModelPicker.shared.target = SpeechModelPickerTarget(language: language, current: { store.dictateModel(local) }, choose: choose)
+        SpeechModelPicker.shared.target = SpeechModelPickerTarget(id: "dictate", language: language, current: { store.dictateModel(local) }, choose: choose)
     }
 
     static func maker(_ reference: VoiceModelReference) -> SpeechModelMaker? {

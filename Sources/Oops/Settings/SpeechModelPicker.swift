@@ -3,6 +3,8 @@ import SwiftUI
 
 /// What the speech model picker chooses for: Dictate's model, or the one a keyboard switches to.
 struct SpeechModelPickerTarget {
+    /// Which choice this is, so a download knows whether it is still the one wanted here.
+    let id: String
     /// The language whose picks it shows.
     let language: String
     /// OpenAI's live transcription is Dictate's to choose; a keyboard maps to a model on this Mac.
@@ -15,6 +17,19 @@ struct SpeechModelPickerTarget {
 @Observable @MainActor final class SpeechModelPicker {
     static let shared = SpeechModelPicker()
     var target: SpeechModelPickerTarget?
+    /// The model each target is waiting on: the last download started for it, until another choice is made there.
+    /// A download that is no longer the one wanted still installs, without taking the selection.
+    @ObservationIgnored private var awaited: [String: String] = [:]
+
+    func expect(_ model: String, for target: String) { awaited[target] = model }
+    /// Whether `model`, just installed, is still what `target` waits on; asked once.
+    func claims(_ model: String, for target: String) -> Bool {
+        guard awaited[target] == model else { return false }
+        awaited[target] = nil
+        return true
+    }
+    /// A choice made by hand stands over a download still coming in.
+    func chose(for target: String) { awaited[target] = nil }
 }
 
 /// Settings' top layer: the picker over a dimmed window, closed by Escape, its button or a click outside.
@@ -114,10 +129,10 @@ struct SpeechModelPickerPanel: View {
     private func cards(_ picks: SpeechModelPicks) -> some View {
         VStack(spacing: 14) {
             // The model in use when it is none of the picks: still first, so the choice is never out of sight.
-            if let current = target.current(), !picks.picks.contains(where: { .local($0.model.id) == current }) {
+            if let (name, maker) = used(), !picks.picks.contains(where: { .local($0.model.id) == target.current() }) {
                 HStack(spacing: 12) {
-                    SpeechModelMark(maker: maker(of: current), size: 22)
-                    Text(name(of: current)).fontWeight(.semibold).lineLimit(1)
+                    SpeechModelMark(maker: maker, size: 22)
+                    Text(name).fontWeight(.semibold).lineLimit(1)
                     Spacer(minLength: 8)
                     SpeechModelInUse().fixedSize()
                 }
@@ -139,20 +154,26 @@ struct SpeechModelPickerPanel: View {
         SpeechModelActions(
             state: { local.state($0) },
             current: target.current,
-            download: { model in local.download(model) { target.choose(.local(model.id)) } },
+            download: { model in
+                let picker = SpeechModelPicker.shared, id = target.id, choose = target.choose
+                picker.expect(model.id, for: id)
+                local.download(model) { if picker.claims(model.id, for: id) { choose(.local(model.id)) } }
+            },
             cancel: { local.cancel($0) },
-            use: target.choose,
+            use: { SpeechModelPicker.shared.chose(for: target.id); target.choose($0) },
             delete: { model in Task { await store.deleteLocalModel(model, from: local) } })
     }
 
-    private func name(of reference: VoiceModelReference) -> String {
-        if case .local(let id) = reference, let model = SpeechModelCatalog.model(id: id) { return model.name }
-        return DictateModelOption.openAIName
-    }
-
-    private func maker(of reference: VoiceModelReference) -> SpeechModelMaker? {
-        if case .local(let id) = reference { return SpeechModelCatalog.model(id: id)?.maker }
-        return .openAI
+    /// The model in use, when it can be used: installed on this Mac, or OpenAI's with its key. A keyboard's mapping
+    /// can outlive the model it names.
+    private func used() -> (name: String, maker: SpeechModelMaker?)? {
+        switch target.current() {
+        case .local(let id)?:
+            guard local.isInstalled(id), let model = SpeechModelCatalog.model(id: id) else { return nil }
+            return (model.name, model.maker)
+        case let reference? where reference == store.openAIDictateReference: return (DictateModelOption.openAIName, .openAI)
+        default: return nil
+        }
     }
 }
 
