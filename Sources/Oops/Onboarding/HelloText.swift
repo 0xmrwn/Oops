@@ -29,13 +29,15 @@ struct HelloDraftText: View {
     var size: CGFloat = u(13)
     var color: Color = .primary
     var chip = Color(red: 0.07, green: 0.39, blue: 0.64)
+    /// The corrected words' highlight at its strongest: the accent on a white field, white ink on glass.
+    var highlight = Color.accentColor.opacity(0.3)
 
     var body: some View {
         text
             .font(.system(size: size))
             .foregroundStyle(color)
             .lineSpacing(u(2))
-            .textRenderer(HelloRunRenderer(flash: state.flash, caret: state.caret, chip: chip))
+            .textRenderer(HelloRunRenderer(flash: state.flash, caret: state.caret, chip: chip, highlight: highlight))
             .environment(\.layoutDirection, state.draft.rightToLeft ? .rightToLeft : .leftToRight)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,6 +96,7 @@ struct HelloRunRenderer: TextRenderer, Animatable {
     var flash: Double
     var caret: Bool
     var chip: Color
+    var highlight: Color
     var animatableData: Double {
         get { flash }
         set { flash = newValue }
@@ -106,7 +109,7 @@ struct HelloRunRenderer: TextRenderer, Animatable {
                 switch run[HelloRun.self]?.kind {
                 case .mention?: fill(bounds.insetBy(dx: u(-2.5), dy: u(-0.5)), chip.opacity(0.13), in: &context)
                 case .code?: fill(bounds.insetBy(dx: u(-2.5), dy: u(-0.5)), Color.black.opacity(0.06), in: &context)
-                case .flash? where flash > 0: fill(bounds.insetBy(dx: u(-2), dy: u(-0.5)), Color.accentColor.opacity(0.3 * flash), in: &context)
+                case .flash? where flash > 0: fill(bounds.insetBy(dx: u(-2), dy: u(-0.5)), highlight.opacity(flash), in: &context)
                 case .caret? where caret:
                     context.fill(Path(CGRect(x: bounds.minX + u(1), y: bounds.minY + u(1), width: u(2), height: bounds.height - u(1))), with: .color(.accentColor))
                 default: break
