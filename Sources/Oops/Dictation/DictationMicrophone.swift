@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreAudio
 import OopsCore
+import OSLog
 import Synchronization
 
 /// The microphone as a dictation's audio source: an `AVAudioEngine` input feeding an `AVAudioSinkNode`.
@@ -44,6 +45,7 @@ final class DictationMicrophone: DictationAudioSource {
         var changed = false
     }
 
+    private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Dictation")
     private let access: @Sendable () -> DictationMicrophoneAccess
     private let state = Mutex(State())
     private let lost = Mutex<(@Sendable () -> Void)?>(nil)
@@ -133,7 +135,13 @@ final class DictationMicrophone: DictationAudioSource {
             guard status == noErr else { throw .failed("the microphone could not be selected: \(status)") }
             current.device = target.device
         }
-        let format = engine.inputNode.outputFormat(forBus: 0)
+        // The node can still tell the default device's format after the unit was pointed at another one (a Bluetooth
+        // default at 24 kHz, the built-in microphone at 48), and connecting with that raises an exception. Its
+        // hardware side is the device's own.
+        let node = engine.inputNode.outputFormat(forBus: 0), hardware = engine.inputNode.inputFormat(forBus: 0)
+        let format = hardware.sampleRate > 0 && hardware.sampleRate != node.sampleRate
+            ? AVAudioFormat(standardFormatWithSampleRate: hardware.sampleRate, channels: hardware.channelCount) ?? node : node
+        log.notice("microphone node=\(node.sampleRate, privacy: .public) hardware=\(hardware.sampleRate, privacy: .public) channels=\(hardware.channelCount, privacy: .public)")
         guard format.sampleRate > 0, format.channelCount > 0, format.commonFormat == .pcmFormatFloat32 else { throw .noInput }
         if current.sink == nil || current.format != format || current.ring !== ring {
             if let sink = current.sink { engine.detach(sink) }
