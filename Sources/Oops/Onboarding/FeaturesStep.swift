@@ -9,10 +9,13 @@ import SwiftUI
     private(set) var chosen: Set<OnboardingFeature>
     private let saves: Bool
 
-    init(saves: Bool) {
+    /// `only` is the feature a new-feature card is turning on: that run asks nothing and touches no other feature.
+    init(saves: Bool, only: OnboardingFeature? = nil) {
         self.saves = saves
         let saved = UserDefaults.standard.stringArray(forKey: Self.key)
-        if saves, OnboardingWindow.finished {
+        if let only {
+            chosen = [only]
+        } else if saves, OnboardingWindow.finished {
             // Show welcome: what is on now. A run that saves nothing plays a first run.
             chosen = Set(OnboardingFeature.allCases.filter { ShortcutSettings.shared.shortcut($0.action) != nil })
         } else if saves, let saved {

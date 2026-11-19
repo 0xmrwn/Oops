@@ -18,6 +18,8 @@ import OopsCore
     private(set) var paused = false
     /// The download's one announcement: the pill opens wide with what it fetches, then folds to its progress.
     private(set) var announcing = false
+    /// The model has been ready for a moment: the pill has said so and goes.
+    private(set) var dismissed = false
     @ObservationIgnored private let providers: ProviderStore?
     @ObservationIgnored private let local: LocalModels
     /// A run that saves nothing downloads nothing: its progress is acted.
@@ -105,6 +107,11 @@ import OopsCore
     func useOpenAI(_ reference: VoiceModelReference) {
         pause()
         providers?.chooseDictateModel(reference)
+    }
+
+    /// Ready is the pill's last word.
+    func settle() {
+        Task { try? await Task.sleep(for: .seconds(3)); if phase == .ready { dismissed = true } }
     }
 
     private func announce() {

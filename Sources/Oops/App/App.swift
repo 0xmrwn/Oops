@@ -71,6 +71,8 @@ import OopsCore
         } else {
             Updates.shared.start()
             if !AccessibilityPermission.granted { settings.show() }
+            // Someone who set Oops up before a feature existed hears of it once, after the menu bar has settled.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in NewFeatures.announce(under: self?.menuBar) }
         }
         #if DEBUG
         installDebugHooks()
@@ -176,7 +178,13 @@ import OopsCore
         if DebugFlags.helloOnly {
             AppMenus.installReview()
             OnboardingWindow.shared.onClose = { NSApp.terminate(nil) }
-            DispatchQueue.main.async { OnboardingWindow.shared.show() }
+            DispatchQueue.main.async {
+                if let feature = DebugFlags.newFeatureCard.flatMap(OnboardingFeature.init(rawValue:)) {
+                    NewFeatures.announce(under: nil, feature: feature, saves: false)
+                } else {
+                    OnboardingWindow.shared.show()
+                }
+            }
             app.run(); return
         }
         #endif

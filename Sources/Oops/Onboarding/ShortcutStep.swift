@@ -121,6 +121,9 @@ import SwiftUI
 
     // MARK: Listening
 
+    /// Try it has the keys now: the Shortcut step, leaving after Try it arrived, must not stop them.
+    var isMirroring: Bool { monitor != nil && mirroring }
+
     func start() { listen(mirroring: false) }
 
     /// Try it's keys: they light as they go down while the hotkeys stay as they are, so the real

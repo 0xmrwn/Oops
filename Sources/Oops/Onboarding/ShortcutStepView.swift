@@ -32,7 +32,7 @@ struct ShortcutStepView: View {
         .animation(.spring(duration: 0.5, bounce: 0.3), value: ready)
         .animation(.spring(duration: 0.5, bounce: 0.3), value: refused)
         .onAppear { onDictate = fix == nil || (fix?.phase == .accepted && dictate != nil && dictate?.phase != .accepted); step?.start() }
-        .onDisappear { fix?.stop(); dictate?.stop() }
+        .onDisappear { for keys in [fix, dictate] where keys?.isMirroring == false { keys?.stop() } }
         .onChange(of: fix?.phase) { _, phase in
             guard phase == .accepted, let dictate, !onDictate else { return }
             // A beat on Fix's check before Dictate's keys take the stage.

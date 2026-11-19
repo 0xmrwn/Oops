@@ -28,6 +28,15 @@ struct DictateShortcutCard: View {
                 Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
                     .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
             }
+            // Once refused, the system never asks again: this is the way back.
+            if ShortcutSettings.shared.shortcut(.dictate) != nil, DictationEngineProvider.engine() != nil, DictationMicrophoneAccess.current == .denied {
+                HStack {
+                    Label("Microphone access is off", systemImage: "mic.slash").font(.callout).secondaryText()
+                    Spacer(minLength: 12)
+                    Button("Open System Settings", action: MicrophoneStep.openSettings).buttonStyle(.settingsGlass)
+                }
+                .padding(.bottom, 10)
+            }
             Divider()
             SettingRow(symbol: "hand.tap", title: "Mode") { GlassMenu(title: "Mode", choices: DictationMode.choices, selection: $mode) }
             Divider()
