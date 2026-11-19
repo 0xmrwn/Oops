@@ -32,10 +32,16 @@ struct SpeechModelMark: View {
     }
 }
 
+/// The model in use. In the list it is a capsule the size of the buttons it sits among, outlined since it does
+/// nothing; a card or strip already carries the outline.
 struct SpeechModelInUse: View {
+    var outlined = false
+
     var body: some View {
-        Label("In use", systemImage: "checkmark.circle.fill").fontWeight(.semibold).labelStyle(.titleAndIcon)
-            .transition(.scale(scale: 0.8).combined(with: .opacity))
+        Label("In use", systemImage: "checkmark.circle.fill").font(.callout.weight(.semibold)).labelStyle(TightLabel())
+            .frame(maxWidth: .infinity, minHeight: 30)
+            .overlay { if outlined { Capsule().strokeBorder(.primary.opacity(0.85), lineWidth: 1.5) } }
+            .transition(.scale(scale: 0.9).combined(with: .opacity))
     }
 }
 
@@ -55,10 +61,13 @@ struct SpeechModelCard: View {
             tag
             VStack(alignment: .leading, spacing: 11) {
                 SpeechModelFact(strong: picks.shortestWait == model.id) { SpeechModelWaitBars(wait: model.wait); Text(model.wait.label) }
+                    .help(SpeechModelHelp.wait(model.wait))
                 if let accuracy = model.accuracy {
                     SpeechModelFact(strong: picks.mostAccurate == model.id) { Image(systemName: "scope"); Text(SpeechModelRow.percent(accuracy)) }
+                        .help(SpeechModelHelp.accuracy)
                 }
                 SpeechModelFact(strong: picks.mostLanguages == model.id) { Image(systemName: "globe"); Text(model.languageSummary) }
+                    .help(SpeechModelHelp.languages(model))
             }
             .padding(.top, 22).padding(.bottom, 22)
             Spacer(minLength: 0)
@@ -76,16 +85,17 @@ struct SpeechModelCard: View {
     }
 
     private var tag: some View {
-        let (symbol, title) = switch choice.recommendation {
-        case .recommended: ("star.fill", "Recommended")
-        case .mostAccurate: ("scope", "Most accurate")
-        case .fastest: ("bolt.fill", "Fastest")
-        case .vocabulary: ("character.book.closed", "Vocabulary")
+        let (symbol, title, help) = switch choice.recommendation {
+        case .recommended: ("star.fill", "Recommended", "The best balance of wait and accuracy for this language")
+        case .mostAccurate: ("scope", "Most accurate", "The fewest wrong words for this language")
+        case .fastest: ("bolt.fill", "Fastest", "The shortest wait for this language")
+        case .vocabulary: ("character.book.closed", "Vocabulary", SpeechModelHelp.vocabulary)
         }
         return Label(title, systemImage: symbol).labelStyle(.titleAndIcon)
             .font(.system(size: 12, weight: .semibold))
             .padding(.horizontal, 9).frame(height: 22)
-            .background(.primary.opacity(0.12), in: .capsule)
+            .background(.primary.opacity(0.16), in: .capsule)
+            .help(help)
     }
 }
 
@@ -117,7 +127,7 @@ struct SpeechModelWaitBars: View {
 
 /// A model in the full list.
 struct SpeechModelRow: View {
-    static let wait: CGFloat = 66, accuracy: CGFloat = 60, action: CGFloat = 122
+    static let wait: CGFloat = 62, accuracy: CGFloat = 56, action: CGFloat = SpeechModelAction.width + 40
     let model: SpeechModel
     let picks: SpeechModelPicks
     /// Wait and accuracy, for a model that takes the picker's language.
@@ -127,8 +137,10 @@ struct SpeechModelRow: View {
     var body: some View {
         Self.layout(mark: model.maker, name: model.name, wait: figures ? model.wait : nil,
                     accuracy: figures ? model.accuracy : nil, inUse: actions.inUse(model)) {
-            Label(model.languageSummary, systemImage: "globe")
-            if model.vocabularyUse == .prompt { Label("Vocabulary", systemImage: "character.book.closed") }
+            Label(model.languageSummary, systemImage: "globe").help(SpeechModelHelp.languages(model))
+            if model.vocabularyUse == .prompt {
+                Label("Vocabulary", systemImage: "character.book.closed").help(SpeechModelHelp.vocabulary)
+            }
         } action: {
             SpeechModelAction(model: model, actions: actions, wide: false)
         }
@@ -148,15 +160,17 @@ struct SpeechModelRow: View {
             }
             Spacer(minLength: 8)
             Group {
-                if let wait { SpeechModelFact(strong: false) { SpeechModelWaitBars(wait: wait); Text(wait.label) } }
+                if let wait {
+                    SpeechModelFact(strong: false) { SpeechModelWaitBars(wait: wait); Text(wait.label) }.help(SpeechModelHelp.wait(wait))
+                }
             }
             .frame(width: Self.wait, alignment: .leading)
             Text(accuracy.map(percent) ?? "").font(.system(size: 13.5)).monospacedDigit().secondaryText()
-                .frame(width: Self.accuracy, alignment: .leading)
+                .frame(width: Self.accuracy, alignment: .leading).help(SpeechModelHelp.accuracy)
             HStack(spacing: 6) { action() }.frame(width: Self.action, alignment: .trailing)
         }
         .padding(.horizontal, 8).frame(minHeight: 56)
-        .background(.primary.opacity(inUse ? 0.06 : 0), in: .rect(cornerRadius: 14))
+        .background(.primary.opacity(inUse ? 0.1 : 0), in: .rect(cornerRadius: 14))
         .contentShape(Rectangle())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(name)
@@ -172,21 +186,49 @@ struct SpeechModelRow: View {
             SpeechModelRow.layout(mark: .openAI, name: option.name, wait: .live, accuracy: nil, inUse: inUse) {
                 Label("Online", systemImage: "cloud")
             } action: {
-                if inUse { SpeechModelInUse() } else { Button("Use") { actions.use(reference) }.buttonStyle(.settingsGlass).controlSize(.large) }
+                Group {
+                    if inUse { SpeechModelInUse(outlined: true) } else {
+                        Button { actions.use(reference) } label: { Text("Use").fontWeight(.medium).frame(maxWidth: .infinity) }
+                            .buttonStyle(.settingsGlass).controlSize(.large)
+                    }
+                }
+                .frame(width: SpeechModelAction.width)
             }
         }
     }
 }
 
-private struct TightLabel: LabelStyle {
+/// What a fact means, on hover: the picker itself carries no explaining lines.
+enum SpeechModelHelp {
+    static let accuracy = "Words it gets right out of 100 on a public test. The tests differ between models."
+    static let vocabulary = "Follows your vocabulary: the names and unusual words you list under Dictate → Vocabulary"
+
+    static func wait(_ wait: SpeechModelWait) -> String {
+        switch wait {
+        case .live: "Writes while you talk"
+        case .underASecond: "The text arrives under a second after you stop"
+        case .seconds: "The text arrives about two seconds after you stop"
+        }
+    }
+
+    /// The names, or the first of them and how many more.
+    static func languages(_ model: SpeechModel) -> String {
+        let names = model.languages.codes.map(SpeechLanguage.name(of:))
+        guard names.count > 12 else { return names.joined(separator: ", ") }
+        return names.prefix(12).joined(separator: ", ") + " and \(names.count - 12) more"
+    }
+}
+
+struct TightLabel: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 4) { configuration.icon; configuration.title }
     }
 }
 
-/// The one control a model has: its size to download it (which then selects it), the download under way, Use,
-/// or In use.
+/// What a model's card or row does: its size to download it (which then selects it), the download under way with
+/// its cancel, Use beside Delete once it is installed, or In use. In the list every main control has one width.
 struct SpeechModelAction: View {
+    static let width: CGFloat = 104
     let model: SpeechModel
     let actions: SpeechModelActions
     let wide: Bool
@@ -195,32 +237,39 @@ struct SpeechModelAction: View {
         let state = actions.state(model)
         HStack(spacing: 6) {
             switch state {
+            case .installed where actions.inUse(model):
+                main { SpeechModelInUse(outlined: !wide) }
             case .installed:
-                if actions.inUse(model) {
-                    SpeechModelInUse().frame(maxWidth: wide ? .infinity : nil)
-                } else {
-                    button("Use", symbol: nil) { actions.use(.local(model.id)) }
-                }
+                small("trash", "Delete \(model.name)", help: "Delete from this Mac and free \(model.downloadSize)") { actions.delete(model) }
+                main { button("Use", symbol: nil) { actions.use(.local(model.id)) } }
             case .notInstalled:
-                button(model.downloadSize, symbol: "arrow.down") { actions.download(model) }
-                    .accessibilityLabel("Download \(model.name), \(model.downloadSize)")
+                main { button(model.downloadSize, symbol: "arrow.down") { actions.download(model) } }
+                    .help("Download, then use it").accessibilityLabel("Download \(model.name), \(model.downloadSize)")
             case .failed(let message):
-                button("Retry", symbol: "exclamationmark.triangle") { actions.download(model) }
+                main { button("Retry", symbol: "exclamationmark.triangle") { actions.download(model) } }
                     .help(message).accessibilityLabel("\(message) Retry downloading \(model.name)")
             case .downloading(let fraction):
-                progress(fraction, "\(Int((fraction * 100).rounded(.down))) %")
+                small("xmark", "Cancel download of \(model.name)", help: "Cancel") { actions.cancel(model) }
+                main { progress(fraction, "\(Int((fraction * 100).rounded(.down))) %") }
                     .accessibilityLabel("Downloading \(model.name), \(Int(fraction * 100)) percent")
-                Button { actions.cancel(model) } label: {
-                    Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).frame(width: 8, height: 14)
-                }
-                .buttonStyle(.settingsGlass).buttonBorderShape(.circle).controlSize(.large)
-                .help("Cancel").accessibilityLabel("Cancel download of \(model.name)")
             case .verifying:
-                progress(1, "Checking").accessibilityLabel("Checking \(model.name)")
+                main { progress(1, "Checking") }.accessibilityLabel("Checking \(model.name)")
             }
         }
         .frame(height: 32)
         .animation(.easeOut(duration: 0.2), value: state)
+    }
+
+    private func main(@ViewBuilder _ content: () -> some View) -> some View {
+        content().frame(width: wide ? nil : Self.width).frame(maxWidth: wide ? .infinity : nil)
+    }
+
+    private func small(_ symbol: String, _ label: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).frame(width: 10, height: 14)
+        }
+        .buttonStyle(.settingsGlass).buttonBorderShape(.circle).controlSize(.large)
+        .help(help).accessibilityLabel(label)
     }
 
     private func button(_ title: String, symbol: String?, action: @escaping () -> Void) -> some View {
@@ -229,7 +278,7 @@ struct SpeechModelAction: View {
                 if let symbol { Image(systemName: symbol).font(.system(size: 11, weight: .semibold)) }
                 Text(title).fontWeight(.medium).monospacedDigit()
             }
-            .frame(maxWidth: wide ? .infinity : nil)
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.settingsGlass).controlSize(.large)
     }
@@ -237,7 +286,7 @@ struct SpeechModelAction: View {
     /// The button's own capsule, filling as the download comes in.
     private func progress(_ fraction: Double, _ text: String) -> some View {
         Text(text).font(.callout.weight(.medium)).monospacedDigit().contentTransition(.numericText())
-            .frame(maxWidth: wide ? .infinity : nil, minHeight: 30).frame(minWidth: wide ? nil : 74)
+            .frame(maxWidth: .infinity, minHeight: 30)
             .background {
                 GeometryReader { box in
                     ZStack(alignment: .leading) {

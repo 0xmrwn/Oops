@@ -56,9 +56,11 @@ struct SpeechModelPickerPanel: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             if all {
-                ScrollView { SpeechModelList(picks: picks, openAI: openAI, actions: actions) }
+                // The scroller runs in the panel's own margin, clear of the buttons.
+                ScrollView { SpeechModelList(picks: picks, openAI: openAI, actions: actions).padding(.trailing, 14) }
                     .scrollBounceBehavior(.basedOnSize)
                     .frame(height: 536)
+                    .padding(.trailing, -14)
                     .focusEffectDisabled()
                     .transition(.opacity)
             } else {
@@ -83,7 +85,8 @@ struct SpeechModelPickerPanel: View {
             Label(DictateModelCard.name(target.language), systemImage: "globe")
                 .font(.system(size: 13, weight: .medium)).labelStyle(.titleAndIcon)
                 .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(.primary.opacity(0.1), in: .capsule)
+                .background(.primary.opacity(0.16), in: .capsule)
+                .overlay { Capsule().strokeBorder(.primary.opacity(0.22), lineWidth: 0.5) }
                 .accessibilityLabel("For \(DictateModelCard.name(target.language))")
             Spacer(minLength: 8)
             GlassChoice(title: "Models", choices: [(false, "Picks"), (true, "All")], selection: $all)
@@ -105,10 +108,11 @@ struct SpeechModelPickerPanel: View {
                     SpeechModelMark(maker: maker(of: current), size: 22)
                     Text(name(of: current)).fontWeight(.semibold).lineLimit(1)
                     Spacer(minLength: 8)
-                    SpeechModelInUse()
+                    SpeechModelInUse().fixedSize()
                 }
-                .padding(.horizontal, 16).frame(height: 50)
-                .background(.primary.opacity(0.06), in: .rect(cornerRadius: 18))
+                .padding(.horizontal, 16).frame(height: 54)
+                .background(.primary.opacity(0.1), in: .rect(cornerRadius: 18))
+                .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.9), lineWidth: 1.5) }
                 .accessibilityElement(children: .combine)
             }
             HStack(alignment: .top, spacing: 12) {
@@ -166,12 +170,11 @@ private struct SpeechModelList: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 Spacer()
-                Text("Wait").frame(width: SpeechModelRow.wait, alignment: .leading)
-                Text("Accuracy").frame(width: SpeechModelRow.accuracy, alignment: .leading)
+                Text("Wait").frame(width: SpeechModelRow.wait, alignment: .leading).help("How long the text takes once you stop talking")
+                Text("Accuracy").frame(width: SpeechModelRow.accuracy, alignment: .leading).help(SpeechModelHelp.accuracy)
                 Color.clear.frame(width: SpeechModelRow.action, height: 1)
             }
             .font(.caption).secondaryText().padding(.horizontal, 8).padding(.bottom, 4)
-            .accessibilityHidden(true)
             if let openAI {
                 SpeechModelRow.OpenAI(reference: openAI, actions: actions)
                 Divider().padding(.leading, 42)
