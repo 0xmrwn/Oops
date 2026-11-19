@@ -26,6 +26,7 @@ struct SpeechModelPill: View {
         .accessibilityLabel("Speech model")
         .accessibilityValue(spoken)
         .popover(isPresented: $open, arrowEdge: .bottom) { details }
+        .onChange(of: speech.phase == .ready, initial: true) { _, ready in if ready { speech.settle() } }
     }
 
     @ViewBuilder private var mark: some View {

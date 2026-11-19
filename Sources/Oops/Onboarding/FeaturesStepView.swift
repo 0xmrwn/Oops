@@ -92,9 +92,10 @@ private struct FixDemo: View {
 }
 
 /// A voice, then the words it left.
-private struct DictateDemo: View {
+struct DictateDemo: View {
     let spoken: Bool
     let moving: Bool
+    var ink = Color.white
     private static let bars = 22
 
     var body: some View {
@@ -105,7 +106,7 @@ private struct DictateDemo: View {
                     for index in 0..<Self.bars {
                         let height = spoken ? 3 : max(3, Self.level(index, at: time) * size.height)
                         let bar = CGRect(x: Double(index) * size.width / Double(Self.bars), y: (size.height - height) / 2, width: 3, height: height)
-                        context.fill(Path(roundedRect: bar, cornerRadius: 1.5), with: .color(.white))
+                        context.fill(Path(roundedRect: bar, cornerRadius: 1.5), with: .color(ink))
                     }
                 }
             }

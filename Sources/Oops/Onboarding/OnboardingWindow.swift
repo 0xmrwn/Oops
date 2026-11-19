@@ -27,8 +27,11 @@ import SwiftUI
     }
     private var window: NSWindow?
     private var presentation = WelcomePresentation()
+    /// The feature a new-feature card is turning on: the window then runs only that feature's Shortcut and Try it.
+    private var turningOn: OnboardingFeature?
 
-    func show() {
+    func show(turningOn feature: OnboardingFeature? = nil) {
+        if window == nil { turningOn = feature }
         let window = window ?? makeWindow()
         NSApp.enterDock()
         NSApp.activate(ignoringOtherApps: true)
@@ -46,7 +49,7 @@ import SwiftUI
         #endif
         HelloZoom.window = width / HelloDraft.canvas.width
         presentation = WelcomePresentation()
-        let controller = NSHostingController(rootView: OnboardingView(preferences: preferences, presentation: presentation,
+        let controller = NSHostingController(rootView: OnboardingView(preferences: preferences, presentation: presentation, turningOn: turningOn,
                                                                       close: { [weak self] in self?.dismiss() })
             .focusRingsFromKeyboard())
         controller.sizingOptions = []
@@ -89,13 +92,15 @@ import SwiftUI
         UserDefaults.standard.set(true, forKey: Self.finishedKey)
         UserDefaults.standard.removeObject(forKey: Self.resumeKey)
         UserDefaults.standard.removeObject(forKey: FeaturesStep.key)
+        // First run offered every feature this build has: none of them is news later.
+        NewFeatures.markAnnounced(NewFeatures.offered)
     }
 
     /// Closing ends Hello (its sounds included) and releases the window, as Settings does.
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
         presentation.visible = false
-        window = nil
+        window = nil; turningOn = nil
         NSApp.leaveDockUnlessOtherWindows(than: closing)
         DispatchQueue.main.async { [weak self] in
             closing.contentViewController = nil
@@ -117,6 +122,7 @@ private struct OnboardingView: View {
     typealias Step = OnboardingStep
     let close: () -> Void
     let presentation: WelcomePresentation
+    let turningOn: OnboardingFeature?
     /// A first run not finished yet: it remembers its step. Show welcome replays from Hello and remembers nothing.
     private let resumable: Bool
     /// The step an unfinished onboarding left off at, which it reopens at instead of Hello.
@@ -143,9 +149,9 @@ private struct OnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
 
-    init(preferences: Preferences?, presentation: WelcomePresentation, close: @escaping () -> Void) {
-        self.presentation = presentation
-        _features = State(initialValue: FeaturesStep(saves: preferences != nil))
+    init(preferences: Preferences?, presentation: WelcomePresentation, turningOn: OnboardingFeature?, close: @escaping () -> Void) {
+        self.presentation = presentation; self.turningOn = turningOn
+        _features = State(initialValue: FeaturesStep(saves: preferences != nil, only: turningOn))
         let speech = OnboardingSpeechModel(providers: preferences?.providers)
         _speech = State(initialValue: speech)
         _providers = State(initialValue: ProviderStep(preferences: preferences))
@@ -159,16 +165,17 @@ private struct OnboardingView: View {
         _tryIt = State(initialValue: TryItStep(preferences: preferences, shortcuts: shortcut))
         _home = State(initialValue: HomeStep(saves: preferences != nil))
         self.close = close
-        resumable = preferences != nil && !OnboardingWindow.finished
+        resumable = preferences != nil && !OnboardingWindow.finished && turningOn == nil
         resume = resumable ? UserDefaults.standard.string(forKey: OnboardingWindow.resumeKey).flatMap(Step.init(rawValue:)) : nil
     }
 
     /// The steps after Hello, which the dots count: the ones the chosen features need.
-    private var setup: [Step] { Step.setup(for: features.chosen, choice: DebugFlags.dictation) }
+    private var setup: [Step] { turningOn == nil ? Step.setup(for: features.chosen, choice: DebugFlags.dictation) : [.shortcut, .tryIt] }
 
     /// Whether the steps cover `feature`: all of today's flow is Fix's, and the choice decides once it is asked.
     private func asksFor(_ feature: OnboardingFeature) -> Bool {
-        setup.contains(.features) ? features.chosen.contains(feature) : feature == .fix
+        if let turningOn { return feature == turningOn }
+        return setup.contains(.features) ? features.chosen.contains(feature) : feature == .fix
     }
 
     /// Fix's try is done: its reply is sent, and Léa's next question waits for a spoken answer.
@@ -180,7 +187,8 @@ private struct OnboardingView: View {
     }
 
     private func advance() {
-        guard let index = setup.firstIndex(of: step), index + 1 < setup.count else { return }
+        // The short run a new-feature card opens ends with its last step.
+        guard let index = setup.firstIndex(of: step), index + 1 < setup.count else { return turningOn == nil ? () : close() }
         withAnimation(.easeInOut(duration: 0.45)) { step = setup[index + 1] }
     }
 
@@ -232,14 +240,14 @@ private struct OnboardingView: View {
                 .keyboardShortcut(.cancelAction).focusable(false).opacity(0).accessibilityHidden(true)
         }
         .overlay(alignment: .topTrailing) {
-            if speech.started, step != .hello, step != .home, features.chosen.contains(.dictate) {
+            if speech.started, !speech.dismissed, step != .hello, step != .home, features.chosen.contains(.dictate) {
                 SpeechModelPill(speech: speech, useOpenAIKey: useOpenAIKey)
                     .padding(.top, 16).padding(.trailing, 20)
                     .transition(.scale(scale: 0.7, anchor: .trailing).combined(with: .opacity))
                     .environment(\.colorScheme, .dark)
             }
         }
-        .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: speech.started)
+        .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.3), value: speech.started && !speech.dismissed)
         .overlayPreferenceValue(OnboardingDropKey.self) { anchors in
             GeometryReader { proxy in
                 // Try it has the real drop, over its composer.
@@ -249,6 +257,11 @@ private struct OnboardingView: View {
         }
         .onAppear {
             OnboardingWindow.shared.tryIt = tryIt
+            if turningOn == .dictate {
+                director.skip(); step = .shortcut; dropAtStep = true
+                speech.start()
+                return
+            }
             #if DEBUG
             if DebugFlags.setupFirst { director.skip(); DispatchQueue.main.asyncAfter(deadline: .now() + 1) { begin() }; return }
             if let name = DebugFlags.onboardingStep, let target = Step(rawValue: name) {
@@ -343,29 +356,4 @@ private struct OnboardingView: View {
             .position(x: rect.midX, y: rect.midY)
             .accessibilityHidden(true)
     }
-}
-
-/// Where the setup steps are: a dot each along the bottom, the current one a wider pill.
-struct OnboardingProgress: View {
-    let steps: Int
-    let current: Int
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
-
-    var body: some View {
-        HStack(spacing: 7) {
-            ForEach(0..<steps, id: \.self) { index in
-                Capsule().fill(.white.opacity(index == current ? 0.9 : index < current ? 0.5 : 0.25))
-                    .frame(width: index == current ? 20 : 7, height: 7)
-            }
-        }
-        .shadow(color: .black.opacity(0.25), radius: 3)
-        .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.2), value: current)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(current + 1) of \(steps)")
-    }
-}
-
-extension EnvironmentValues {
-    @Entry var onboardingEffectsVisible = true
 }

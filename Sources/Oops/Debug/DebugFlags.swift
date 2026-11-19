@@ -132,6 +132,8 @@ enum DebugFlags {
     static var onboardingStep: String? { string("OnboardingStep") }
     /// `-OnboardingSpeech 0.42|verifying|paused|failed|ready`: first run's speech model pill sits in that state, with no download.
     static var onboardingSpeech: String? { string("OnboardingSpeech") }
+    /// `--hello-only -NewFeatureCard dictate`: the card someone who updated sees, in a run that saves nothing.
+    static var newFeatureCard: String? { string("NewFeatureCard") }
     /// `-OnboardingFindings fresh|claude-signed-out|chatgpt-in|claude-in|both-in|local-server`: the Provider
     /// step sees that Mac whatever this one has: nothing set up, Claude Code installed but signed out, either or
     /// both signed in, or LM Studio running and Ollama wanting a key beside a signed-out Claude Code.
