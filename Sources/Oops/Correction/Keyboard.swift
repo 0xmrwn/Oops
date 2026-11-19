@@ -118,6 +118,8 @@ struct Shortcut: Codable, Equatable {
     static let shared = ShortcutSettings()
 
     private(set) var custom: [Action: Shortcut] = [:]
+    /// Actions switched off although they have a default: Fix, when first run was told Oops is for dictation only.
+    private(set) var off: Set<Action> = []
     /// The action whose chord is down, as the hotkeys report it: a registered chord's key never
     /// reaches the app as a keyDown, and Try it lights it from here.
     var down: Action?
@@ -132,10 +134,11 @@ struct Shortcut: Codable, Equatable {
             if let data = UserDefaults.standard.data(forKey: key(action)), let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) {
                 custom[action] = shortcut
             }
+            if UserDefaults.standard.bool(forKey: key(action) + ".off") { off.insert(action) }
         }
     }
 
-    func shortcut(_ action: Action) -> Shortcut? { custom[action] ?? defaultShortcut(action) }
+    func shortcut(_ action: Action) -> Shortcut? { off.contains(action) ? nil : custom[action] ?? defaultShortcut(action) }
     func defaultShortcut(_ action: Action) -> Shortcut? { Self.defaultShortcut(action, w: KeyboardLayout.keyCode(for: "w")) }
     /// ⌃⌘W to fix, a chord most people can press and that apps leave free (D8), when the layout has a W
     /// (`w`, its key code). Dictate has none.
@@ -149,12 +152,12 @@ struct Shortcut: Codable, Equatable {
         // Paste last dictation and Dictate and clean up go off with Dictate, as Paste last dictation's menu item
         // does: only a feature's own shortcut stands without it.
         let dictation = DebugFlags.dictation && (action.isSwitch || shortcut(.dictate) != nil)
-        return Self.registration(action, shortcut: shortcut(action), dictation: dictation)
+        return Self.registration(action, shortcut: shortcut(action), dictation: dictation, off: off.contains(action))
     }
     /// Dictate's shortcuts only while dictation is switched on. An action with no shortcut is off, which is no
-    /// failure; only Fix, whose default is missing from this layout, has something to report.
-    static func registration(_ action: Action, shortcut: Shortcut?, dictation: Bool) -> Registration {
-        if action != .correct, !dictation { return .off }
+    /// failure; only Fix, whose default is missing from this layout and which wasn't switched `off`, has something to report.
+    static func registration(_ action: Action, shortcut: Shortcut?, dictation: Bool, off: Bool = false) -> Registration {
+        if off || (action != .correct && !dictation) { return .off }
         if let shortcut { return .chord(shortcut) }
         return action == .correct ? .noDefault : .off
     }
@@ -177,14 +180,23 @@ struct Shortcut: Codable, Equatable {
                 throw CorrectionError.message("\(chosen.label) is already in use by \(other.title). Choose another shortcut.")
             }
         }
-        let previous = custom
+        let previous = (custom, off)
         custom[action] = shortcut
+        off.remove(action)
         try? hotkeys?.register()
         if hotkeys?.failed.contains(action) == true {
             let message = self.shortcut(action).map(HyperShortcuts.taken) ?? "That shortcut can’t be used."
-            custom = previous; try? hotkeys?.register()
+            (custom, off) = previous; try? hotkeys?.register()
             throw CorrectionError.message(message)
         }
+        persist()
+    }
+
+    /// Switches a feature off by taking its shortcut away, default included. Setting one again switches it back on.
+    func turnOff(_ action: Action) {
+        custom[action] = nil
+        if defaultShortcut(action) != nil { off.insert(action) }
+        try? hotkeys?.register()
         persist()
     }
 
@@ -197,6 +209,8 @@ struct Shortcut: Codable, Equatable {
             if let shortcut = custom[action], let data = try? JSONEncoder().encode(shortcut) {
                 UserDefaults.standard.set(data, forKey: key(action))
             } else { UserDefaults.standard.removeObject(forKey: key(action)) }
+            if off.contains(action) { UserDefaults.standard.set(true, forKey: key(action) + ".off") }
+            else { UserDefaults.standard.removeObject(forKey: key(action) + ".off") }
         }
     }
     private func key(_ action: Action) -> String { "Shortcut." + action.rawValue }
