@@ -90,7 +90,7 @@ struct TryItStepView: View {
 
 /// The shortcut's keys, small, breathing while they wait and lit and sunk the moment each goes down;
 /// while recording, the modifiers held so far.
-private struct TryItKeys: View {
+struct TryItKeys: View {
     let caps: [ShortcutStep.Cap]
     let spoken: String
     let pulsing: Bool
@@ -142,12 +142,14 @@ private struct TryItKeys: View {
 }
 
 /// Hello's chat app (the first scene's close-up): Léa's thread, and the reply waiting in its composer.
-private struct TryItChat: View {
+struct TryItChat: View {
     let step: TryItStep
+    /// The spoken beat, once Fix's is done: its thread, and its composer in place of the reply's.
+    var dictate: DictateTryStep?
     private let blue = Color(red: 0.04, green: 0.52, blue: 1)
 
     var body: some View {
-        let conversation = step.conversation
+        let conversation = dictate?.conversation ?? step.conversation
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
                 TrafficLights().padding(.init(top: 13, leading: 8, bottom: 10, trailing: 0))
@@ -192,7 +194,9 @@ private struct TryItChat: View {
     /// Live, the real text view the pipeline corrects; replaying (and offscreen), the reply as text,
     /// its fixed words flashed as the drop flashes them in other apps.
     @ViewBuilder private var composer: some View {
-        if step.isLive, DebugFlags.setupSnapshots == nil {
+        if let dictate {
+            DictateTryComposer(step: dictate)
+        } else if step.isLive, DebugFlags.setupSnapshots == nil {
             TryItEditor(model: step.fixture).frame(height: 78)
         } else {
             Text(flashed).font(.system(size: 14)).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
@@ -243,7 +247,7 @@ private struct TryItChat: View {
 
 /// Settings' Try editor (a real NSTextView), dressed as a chat composer: the pipeline captures and
 /// replaces it through Accessibility exactly as it does another app's, and flashes the fixed words.
-private struct TryItEditor: NSViewRepresentable {
+struct TryItEditor: NSViewRepresentable {
     let model: TestEditorModel
 
     func makeCoordinator() -> DraftEditor.Coordinator { DraftEditor.Coordinator(model: model) }

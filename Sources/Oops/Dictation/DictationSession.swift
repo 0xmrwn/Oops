@@ -46,7 +46,7 @@ import OSLog
 
     private(set) var activation = DictationActivation()
     /// Held from a start until its outcome shows or the drop leaves.
-    var holdsDrop = false
+    var holdsDrop = false { didSet { if holdsDrop != oldValue { onBusy?(holdsDrop) } } }
     /// Counts the drop's turns (a recording, a cleanup), so work that ends late knows a newer one has the drop.
     var turn = 0
     let recorder: DictationRecorder?
@@ -89,6 +89,10 @@ import OSLog
     /// The most recent transcript, written or not, held in memory only: Paste last dictation writes it again,
     /// and the kept drop copies it.
     var lastTranscript: String?
+    /// Told each dictation written into a field, with the seconds from its release: first run's Try it shows them.
+    var onInserted: ((String, Double) -> Void)?
+    /// Told when a dictation takes the drop and when it lets go: Try it says it is listening in between.
+    var onBusy: ((Bool) -> Void)?
     private let escape: @MainActor ([UInt32]) -> Void
     private let shortcutModifiers: @MainActor (_ cleanUp: Bool) -> UInt32?
     let copy: @MainActor (String) -> Void

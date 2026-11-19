@@ -52,6 +52,8 @@ import SwiftUI
     }
 
     var conversation: Conversation { isLive ? Self.live : Self.replay }
+    /// The reply as it stands, for the thread once it is sent.
+    var sentText: String { isLive ? fixture.editor?.text ?? Self.live.draft : replayText }
     var isDone: Bool {
         switch phase { case .fixed, .restored, .clear: true; default: false }
     }

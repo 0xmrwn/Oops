@@ -59,6 +59,7 @@ extension DictationSession {
         let outcome = await insert(polished)
         // A cancelled insert leaves the last transcript alone, as Hex's cancelled jobs do.
         if outcome != .refused(.cancelled) { lastTranscript = polished }
+        if outcome == .inserted { onInserted?(polished, Double(DebugLog.milliseconds(since: began)) / 1000) }
         // Clean up's button replaces the text later, so only a field that read the text back offers it.
         if outcome == .inserted, plan.mode == .button { return .offer(polished) }
         return Self.ending(outcome)
