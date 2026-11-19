@@ -40,10 +40,13 @@ import SwiftUI
         // Under the window, over the wallpaper: the thread it answers stays in view, and its shelf opens downward.
         voice.pageDark = true
         voiceCapsule.alignment = .top
+        // The window's first frame is drawn before anything plays: it must be the empty stage, not the desktop.
+        reset()
     }
 
     func play() {
         task?.cancel()
+        reset()
         prepareSounds()
         task = Task { [weak self] in
             do { try await self?.run() } catch {}
@@ -67,6 +70,14 @@ import SwiftUI
         ([typed] + waiting).forEach { $0.drop.presented = false; $0.corrected = true; $0.typed = nil; $0.shown = true }
         seedShown = false; windowShown = true; zoomed = false
         showFinale(fade: 0.5)
+        finaleReady = true
+    }
+
+    /// Onboarding opens past Hello, on its finale or a setup step: the desktop is never drawn, not even to fade.
+    func settle() {
+        task?.cancel()
+        seedShown = false; zoomed = false
+        stage = .finale; desktopDismissed = true
         finaleReady = true
     }
 

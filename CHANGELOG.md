@@ -7,6 +7,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - Settings has a new layout. General opens with your shortcut and model at a glance, Fix has a tab of its own, and what was in About is now at the bottom of General. A waiting update shows as a button in the top-right corner.
 - In Settings → General, checking for updates no longer makes the row jump, and a new version slides in instead of appearing abruptly.
 - A fix no longer pauses for a second when another app has left a modifier key marked as held.
+- The welcome window no longer flashes its desktop of app windows, or a black frame, as it opens.
 
 ## 0.1.4
 
