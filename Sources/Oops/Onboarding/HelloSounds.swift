@@ -89,3 +89,11 @@ import Foundation
         return "\(name)-\(next)"
     }
 }
+
+/// The level Hello's dictation drop follows: syllables under a phrase's rise and fall, since no voice is played.
+enum HelloVoice {
+    static func level(at time: Double) -> Float {
+        let syllables = 0.5 + 0.5 * sin(time * 15.5), words = 0.55 + 0.45 * sin(time * 5.3 + 1.1)
+        return Float(min(1, 0.12 + 0.6 * syllables * words + 0.12 * sin(time * 31)))
+    }
+}

@@ -110,8 +110,8 @@ private struct DictateDemo: View {
                 }
             }
             .frame(width: 120, height: 30)
-            // Hello's draft again, as speech would have left it.
-            if spoken { Text("on my way").font(.system(size: 15, weight: .medium)).transition(.opacity) }
+            // Hello's spoken reply, a real transcript.
+            if spoken { Text(verbatim: HelloDraft.spoken).lineLimit(1).minimumScaleFactor(0.75).font(.system(size: 15, weight: .medium)).transition(.opacity) }
         }
     }
 

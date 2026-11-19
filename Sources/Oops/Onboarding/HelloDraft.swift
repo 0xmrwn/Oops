@@ -28,6 +28,12 @@ extension HelloDraft {
                                   after: "on my way, running 5 min late sorry, save me a seat",
                                   frame: CGRect(x: 380, y: 240, width: 440, height: 270))
 
+    /// The spoken beat, once that draft is sent: Léa's next message, and the reply dictated to it. `spoken` is what
+    /// the speech engine returned (SenseVoice Small) for a clip of that sentence in macOS's Samantha voice, never
+    /// text written by hand: transcribe the clip again after an engine change and paste the output back.
+    static let question = "ok!! want anything?"
+    static let spoken = "A large popcorn and a coke, please."
+
     /// Unsent drafts waiting in other apps, clockwise from the top left: the wave and its rising notes
     /// travel round the screen.
     static let waiting: [HelloDraft] = [
