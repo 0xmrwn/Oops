@@ -6,8 +6,7 @@ import SwiftUI
 struct FeaturesStepView: View {
     let step: FeaturesStep
     let next: () -> Void
-    /// The rows' demos turn over together: a sloppy draft and a voice, then the fix and the words.
-    @State private var settled = false
+    @State private var previews = FeaturePreviews()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.onboardingEffectsVisible) private var visible
 
@@ -19,14 +18,8 @@ struct FeaturesStepView: View {
             }
         }
         .animation(.spring(duration: 0.5, bounce: 0.3), value: step.chosen.isEmpty)
-        .task(id: moving) {
-            // Still, the rows rest on what each feature leaves behind.
-            guard moving else { settled = true; return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(settled ? 2.4 : 1.6))
-                withAnimation(.easeInOut(duration: 0.3)) { settled.toggle() }
-            }
-        }
+        // Still, the rows rest on what each feature leaves behind.
+        .task(id: moving) { if moving { await previews.play() } }
     }
 
     private var column: some View {
@@ -46,24 +39,26 @@ struct FeaturesStepView: View {
     private func row(_ feature: OnboardingFeature) -> some View {
         let isOn = step.chosen.contains(feature)
         return Toggle(isOn: Binding(get: { isOn }, set: { _ in step.toggle(feature) })) {
-            HStack(spacing: 18) {
-                Text(feature.title).font(.system(size: 21, weight: .semibold)).frame(width: 96, alignment: .leading)
+            HStack(spacing: 16) {
+                // Settings' own symbols, so a tab there is recognised from here.
+                Label(feature.title, systemImage: (feature == .fix ? SettingsTab.fix : .dictate).symbol)
+                    .font(.system(size: 20, weight: .semibold)).labelStyle(FeatureLabel())
+                    .shadow(color: .black.opacity(0.35), radius: 3)
+                    .frame(width: 128, alignment: .leading)
                 Group {
                     switch feature {
-                    case .fix: FixDemo(fixed: settled)
-                    case .dictate: DictateDemo(spoken: settled, moving: visible && !reduceMotion)
+                    case .fix: FixPreview(previews: previews)
+                    case .dictate: DictatePreview(previews: previews)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .opacity(isOn ? 1 : 0.35)
+                .opacity(isOn ? 1 : 0.4)
                 .accessibilityHidden(true)
             }
-            .shadow(color: .black.opacity(0.35), radius: 3)
         }
         // White ink like Home's switch: the accent colour would be the only colour Oops adds to the step.
         .toggleStyle(.switch).controlSize(.large).tint(.white.opacity(0.85))
         .padding(.horizontal, 24)
-        .frame(width: 560, height: 92)
+        .frame(width: 640, height: 84)
         .contentShape(.rect(cornerRadius: 24))
         .onTapGesture { step.toggle(feature) }
         .glassEffect(.clear.tint(.white.opacity(isOn ? 0.12 : 0)), in: .rect(cornerRadius: 24))
@@ -71,55 +66,12 @@ struct FeaturesStepView: View {
     }
 }
 
-/// Hello's own typed draft, sloppy and then fixed with its changed words lit: a real correction.
-private struct FixDemo: View {
-    let fixed: Bool
-
-    var body: some View {
-        Text(text).font(.system(size: 15, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75)
-            .contentTransition(.opacity)
-    }
-
-    private var text: AttributedString {
-        let draft = HelloDraft.typed
-        var text = AttributedString(fixed ? draft.after : draft.before)
-        guard fixed else { return text }
-        for range in draft.diff.afterRanges {
-            if let lit = Range(range, in: text) { text[lit].backgroundColor = .white.opacity(0.28) }
+/// A row's symbol and name: the symbol in a column of its own, so the two names line up.
+private struct FeatureLabel: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 10) {
+            configuration.icon.font(.system(size: 18, weight: .semibold)).frame(width: 26)
+            configuration.title
         }
-        return text
-    }
-}
-
-/// A voice, then the words it left.
-struct DictateDemo: View {
-    let spoken: Bool
-    let moving: Bool
-    var ink = Color.white
-    private static let bars = 22
-
-    var body: some View {
-        HStack(spacing: 14) {
-            TimelineView(.animation(paused: !moving || spoken)) { timeline in
-                Canvas { context, size in
-                    let time = timeline.date.timeIntervalSinceReferenceDate
-                    for index in 0..<Self.bars {
-                        let height = spoken ? 3 : max(3, Self.level(index, at: time) * size.height)
-                        let bar = CGRect(x: Double(index) * size.width / Double(Self.bars), y: (size.height - height) / 2, width: 3, height: height)
-                        context.fill(Path(roundedRect: bar, cornerRadius: 1.5), with: .color(ink))
-                    }
-                }
-            }
-            .frame(width: 120, height: 30)
-            // Hello's spoken reply, a real transcript.
-            if spoken { Text(verbatim: HelloDraft.spoken).lineLimit(1).minimumScaleFactor(0.75).font(.system(size: 15, weight: .medium)).transition(.opacity) }
-        }
-    }
-
-    /// Three sines under an arch: enough to read as a voice at this size.
-    private static func level(_ index: Int, at time: Double) -> Double {
-        let x = Double(index)
-        let wave = sin(time * 7.5 + x * 0.7) * 0.5 + sin(time * 13 + x * 1.9) * 0.3 + sin(time * 4.6 - x * 0.33) * 0.2
-        return sin(.pi * (x + 0.5) / Double(bars)) * (0.5 + 0.5 * wave)
     }
 }

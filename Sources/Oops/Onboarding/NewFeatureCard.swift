@@ -67,12 +67,14 @@ struct NewFeatureCardView: View {
     let feature: OnboardingFeature
     let done: (_ turnOn: Bool) -> Void
     @State private var shown = false
+    @State private var voice = FeaturePreviews()
+    @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                DictateDemo(spoken: false, moving: !reduceMotion, ink: .primary).frame(width: 120, height: 30).accessibilityHidden(true)
+                VoicePreview(model: voice.voice, dark: scheme == .dark, scale: 0.7).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("New in Oops").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                     Text(feature.title).font(.system(size: 17, weight: .semibold))
@@ -91,6 +93,7 @@ struct NewFeatureCardView: View {
         .opacity(shown ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         .padding(.top, 8).padding(.trailing, 16)
+        .task { if !reduceMotion { await voice.listen() } }
         .onAppear { withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.5, bounce: 0.3).delay(0.3)) { shown = true } }
         // The panel never becomes key, and its buttons must not look switched off for it.
         .environment(\.controlActiveState, .key)
