@@ -96,6 +96,7 @@ struct SettingsView: View {
         }
         .frame(width: 620)
         .frame(maxHeight: .infinity, alignment: .top)
+        .overlay { SpeechModelPickerOverlay(picker: .shared, store: preferences.providers) }
         .background { if style.opaque { Color(nsColor: .windowBackgroundColor) } }
         // Measure and lay out the whole window, title bar included, so the fit is exact.
         .ignoresSafeArea()

@@ -7,8 +7,6 @@ import OopsCore
 struct ProvidersPage: View {
     let store: ProviderStore
     let preferences: Preferences
-    /// The models On this Mac lists; the app's own unless a snapshot passes another.
-    var local: LocalModels?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -37,7 +35,6 @@ struct ProvidersPage: View {
             }
             .padding(.vertical, -6)
             .settingsSurface()
-            if DebugFlags.dictation { LocalModelsCard(store: store, local: local ?? .shared) }
         }
     }
 

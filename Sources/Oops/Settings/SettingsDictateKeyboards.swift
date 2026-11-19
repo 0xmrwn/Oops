@@ -29,11 +29,13 @@ struct DictateKeyboardsCard: View {
     }
 }
 
-/// One keyboard: Don't switch, or an installed model and, when it has a choice, the language.
+/// One keyboard: Don't switch, or an installed model and, when it has a choice, the language. More models opens
+/// the picker for the keyboard's language.
 private struct KeyboardMappingRow: View {
     let source: KeyboardInputSource
     let local: LocalModels
     let keyboards: KeyboardModelDriver
+    private static let more = "more"
 
     var body: some View {
         let choice = keyboards.mapping(source.id)
@@ -48,16 +50,27 @@ private struct KeyboardMappingRow: View {
                           }), placeholder: DictateModelCard.name(choice.language))
             }
             // A mapped model deleted since shows as Not installed until it is cleared or replaced.
-            GlassMenu(title: "\(source.name) model", choices: [("", "Don’t switch")] + local.installed.map { ($0.id, $0.name) },
+            GlassMenu(title: "\(source.name) model", choices: [("", "Don’t switch")] + local.installed.map { ($0.id, $0.name) } + [(Self.more, "More models…")],
                       selection: Binding(get: { choice?.modelID ?? "" }, set: map), placeholder: "Not installed")
         }
         .padding(.vertical, 6)
     }
 
     private func map(_ id: String) {
+        guard id != Self.more else { return pick() }
         guard let model = SpeechModelCatalog.model(id: id) else { return keyboards.setMapping(nil, for: source.id) }
         guard keyboards.mapping(source.id)?.modelID != id else { return }
         keyboards.setMapping(KeyboardModelChoice(modelID: id, language: source.language(for: model, fallback: model.automaticLanguage)),
                              for: source.id)
+    }
+
+    private func pick() {
+        let language = source.languages.lazy
+            .map { $0.split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init) ?? $0 }
+            .first { code in SpeechLanguage.listed.contains { $0.code == code } } ?? "en"
+        SpeechModelPicker.shared.target = SpeechModelPickerTarget(
+            language: language, offersOpenAI: false,
+            current: { keyboards.mapping(source.id).map { .local($0.modelID) } },
+            choose: { if case .local(let id) = $0 { map(id) } })
     }
 }

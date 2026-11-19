@@ -56,10 +56,10 @@ final class ModelCatalogTests: XCTestCase {
                 + "85ac09ea12fc4b1112fa76810059364bc6adc9de/parakeet-tdt-0.6b-v3-Q8_0.gguf")
     }
 
-    func testCatalogHoldsEverySeventeenEntryOfHexInItsOrder() {
+    func testCatalogHoldsItsSixteenEntriesInHexsOrder() {
         XCTAssertEqual(SpeechModelCatalog.models.map(\.id), [
             "parakeet_unified_en", "parakeet_v2", "parakeet_v3", "orukeet", "whisper_large_v3_turbo", "qwen3_asr06_b",
-            "qwencleo_asr_1_7b", "ivrit_whisper_large_v3_turbo", "sense_voice_small", "cohere_transcribe",
+            "qwencleo_asr_1_7b", "sense_voice_small", "cohere_transcribe",
             "underdog_bark_3_pro", "underdog_bark_3_clean", "parakeet_ultra", "nemotron_3_5_asr", "gigaam_v3",
             "nb_whisper_medium", "granite_speech_5"
         ])
@@ -153,7 +153,6 @@ final class ModelCatalogTests: XCTestCase {
             ("parakeet_v3", "Parakeet v3"), ("orukeet", "Orukeet"),
             ("whisper_large_v3_turbo", "Whisper large-v3-turbo"), ("qwen3_asr06_b", "Qwen3-ASR 0.6B"),
             ("qwencleo_asr_1_7b", "QwenCleo-ASR 1.7B"),
-            ("ivrit_whisper_large_v3_turbo", "ivrit.ai Whisper large-v3-turbo"),
             ("sense_voice_small", "SenseVoice Small"), ("cohere_transcribe", "Cohere Transcribe"),
             ("underdog_bark_3_pro", "Underdog Bark 3.0 Pro"), ("underdog_bark_3_clean", "Underdog Bark 3.0 Clean"),
             ("parakeet_ultra", "Parakeet Ultra"), ("nemotron_3_5_asr", "Nemotron 3.5 ASR"),
@@ -173,8 +172,7 @@ final class ModelCatalogTests: XCTestCase {
             SpeechModelCatalog.models.filter { $0.vocabularyUse == use }.map(\.id)
         }
         XCTAssertEqual(by(.prompt), [
-            "whisper_large_v3_turbo", "qwen3_asr06_b", "qwencleo_asr_1_7b", "ivrit_whisper_large_v3_turbo",
-            "nb_whisper_medium"
+            "whisper_large_v3_turbo", "qwen3_asr06_b", "qwencleo_asr_1_7b", "nb_whisper_medium"
         ])
         XCTAssertEqual(by(.bias), [
             "parakeet_unified_en", "parakeet_v2", "parakeet_v3", "orukeet", "underdog_bark_3_pro",

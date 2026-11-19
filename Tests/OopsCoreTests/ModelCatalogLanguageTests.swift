@@ -34,15 +34,6 @@ final class ModelCatalogLanguageTests: XCTestCase {
         SpeechModelSelection(modelID: model, language: language)
     }
 
-    func testHebrewRecommendsTheIvritFineTuneWithItsHint() throws {
-        XCTAssertEqual(routing("he"), [Route("ivrit_whisper_large_v3_turbo", .recommended), Route(whisper, .vocabulary)])
-        let ivrit = try model("ivrit_whisper_large_v3_turbo")
-        XCTAssertEqual(ivrit.languageChoices, ["he"])
-        XCTAssertEqual(ivrit.runtimeLanguageHint(for: "he"), "he")
-        XCTAssertFalse(ivrit.supports(language: SpeechLanguage.auto))
-        XCTAssertEqual(SpeechLanguage.name(of: "he"), "Hebrew")
-    }
-
     func testAnImportOffersEveryLanguageItDeclaresByName() throws {
         // Hex builds the import from Whisper's definition with its own languages; so does this.
         let base = try model(whisper)

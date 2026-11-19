@@ -9,7 +9,7 @@ import Foundation
 public enum SpeechModelCatalog {
     public static let models: [SpeechModel] = [
         parakeetUnifiedEnglish, parakeetV2, parakeetV3, orukeet, whisperLargeV3Turbo, qwen3ASR06B,
-        qwenCleoASR17B, ivritWhisperLargeV3Turbo, senseVoiceSmall, cohereTranscribe, underdogBark3Pro,
+        qwenCleoASR17B, senseVoiceSmall, cohereTranscribe, underdogBark3Pro,
         underdogBark3Clean, parakeetUltra, nemotron35ASR, gigaAMV3, nbWhisperMedium, graniteSpeech5
     ]
 

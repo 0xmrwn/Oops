@@ -28,9 +28,10 @@ import SwiftUI
         keyboards.setMapping(KeyboardModelChoice(modelID: "nemotron_3_5_asr", language: "fr"), for: sources[1].id)
 
         let claude = store.provider("claude-code")
+        let target = SpeechModelPickerTarget(language: "en", current: { .local("whisper_large_v3_turbo") }, choose: { _ in })
         let pages: [(String, () -> AnyView)] = [
-            ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences, local: local)) }),
-            ("providers-all", { AnyView(LocalModelsCard(store: store, local: local, showingAll: true)) }),
+            ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences)) }),
+            ("picker-picks", { AnyView(SpeechModelPickerPanel(target: target, store: store, local: local) {}) }),
             ("provider-models", { AnyView(claude.map { ProviderDetail(provider: $0, store: store, preferences: preferences) }) }),
             ("dictate-whisper", {
                 store.chooseDictateModel(.local("whisper_large_v3_turbo")); store.chooseDictateLanguage("fr")
