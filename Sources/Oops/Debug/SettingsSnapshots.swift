@@ -32,15 +32,15 @@ import SwiftUI
         let target = SpeechModelPickerTarget(id: "snapshot", language: "en", current: { .local("whisper_large_v3_turbo") }, choose: { _ in })
         let pages: [(String, () -> AnyView)] = [
             ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences)) }),
-            ("picker-picks", { AnyView(SpeechModelPickerPanel(target: target, store: store, local: local) {}) }),
+            ("picker-picks", { AnyView(SpeechModelPage(target: target, store: store, local: local) {}) }),
             ("provider-models", { AnyView(claude.map { ProviderDetail(provider: $0, store: store, preferences: preferences) }) }),
             ("dictate-whisper", {
                 store.chooseDictateModel(.local("whisper_large_v3_turbo")); store.chooseDictateLanguage("fr")
-                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources))
+                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources, vocabulary: .constant(false)))
             }),
             ("dictate-parakeet", {
                 store.chooseDictateModel(.local("parakeet_unified_en"))
-                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources))
+                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources, vocabulary: .constant(false)))
             }),
         ]
         // The first renders after launch come out without glass buttons; the second pass overwrites them.

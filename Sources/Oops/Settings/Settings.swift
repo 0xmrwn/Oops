@@ -26,6 +26,8 @@ struct SettingsView: View {
     @State private var generalDetail = GeneralDetail.launchPreview
     /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
     @State private var fixDetail = FixDetail.launchPreview
+    /// Dictate's Vocabulary page; its speech model page is `SpeechModelPicker`'s target.
+    @State private var dictateVocabulary = false
     @State private var scroll = ScrollPosition(edge: .top)
     /// How far the page is scrolled; read only when a switch starts, so scrolling re-evaluates nothing.
     @State private var scrolled = ScrollOffset()
@@ -100,7 +102,6 @@ struct SettingsView: View {
         }
         .frame(width: 620)
         .frame(maxHeight: .infinity, alignment: .top)
-        .overlay { SpeechModelPickerOverlay(picker: .shared, store: preferences.providers) }
         .background { if style.opaque { Color(nsColor: .windowBackgroundColor) } }
         // Measure and lay out the whole window, title bar included, so the fit is exact.
         .ignoresSafeArea()
@@ -114,6 +115,13 @@ struct SettingsView: View {
             if let parts, parts.count == 2 { spare.pointer = CGPoint(x: parts[0], y: parts[1]) }
         }
         .onChange(of: page) { _, page in if page == .providers { providerAppeared() } }
+        // A page drilled into or left opens at its top, as a tab does: left where the last one was scrolled,
+        // it showed an empty card while the scroll view caught up, then settled far down.
+        .onChange(of: drilled) {
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { scroll.scrollTo(edge: .top) }
+        }
         // The menu, `--fixture` and the perf harness open the Try page.
         .onReceive(testEditor.$requested) { requested in
             guard requested else { return }
@@ -154,6 +162,17 @@ struct SettingsView: View {
         }
     }
 
+    /// What the shown tab is drilled into; nil on its first page.
+    private var drilled: AnyHashable? {
+        switch page {
+        case .general: generalDetail
+        case .fix: fixDetail
+        case .dictate: SpeechModelPicker.shared.target?.id ?? (dictateVocabulary ? "vocabulary" : nil)
+        case .providers: preferences.providers.openProvider ?? preferences.providers.draft?.id
+        case .actions: nil
+        }
+    }
+
     /// Try has eyes of its own (its status line), so the window's stay away.
     private var tryShown: Bool { page == .fix && fixDetail == .tryPage }
 
@@ -165,6 +184,7 @@ struct SettingsView: View {
                 withAnimation(SettingsMotion.drill(reduceMotion)) {
                     if page == .general { generalDetail = nil }
                     if page == .fix { fixDetail = nil }
+                    if page == .dictate { closeDictateDetail() }
                     if page == .providers { preferences.providers.closeDetail() }
                 }
                 return
@@ -196,7 +216,13 @@ struct SettingsView: View {
     /// An overview row's jump: the tab's own page, not whatever was drilled into there before.
     private func open(_ tab: SettingsTab) {
         if tab == .fix { fixDetail = nil }
+        if tab == .dictate { closeDictateDetail() }
         pageSelection.wrappedValue = tab
+    }
+
+    private func closeDictateDetail() {
+        dictateVocabulary = false
+        SpeechModelPicker.shared.target = nil
     }
 
     /// The update pill: General's top, where the update's card is.
@@ -262,7 +288,7 @@ struct SettingsView: View {
             GeneralPage(hasAccessibility: hasAccessibility, tabs: tabs, store: preferences.providers, preferences: preferences,
                         detail: $generalDetail, open: open, preview: preview, previewPlacement: previewPlacement)
         case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
-        case .dictate: DictatePage(store: preferences.providers)
+        case .dictate: DictatePage(store: preferences.providers, vocabulary: $dictateVocabulary)
         case .actions: ActionsPage()
         case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
         }

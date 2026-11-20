@@ -9,6 +9,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - With the language on Automatic, dictation now removes filler words in English and French. Saying "question mark", "exclamation mark" or "open paren" and "close paren" writes the symbol, and "ah" is kept as a word.
 - Settings has a new layout. General opens with your shortcut and model at a glance, Fix has a tab of its own, and what was in About is now at the bottom of General. A waiting update shows as a button in the top-right corner.
 - In Settings, switching tabs is smoother: the page you leave no longer jumps aside or shrinks before it fades, the new page slides in from its side, and every page opens at its top instead of slightly scrolled. The scroll bar no longer starts under the fade below the tabs.
+- In Settings, opening a page inside a tab, such as Customize, About or a provider, and going back is cleaner: the page you leave is gone at once instead of its title fading over the next one, and each of these pages opens at its top.
 - In Settings → General, checking for updates no longer makes the row jump, and a new version slides in instead of appearing abruptly.
 - A fix no longer pauses for a second when another app has left a modifier key marked as held.
 - The welcome window no longer flashes its desktop of app windows, or a black frame, as it opens.

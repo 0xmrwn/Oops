@@ -309,6 +309,18 @@ struct PaneSlideTransition: Transition {
     }
 }
 
+extension View {
+    /// A page a tab drills into (`edge` +1) or back to (−1). The page left is gone at once and this one slides
+    /// in whole from its side. Nothing fades: a page's glass shows and hides in one frame whatever its opacity
+    /// animates to, so text that faded stayed behind over the new page's cards for a quarter of a second, and
+    /// arrived well after its own. Its glass is a container of its own, so that it never grows out of the glass
+    /// of the page before it, which it did when that page was left scrolled.
+    func drillPane(edge: CGFloat, reduceMotion: Bool) -> some View {
+        GlassEffectContainer(spacing: 8) { self }
+            .transition(.asymmetric(insertion: reduceMotion ? .identity : .offset(x: edge * 44), removal: .identity))
+    }
+}
+
 // MARK: - Screenshot backdrop (debug only)
 
 /// A vivid wallpaper-like field with a few hard edges, so blur and tint differences are visible.

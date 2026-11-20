@@ -21,7 +21,7 @@ struct FixPage: View {
                     }
                     TryView(model: testEditor)
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .customize:
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "Customize", parent: "Fix", back: { detail = nil }) {
@@ -29,7 +29,7 @@ struct FixPage: View {
                     }
                     CustomizePage()
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .apps:
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "Apps", parent: "Fix", back: { detail = nil }) {
@@ -37,9 +37,9 @@ struct FixPage: View {
                     }
                     AppsList()
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case nil:
-                fix.transition(PaneSlideTransition(edge: -1, reduceMotion: reduceMotion))
+                fix.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
         }
         .animation(SettingsMotion.drill(reduceMotion), value: detail)
