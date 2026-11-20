@@ -90,7 +90,8 @@ extension EditorAccess {
                 // The cleanup replaces the dictated text, not the space that joined it to what came before.
                 let lead = text.hasPrefix(" ") && !original.hasPrefix(" ") ? 1 : 0
                 let location = (CorrectionPolicy.isPlaceholder(before.text, hints: target.placeholders) ? 0 : before.selection.location) + lead
-                lastInsert = InsertedText(element: target.element, pid: target.pid, text: original, field: expected,
+                lastInsert = InsertedText(element: target.element, pid: target.pid, hostPID: target.hostPID, strategy: strategy,
+                                          role: target.role, text: original, field: expected,
                                           range: NSRange(location: location, length: text.utf16.count - lead))
                 return .inserted
             }

@@ -66,7 +66,7 @@ import OSLog
     let cleanup: Cleanup
     /// The current recording's cleanup steps, read at its start.
     var plan = CleanupPlan()
-    private let status: @MainActor (String) -> Void
+    let status: @MainActor (String) -> Void
     private let askMicrophone: @MainActor () async -> Bool
     /// The system's microphone prompt is up, or its answer is on its way to the drop.
     private var asking = false

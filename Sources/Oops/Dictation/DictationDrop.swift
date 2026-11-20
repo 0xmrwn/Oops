@@ -178,7 +178,9 @@ extension DictationDropPosition {
     func claim(busy: @escaping () -> Bool) -> Bool {
         // Room for the shelf of live words, so placement keeps it off the text too; the capsule sits centred on it.
         let size = CGSize(width: DropShelf.width + 28, height: DropShelf.height + 28)
-        return owner.claim(.dictate, busy: busy, size: size, centred: true) { [model, capsule = owner.panel.model] in
+        // A written or kept transcript only offers its button: Fix, pressed meanwhile, takes the drop over.
+        return owner.claim(.dictate, busy: busy, passive: { [model] in [.written, .kept].contains(model.state) }, size: size,
+                           centred: true) { [model, capsule = owner.panel.model] in
             AnyView(DictationDropView(model: model, capsule: capsule))
         }
     }

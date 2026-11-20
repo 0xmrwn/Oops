@@ -18,7 +18,7 @@ import XCTest
                          vocabulary: VocabularyDelivery? = nil, intact: Bool = false, shortcut: String? = nil,
                          replace: @escaping @MainActor (String, String) async -> InsertReplacement = { _, _ in .replaced }) -> DictationSession.Cleanup {
         DictationSession.Cleanup(vocabulary: { vocabulary }, small: { small }, language: { "en" }, mode: { mode },
-                                 backend: { if let model { return model }; throw CorrectionError.message("none") },
+                                 available: { model != nil }, backend: { if let model { return model }; throw CorrectionError.message("none") },
                                  timeout: .milliseconds(200), replace: replace, intact: { _ in intact }, shortcutLabel: { shortcut })
     }
 
@@ -191,6 +191,36 @@ import XCTest
         run.inserts.outcome = .inserted
         try await dictate(run, at: 3_000, cleanUp: true)
         XCTAssertEqual(run.inserts.texts, ["um hello", "Hello."])
+    }
+
+    func testOfferingTheButtonBuildsNoBackendUntilItIsPressed() async throws {
+        var built = 0
+        let model = CleanupStub(.answer("Hello."))
+        var plan = cleanup(.basic, model)
+        plan.backend = { built += 1; return model }
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: plan)
+        try await dictate(run)
+        XCTAssertNotNil(run.drop.action)
+        XCTAssertEqual(built, 0, "offering reads only whether a model is chosen")
+        try XCTUnwrap(run.drop.action).perform()
+        try await run.until { run.drop.states.last == .left }
+        XCTAssertEqual(built, 1)
+    }
+
+    func testTheShortcutWhileFixHoldsTheDropSaysSoAndRecordsNothing() async throws {
+        let model = CleanupStub(.answer("Hello."))
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
+                                          cleanup: cleanup(.basic, model, intact: true))
+        try await dictate(run)
+        run.drop.available = false
+        run.press(3_000, cleanUp: true)
+        try await run.until { !run.status.isEmpty }
+        run.release(3_100)
+        try await run.settle()
+        XCTAssertEqual(run.status, [CorrectionSession.dropTaken])
+        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .written], "nothing cleaned, nothing recorded")
+        let calls = await model.calls
+        XCTAssertTrue(calls.isEmpty)
     }
 
     func testTheSavedChoiceMovesToTheLevelsOnce() throws {

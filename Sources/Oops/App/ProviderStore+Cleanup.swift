@@ -25,6 +25,14 @@ extension ProviderStore {
         catalogs[choice.providerID]?.first { $0.id == choice.modelID }?.name ?? ModelSelection.modelName(choice.modelID)
     }
 
+    /// Whether Clean up has a model to use, known without building its backend, which reads the Keychain.
+    var hasCleanupModel: Bool {
+        #if DEBUG
+        if DebugFlags.stubProvider != nil { return true }
+        #endif
+        return cleanupChoice.flatMap { provider($0.providerID) } != nil
+    }
+
     /// A fresh backend for Clean up's model, at the lightest effort the model accepts: a cleanup is a rewrite, not a problem to think through.
     func cleanupBackend() throws -> any CorrectionBackend {
         #if DEBUG

@@ -9,12 +9,13 @@ struct DropFeature: Hashable, Sendable {
 }
 
 /// The drop and the flash over the draft, which one feature holds at a time. A feature claims them
-/// with the view it shows in the drop, and holds them while it is at work or its drop is up; a claim
-/// by another feature meanwhile is refused, and nothing of the holder's changes.
+/// with the view it shows in the drop, and holds them while it is at work or its drop is up, unless that drop only
+/// offers something with nothing under way; a claim by another feature meanwhile is refused, and nothing of the
+/// holder's changes.
 @MainActor final class DropOwner {
     let panel = CapsulePanel()
     let highlight = HighlightOverlay()
-    private var claimed: (feature: DropFeature, busy: () -> Bool)?
+    private var claimed: (feature: DropFeature, busy: () -> Bool, passive: () -> Bool)?
     /// Whose view the panel holds: kept between claims, so a feature claiming again finds its view as it left it.
     private var shown: DropFeature?
 
@@ -23,18 +24,19 @@ struct DropFeature: Hashable, Sendable {
         panel.onHide = { [weak self] in self?.highlight.clear() }
     }
 
-    /// The feature holding the drop: the last to claim it, while it is at work or its drop is up.
+    /// The feature holding the drop: the last to claim it, while it is at work or its drop is up and not passive.
     var holder: DropFeature? {
-        guard let claimed, panel.isShown || claimed.busy() else { return nil }
+        guard let claimed, claimed.busy() || panel.isShown && !claimed.passive() else { return nil }
         return claimed.feature
     }
 
     /// Gives the drop to `feature`, with `content` in the panel unless its view is already there, in a panel of
     /// `size`, its drop `centred` across it or hugging the placement's corner. False while another feature holds
     /// it: the caller shows nothing. `busy` says whether the feature is still at work, which holds the drop while
-    /// it has yet to show.
-    func claim(_ feature: DropFeature, busy: @escaping () -> Bool, size: CGSize = CapsulePanel.standard, centred: Bool = false,
-               content: () -> AnyView) -> Bool {
+    /// it has yet to show; `passive`, whether its drop only offers something (a result's button), which another
+    /// feature may take over rather than wait out.
+    func claim(_ feature: DropFeature, busy: @escaping () -> Bool, passive: @escaping () -> Bool = { false },
+               size: CGSize = CapsulePanel.standard, centred: Bool = false, content: () -> AnyView) -> Bool {
         if let holder, holder != feature { return false }
         panel.resize(size, centred: centred)
         if shown != feature {
@@ -42,7 +44,7 @@ struct DropFeature: Hashable, Sendable {
             panel.setContent(content())
             shown = feature
         }
-        claimed = (feature, busy)
+        claimed = (feature, busy, passive)
         return true
     }
 }

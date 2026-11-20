@@ -13,7 +13,10 @@ extension DictationSession {
         /// The dictation's language for the filler words: the chosen one, or what Automatic means on the model.
         var language: @MainActor () -> String? = { nil }
         var mode: @MainActor () -> DictationCleanupMode = { .off }
-        /// The cleanup model; throws when none is chosen.
+        /// Whether a cleanup model is chosen, without building its backend (which may read the Keychain): what the
+        /// drop's button needs to be offered.
+        var available: @MainActor () -> Bool = { false }
+        /// The cleanup model; throws when none is chosen. Built only when a cleanup runs.
         var backend: @MainActor () throws -> any CorrectionBackend = { throw CorrectionError.failure(.setup, "Choose a model for Clean up.") }
         var timeout = CleanupPrompt.timeout
         /// Replaces `inserted`, the text the last insert wrote, with `cleaned`, only while the field still reads it.
@@ -61,11 +64,12 @@ extension DictationSession {
     }
 
     /// Whether the drop may offer the model's cleanup of a dictation just written: not one the model already
-    /// cleaned, and only with a model to do it.
-    var offersCleanup: Bool { plan.mode != .ai && (try? cleanup.backend()) != nil }
+    /// cleaned, and only with a model chosen to do it.
+    var offersCleanup: Bool { plan.mode != .ai && cleanup.available() }
 
     /// "Clean up with AI" pressed while no dictation is under way: the model cleans the last dictation's text, while
-    /// the field still reads it with the caret after it, instead of a new dictation. False when it isn't intact.
+    /// the field still reads it with the caret after it, instead of a new dictation. False when it isn't intact;
+    /// true, and the press is spent, when it is, even where Fix holds the drop and the cleanup can't start.
     func cleanLastWritten() async -> Bool {
         guard !holdsDrop, !activation.isRecording, let text = lastWritten, await cleanup.intact(text) else { return false }
         cleanUpWritten(text)
@@ -90,10 +94,15 @@ extension DictationSession {
         drop.show(.written, action: DropAction(symbol: "wand.and.sparkles", label: label) { [weak self] in self?.cleanUpWritten(text) })
     }
 
-    /// The drop's "Clean up with AI", or its shortcut: the model rewrites `text`, which the last dictation wrote, and the rewrite replaces it
-    /// only while the field still reads what dictation wrote; otherwise nothing is replaced and the drop says so.
+    /// The drop's "Clean up with AI", or its shortcut: the model rewrites `text`, which the last dictation wrote, and the
+    /// rewrite replaces it only while the field still reads what dictation wrote; otherwise nothing is replaced and the
+    /// drop says so. Refused where Fix holds the drop, as a recording is.
     func cleanUpWritten(_ text: String) {
-        guard !holdsDrop, drop.claim(busy: { [weak self] in self?.holdsDrop == true }) else { return }
+        guard !holdsDrop else { return }
+        guard drop.claim(busy: { [weak self] in self?.holdsDrop == true }) else {
+            status(CorrectionSession.dropTaken)
+            return Self.log.notice("cleanup button refused=dropHeld")
+        }
         holdsDrop = true
         turn += 1
         let mine = turn
