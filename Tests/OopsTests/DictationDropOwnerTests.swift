@@ -1,6 +1,7 @@
 @testable import Oops
 import CoreGraphics
 import OopsCore
+import SwiftUI
 import Testing
 
 /// The dictation drop in the shared panel: where it is placed, and so where live words at the caret go.
@@ -24,6 +25,30 @@ import Testing
         #expect(drop.claim(busy: { true }))
         drop.show(.recording)
         try await until { located == 2 }
+    }
+
+    @Test func `fix takes over a written or kept drop but never a recording`() async throws {
+        let offer = DropAction(symbol: "wand.and.sparkles", label: "Clean up with AI") {}
+        for state in [DictationDropState.written, .kept] {
+            let owner = DropOwner()
+            defer { owner.panel.hide() }
+            let drop = DictationDropOwner(owner: owner) { nil }
+            var busy = true
+            #expect(drop.claim(busy: { busy }))
+            drop.show(.recording)
+            try await until { owner.panel.isShown }
+            #expect(!fix(owner), "a recording is the dictation's alone")
+            busy = false
+            drop.show(state, action: offer)
+            #expect(owner.holder == nil, "\(state) only offers its button")
+            #expect(fix(owner))
+            #expect(owner.holder == .fix)
+            #expect(!drop.claim(busy: { false }), "Fix's own drop is up now")
+        }
+    }
+
+    private func fix(_ owner: DropOwner) -> Bool {
+        owner.claim(.fix, busy: { false }) { AnyView(EmptyView()) }
     }
 
     private func until(_ condition: () -> Bool) async throws {

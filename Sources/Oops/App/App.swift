@@ -29,6 +29,7 @@ import OopsCore
         // A previous run that crashed mid-correction may have left a Chromium app's switch on.
         session.editor.switches.restoreAll()
         quitOnSIGTERM()
+        DictationCleanupMode.migrate()
         configureMainMenu()
         menuBar = MenuBar(preferences: preferences, session: session, dictation: { [weak self] in self?.dictation },
                           openSettings: { [weak self] in self?.settings.show() }, quit: { [weak self] in self?.quit() })

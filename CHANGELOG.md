@@ -12,6 +12,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - The welcome window no longer flashes its desktop of app windows, or a black frame, as it opens.
 - In setup, the provider list no longer shows API provider alone while Oops looks for ChatGPT and Claude Code: it arrives last, under what was found.
 - In setup, the hint on the Accessibility step now moves the way you drag: Oops rises into the list from below.
+- Dictate's Clean up is now Off, Basic or AI. Basic tidies what you said on your Mac, instantly; AI also has a model rewrite it, and the drop tells you when that didn't work. After a dictation, the drop's Clean up with AI button, or its shortcut, cleans what you just wrote while it's still where Oops wrote it.
 
 ## 0.1.4
 

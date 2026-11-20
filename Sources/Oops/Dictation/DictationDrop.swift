@@ -178,7 +178,9 @@ extension DictationDropPosition {
     func claim(busy: @escaping () -> Bool) -> Bool {
         // Room for the shelf of live words, so placement keeps it off the text too; the capsule sits centred on it.
         let size = CGSize(width: DropShelf.width + 28, height: DropShelf.height + 28)
-        return owner.claim(.dictate, busy: busy, size: size, centred: true) { [model, capsule = owner.panel.model] in
+        // A written or kept transcript only offers its button: Fix, pressed meanwhile, takes the drop over.
+        return owner.claim(.dictate, busy: busy, passive: { [model] in [.written, .kept].contains(model.state) }, size: size,
+                           centred: true) { [model, capsule = owner.panel.model] in
             AnyView(DictationDropView(model: model, capsule: capsule))
         }
     }
@@ -261,10 +263,12 @@ extension DictationDropPosition {
     }
 
     /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves; a
-    /// kept transcript stays as long as Fix's failures, for its button, and the word that it was copied briefly.
+    /// kept transcript, or a written one with a button, stays as long as Fix's failures, for its button, and the word
+    /// that it was copied briefly. The pointer on the drop holds it up.
     private func settle() {
         switch model.state {
-        case .failed, .ready, .written: panel.hide(after: ResultTiming.seconds)
+        case .failed, .ready: panel.hide(after: ResultTiming.seconds)
+        case .written: panel.hide(after: model.action == nil ? ResultTiming.seconds : 8)
         case .kept: panel.hide(after: 8)
         case .copied: panel.hide(after: 0.9)
         case .recording, .transcribing, .cleaningUp: break

@@ -2,14 +2,14 @@ import Foundation
 import NaturalLanguage
 import os
 
-/// When a dictation's transcript is rewritten by a language model.
+/// How much a dictation's transcript is cleaned before it is written.
 public enum DictationCleanupMode: String, CaseIterable, Sendable {
-    /// Nothing runs: the transcript is written as heard (after the small cleanups that are switched on).
+    /// The transcript is written as heard, without even the small cleanups.
     case off
-    /// The transcript is written as heard, and the drop offers to clean it up.
-    case button
-    /// The transcript is cleaned before it is written.
-    case always
+    /// The small cleanups that are switched on, on the Mac.
+    case basic
+    /// The small cleanups, then the cleanup model; the small cleanups' text when the model fails.
+    case ai
 }
 
 /// Dictation's cleanup: its own prompt and model, never Fix's. The transcript goes to the model as delimited data,
@@ -32,8 +32,6 @@ public enum CleanupPrompt {
     /// The system prompt cleanup sends.
     public static var instructions: String { rules + " " + contract }
 
-    /// A caller's fixed deadline; nil, the default, lets `timeout(for:)` scale it with the transcript.
-    public static let timeout: Duration? = nil
     /// How long a cleanup of `transcript` may take before it is written as heard: 5 s plus 3 s per 100 words, up to
     /// 60 s. Measured medians run 2.5 s for 50 words, 7 s for 300 and 14 s for 1,200 (25 s on the slower models), so
     /// a long dictation gets the time its rewrite takes instead of a fixed 15 s.
