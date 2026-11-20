@@ -7,7 +7,6 @@ struct GlassChoice<Value: Hashable>: View {
     let title: String
     let choices: [(value: Value, label: String)]
     @Binding var selection: Value
-    @Namespace private var pill
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var enabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,19 +21,27 @@ struct GlassChoice<Value: Hashable>: View {
                         .foregroundStyle(.primary.opacity(selected ? 1 : 0.68))
                         .padding(.horizontal, 12).frame(minHeight: 26)
                         .contentShape(Capsule())
-                        .matchedGeometryEffect(id: choice.value, in: pill)
                 }
                 .buttonStyle(.plain)
+                .anchorPreference(key: ChoiceBounds<Value>.self, value: .bounds) { [choice.value: $0] }
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
         // One pill that follows the chosen label, animated on the value itself: a selection kept in UserDefaults
-        // reaches the view outside any `withAnimation`, and a pill per label would only cross-fade.
-        .background {
-            Capsule().fill(.clear)
-                .glassEffect(.regular.interactive(enabled), in: .capsule)
-                .glassEdge(Capsule(), outside: true)
-                .matchedGeometryEffect(id: selection, in: pill, isSource: false)
+        // reaches the view outside any `withAnimation`, and a pill per label would only cross-fade. It is placed
+        // from the labels' own bounds, which are known in its first frame: matched to a label's geometry it was
+        // a frame late, and shrank from the whole track to its label when its page slid in.
+        .backgroundPreferenceValue(ChoiceBounds<Value>.self) { bounds in
+            GeometryReader { proxy in
+                if let anchor = bounds[selection] {
+                    let frame = proxy[anchor]
+                    Capsule().fill(.clear)
+                        .glassEffect(.regular.interactive(enabled), in: .capsule)
+                        .glassEdge(Capsule(), outside: true)
+                        .frame(width: frame.width, height: frame.height)
+                        .offset(x: frame.minX, y: frame.minY)
+                }
+            }
         }
         .animation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(duration: 0.35, bounce: 0.15), value: selection)
         .padding(3)
@@ -47,6 +54,14 @@ struct GlassChoice<Value: Hashable>: View {
         .fixedSize()
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
+    }
+}
+
+/// Where each of a `GlassChoice`'s labels lies, for its pill.
+private struct ChoiceBounds<Value: Hashable>: PreferenceKey {
+    static var defaultValue: [Value: Anchor<CGRect>] { [:] }
+    static func reduce(value: inout [Value: Anchor<CGRect>], nextValue: () -> [Value: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 

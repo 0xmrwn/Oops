@@ -42,7 +42,6 @@ struct SpeechModelPage: View {
     @State private var shown = Shown.picks
 
     private enum Shown: Hashable { case picks, all, online }
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let picks = SpeechModelPicks(language: target.language, models: local.models)
@@ -64,18 +63,19 @@ struct SpeechModelPage: View {
                     .glassEffect(.identity, in: .capsule)
             }
             Group {
+                // Each view replaces the last at once: a fade left the old one dissolving on the glass for a
+                // quarter of a second before the new one appeared.
                 switch shown {
                 // Rows carry an inset of their own, for the highlight of the one in use.
-                case .all: SpeechModelList(picks: picks, actions: actions).padding(.horizontal, -8).transition(.opacity)
+                case .all: SpeechModelList(picks: picks, actions: actions).padding(.horizontal, -8)
                 // The key is entered under Providers; this page is still here on the way back.
                 case .online: SpeechModelOnline(reference: store.openAIDictateReference, actions: actions, addKey: store.setUpOpenAITranscription)
-                    .padding(.horizontal, -8).transition(.opacity)
-                case .picks: cards(picks).transition(.opacity)
+                    .padding(.horizontal, -8)
+                case .picks: cards(picks)
                 }
             }
             .settingsSurface()
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: shown)
         .task { await local.refresh() }
     }
 

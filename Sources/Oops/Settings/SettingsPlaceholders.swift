@@ -20,7 +20,7 @@ struct DictatePage: View {
         ZStack(alignment: .top) {
             if let target = picker.target {
                 SpeechModelPage(target: target, store: store, local: local) { picker.target = nil }
-                    .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                    .drillPane(edge: 1, reduceMotion: reduceMotion)
             } else if vocabulary {
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "Vocabulary", parent: "Dictate", back: { vocabulary = false }) {
@@ -28,9 +28,9 @@ struct DictatePage: View {
                     }
                     VocabularyPage()
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             } else {
-                dictate.transition(PaneSlideTransition(edge: -1, reduceMotion: reduceMotion))
+                dictate.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
         }
         .animation(SettingsMotion.drill(reduceMotion), value: vocabulary)

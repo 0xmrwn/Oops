@@ -115,6 +115,13 @@ struct SettingsView: View {
             if let parts, parts.count == 2 { spare.pointer = CGPoint(x: parts[0], y: parts[1]) }
         }
         .onChange(of: page) { _, page in if page == .providers { providerAppeared() } }
+        // A page drilled into or left opens at its top, as a tab does: left where the last one was scrolled,
+        // it showed an empty card while the scroll view caught up, then settled far down.
+        .onChange(of: drilled) {
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { scroll.scrollTo(edge: .top) }
+        }
         // The menu, `--fixture` and the perf harness open the Try page.
         .onReceive(testEditor.$requested) { requested in
             guard requested else { return }
@@ -152,6 +159,17 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             refreshPermission()
             if page == .providers { providerAppeared() }
+        }
+    }
+
+    /// What the shown tab is drilled into; nil on its first page.
+    private var drilled: AnyHashable? {
+        switch page {
+        case .general: generalDetail
+        case .fix: fixDetail
+        case .dictate: SpeechModelPicker.shared.target?.id ?? (dictateVocabulary ? "vocabulary" : nil)
+        case .providers: preferences.providers.openProvider ?? preferences.providers.draft?.id
+        case .actions: nil
         }
     }
 

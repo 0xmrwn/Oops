@@ -15,9 +15,9 @@ struct ProvidersPage: View {
             if let provider = store.openProvider.flatMap(store.provider) ?? store.draft {
                 ProviderDetail(provider: provider, store: store, preferences: preferences)
                     .id(provider.id)
-                    .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                    .drillPane(edge: 1, reduceMotion: reduceMotion)
             } else {
-                list.transition(PaneSlideTransition(edge: -1, reduceMotion: reduceMotion))
+                list.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
         }
         .animation(SettingsMotion.drill(reduceMotion), value: store.openProvider ?? store.draft?.id)

@@ -35,7 +35,7 @@ struct GeneralPage: View {
                     }
                     StatsPage(stats: Stats.shared)
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .about:
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "About", parent: "General", back: { detail = nil }) {
@@ -43,7 +43,7 @@ struct GeneralPage: View {
                     }
                     AboutPage { page in fromAbout = true; detail = page }
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .changelog:
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "Changelog", parent: fromAbout ? "About" : "General", back: back) {
@@ -51,7 +51,7 @@ struct GeneralPage: View {
                     }
                     ChangelogPage()
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .debug:
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "Debug tools", parent: fromAbout ? "About" : "General", back: back) {
@@ -59,9 +59,9 @@ struct GeneralPage: View {
                     }
                     DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
                 }
-                .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case nil:
-                general.transition(PaneSlideTransition(edge: -1, reduceMotion: reduceMotion))
+                general.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
         }
         .animation(SettingsMotion.drill(reduceMotion), value: detail)
