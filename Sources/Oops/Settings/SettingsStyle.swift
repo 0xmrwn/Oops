@@ -73,7 +73,7 @@ struct SettingsDivider: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Divider().overlay(colorScheme == .dark ? Color.clear : Color.primary.opacity(0.24))
+        Divider().overlay(colorScheme == .dark ? Color.clear : Color.primary.opacity(0.1))
     }
 }
 
