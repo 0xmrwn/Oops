@@ -6,7 +6,7 @@ extension DictationMode {
     static let key = "DictationMode"
     /// The mode as saved, hold or tap until one is chosen.
     static var saved: DictationMode { UserDefaults.standard.string(forKey: key).flatMap(Self.init(rawValue:)) ?? .holdOrTap }
-    /// The Mode menu's choices, in its order.
+    /// The Shortcut mode menu's choices, in its order.
     static let choices: [(value: DictationMode, label: String)] = [
         (.holdOrTap, "Hold or tap"), (.holdOrDoubleTap, "Hold or double-tap"), (.holdOnly, "Hold only"), (.tapOnly, "Tap only"),
     ]
@@ -37,7 +37,14 @@ struct DictateShortcutCard: View {
                 }
                 .padding(.bottom, 10)
             }
-            SettingRow(symbol: "hand.tap", title: "Mode") { GlassMenu(title: "Mode", choices: DictationMode.choices, selection: $mode) }
+            SettingRow(symbol: "hand.tap", title: "Shortcut mode") {
+                HStack(spacing: 10) {
+                    InfoTip("Shortcut mode", "How pressing your Dictate shortcut starts and stops listening. Clean up with AI works the same way.") {
+                        ShortcutModeGuide(selected: mode)
+                    }
+                    GlassMenu(title: "Shortcut mode", choices: DictationMode.choices, selection: $mode)
+                }
+            }
             SettingRow(symbol: ShortcutSettings.Action.pasteLast.symbol, title: ShortcutSettings.Action.pasteLast.title) {
                 ShortcutControl(title: ShortcutSettings.Action.pasteLast.title, action: .pasteLast, error: $pasteLastError)
             }
@@ -86,7 +93,12 @@ struct DictateDropCard: View {
                 GlassChoice(title: "Animation", choices: Self.visualizers, selection: $visualizer)
             }
             SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
-                GlassChoice(title: "Position", choices: Self.positions, selection: $position)
+                HStack(spacing: 10) {
+                    InfoTip("Position", "Where the drop shows while you dictate. By the text, it sits beside the field you’re writing in, or at the bottom when an app doesn’t say where that is.") {
+                        DropPositionPreview(selected: position)
+                    }
+                    GlassChoice(title: "Position", choices: Self.positions, selection: $position)
+                }
             }
             SettingRow(symbol: "text.bubble", title: "Live words") {
                 HStack(spacing: 10) {

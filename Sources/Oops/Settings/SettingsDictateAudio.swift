@@ -27,7 +27,7 @@ struct DictateAudioCard: View {
             }
             SettingRow(symbol: "bolt", title: "Keep the microphone ready") {
                 HStack(spacing: 10) {
-                    InfoTip("Ready, a dictation starts at once and macOS shows the microphone in use all the time. Off, the first moment of a dictation can be clipped.")
+                    InfoTip("Keep the microphone ready", "Ready, a dictation starts at once and macOS shows the microphone in use all the time. Off, the first moment of a dictation can be clipped.")
                     Toggle("Keep the microphone ready", isOn: $keepReady).settingsSwitch().labelsHidden()
                 }
             }

@@ -17,7 +17,7 @@ struct DictateKeyboardSwitch: View {
         if listed.count > 1, !local.installed.isEmpty || keyboards.settings.enabled {
             SettingRow(symbol: "keyboard", title: "Switch with keyboard") {
                 HStack(spacing: 10) {
-                    InfoTip("Pick a speech model and language for each keyboard. Dictate switches to them when you change keyboards.")
+                    InfoTip("Switch with keyboard", "Pick a speech model and language for each keyboard. Dictate switches to them when you change keyboards.")
                     Toggle("Switch with keyboard", isOn: Binding(get: { keyboards.settings.enabled }, set: { on in
                         withAnimation(SettingsMotion.swap(reduceMotion)) { keyboards.setEnabled(on) }
                     }))
