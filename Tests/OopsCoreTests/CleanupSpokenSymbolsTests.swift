@@ -19,6 +19,17 @@ final class CleanupSpokenSymbolsTests: XCTestCase {
         XCTAssertEqual(SpokenSymbols.apply("a comma comma b"), "a,, b")
     }
 
+    func testEnglishPunctuationWordsBecomeSymbols() {
+        XCTAssertEqual(SpokenSymbols.apply("are you coming question mark"), "are you coming?")
+        XCTAssertEqual(SpokenSymbols.apply("great exclamation mark thanks"), "great! thanks")
+        XCTAssertEqual(SpokenSymbols.apply("great exclamation point"), "great!")
+        XCTAssertEqual(SpokenSymbols.apply("see open paren the note close paren now"), "see (the note) now")
+        XCTAssertEqual(SpokenSymbols.apply("see open parenthesis the note close parenthesis now"), "see (the note) now")
+        for kept in ["the period ends", "a dot com", "a dash of salt"] {
+            XCTAssertEqual(SpokenSymbols.apply(kept), kept)
+        }
+    }
+
     func testSpanishWordsBecomeSymbolsWithOrWithoutAccents() {
         XCTAssertEqual(SpokenSymbols.apply("escríbeme a arroba casa"), "escríbeme a @casa")
         XCTAssertEqual(SpokenSymbols.apply("mi guion bajo variable"), "mi_variable")

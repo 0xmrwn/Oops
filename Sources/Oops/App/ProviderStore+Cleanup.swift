@@ -25,7 +25,7 @@ extension ProviderStore {
         catalogs[choice.providerID]?.first { $0.id == choice.modelID }?.name ?? ModelSelection.modelName(choice.modelID)
     }
 
-    /// A fresh backend for Clean up's model, at the model's lightest effort, as Fix starts out: a cleanup wants speed.
+    /// A fresh backend for Clean up's model, at the lightest effort the model accepts: a cleanup is a rewrite, not a problem to think through.
     func cleanupBackend() throws -> any CorrectionBackend {
         #if DEBUG
         if let control = DebugFlags.stubProvider { return StubBackend(control: control) }
@@ -34,6 +34,6 @@ extension ProviderStore {
             throw CorrectionError.failure(.setup, "Choose a model for Clean up.")
         }
         let model = catalogs[choice.providerID]?.first { $0.id == choice.modelID }
-        return try backend(provider, choice, model.map(ModelSelection.reset) ?? .init())
+        return try backend(provider, choice, model.map(ModelSelection.lightest) ?? .init())
     }
 }

@@ -95,6 +95,12 @@ final class ProvidersTests: XCTestCase {
         XCTAssertEqual(ModelSelection.reset(luna), .init(effort: "low", fast: false))
     }
 
+    func testLightestTakesTheLowestListedEffortAndNoneForAModelWithoutAny() {
+        XCTAssertEqual(ModelSelection.lightest(CatalogModel(id: "m", name: "M", efforts: ["medium", "none", "high"])).effort, "none")
+        XCTAssertEqual(ModelSelection.lightest(CatalogModel(id: "m", name: "M", efforts: ["high", "low", "max"])).effort, "low")
+        XCTAssertNil(ModelSelection.lightest(CatalogModel(id: "m", name: "M")).effort)
+    }
+
     func testNamesFollowCodexFormatting() {
         XCTAssertEqual(ModelSelection.modelName("GPT-6-Luna"), "GPT-6 Luna")
         XCTAssertEqual(ModelSelection.modelName("gpt-5.1-codex-mini"), "GPT-5.1 Codex Mini")

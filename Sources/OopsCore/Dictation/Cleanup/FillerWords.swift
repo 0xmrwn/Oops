@@ -10,7 +10,7 @@ import Foundation
 /// capital to the next word. Line breaks are kept.
 public enum FillerWords {
     // Longest first: "umm" must win over "um".
-    static let english = ["umm", "um", "uhh", "uh", "erm", "er", "ah"]
+    static let english = ["umm", "um", "uhh", "uh", "erm", "er"]
     static let french = ["euh", "heu", "bah", "hum"]
     private static let fillers = (english + french).map { Array($0.unicodeScalars) }
 

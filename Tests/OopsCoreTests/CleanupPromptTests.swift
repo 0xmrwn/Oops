@@ -33,6 +33,30 @@ final class CleanupPromptTests: XCTestCase {
         XCTAssertLessThan(ContinuousClock.now - started, .seconds(5))
     }
 
+    func testTheDeadlineIsFiveSecondsPlusThreePerHundredWordsUpToAMinute() {
+        func words(_ count: Int) -> String { Array(repeating: "word", count: count).joined(separator: " ") }
+        XCTAssertEqual(CleanupPrompt.timeout(for: ""), .seconds(5))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(100)), .seconds(8))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(300)), .seconds(14))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(1200)), .seconds(41))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(5000)), .seconds(60))
+    }
+
+    func testAnAnswerFarShorterOrLongerThanALongInputIsRejected() async {
+        let input = String(repeating: "a", count: 100)
+        for (length, kept) in [(69, false), (70, true), (100, true), (130, true), (131, false)] {
+            let backend = CleanupStub(.answer(String(repeating: "b", count: length)))
+            let cleaned = await CleanupPrompt.clean(input, with: backend)
+            XCTAssertEqual(cleaned != nil, kept, "\(length)")
+        }
+    }
+
+    func testShortInputsSkipTheLengthGuard() async {
+        let backend = CleanupStub(.answer("Hello there, how are you doing today my friend?"))
+        let cleaned = await CleanupPrompt.clean("hello there", with: backend)
+        XCTAssertNotNil(cleaned)
+    }
+
     func testABlankOrTooLongTranscriptMakesNoCall() async {
         let backend = CleanupStub(.answer("x"))
         for transcript in ["", "  \n", String(repeating: "a", count: CleanupPrompt.maximumLength + 1)] {

@@ -26,9 +26,31 @@ final class CleanupDictationTextTests: XCTestCase {
         let fillers = SmallCleanups(fillers: true)
         XCTAssertEqual(DictationText.prepare("Euh, oui", vocabulary: nil, cleanups: fillers, language: "fr"), "Oui")
         XCTAssertEqual(DictationText.prepare("Um, yes", vocabulary: nil, cleanups: fillers, language: "en-GB"), "Yes")
-        for language in [nil, "auto", "de", "pt"] {
+        for language in ["de", "pt"] {
             XCTAssertEqual(DictationText.prepare("Um, ja", vocabulary: nil, cleanups: fillers, language: language), "Um, ja")
         }
+    }
+
+    func testAutomaticReadsEnglishOrFrenchFromTheTranscriptAndOtherwiseKeepsFillers() {
+        let fillers = SmallCleanups(fillers: true)
+        for language: String? in [nil, "auto"] {
+            XCTAssertEqual(DictationText.prepare("Um, I think we should send the report to the whole team tomorrow", vocabulary: nil,
+                                                 cleanups: fillers, language: language),
+                           "I think we should send the report to the whole team tomorrow")
+            XCTAssertEqual(DictationText.prepare("Euh, je pense qu'on devrait envoyer le rapport à toute l'équipe demain", vocabulary: nil,
+                                                 cleanups: fillers, language: language),
+                           "Je pense qu'on devrait envoyer le rapport à toute l'équipe demain")
+            let german = "Um, ich denke wir sollten den Bericht morgen an das ganze Team schicken"
+            XCTAssertEqual(DictationText.prepare(german, vocabulary: nil, cleanups: fillers, language: language), german)
+        }
+        XCTAssertNil(DictationText.fillerLanguage(of: ""))
+    }
+
+    func testTheEnginesDetectedLanguageDecidesOnAutomaticAndAChosenLanguageWins() {
+        let fillers = SmallCleanups(fillers: true)
+        XCTAssertEqual(DictationText.prepare("Euh, oui", vocabulary: nil, cleanups: fillers, language: nil, detected: "fr"), "Oui")
+        XCTAssertEqual(DictationText.prepare("Um, ja", vocabulary: nil, cleanups: fillers, language: "auto", detected: "de"), "Um, ja")
+        XCTAssertEqual(DictationText.prepare("Um, yes", vocabulary: nil, cleanups: fillers, language: "en", detected: "de"), "Yes")
     }
 
     func testFuzzyReplacementRunsBeforeTheCleanupsSoTheirLineBreaksStay() {
