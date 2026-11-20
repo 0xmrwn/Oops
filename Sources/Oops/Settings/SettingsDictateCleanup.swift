@@ -16,7 +16,9 @@ struct DictateCleanupCard: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingRow(symbol: "wand.and.sparkles", title: "Clean up") {
                 HStack(spacing: 10) {
-                    InfoTip("Basic tidies what you said on your Mac, instantly. AI also has a model rewrite it, which takes a few seconds.")
+                    InfoTip("Clean up", "Basic tidies what you said on your Mac, instantly. AI also has a model rewrite it, which takes a few seconds.") {
+                        CleanupExamples()
+                    }
                     GlassChoice(title: "Clean up", choices: DictationCleanupMode.choices, selection: Binding(get: { mode }, set: choose))
                 }
             }

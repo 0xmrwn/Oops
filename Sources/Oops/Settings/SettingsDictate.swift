@@ -89,12 +89,18 @@ struct DictateDropCard: View {
                 GlassChoice(title: "Position", choices: Self.positions, selection: $position)
             }
             SettingRow(symbol: "text.bubble", title: "Live words") {
-                // A model that only transcribes once the recording ends has no words to show while speaking.
-                if store.dictateOption(local)?.streams == false {
-                    Text("Not with this model").fontWeight(.medium).secondaryText()
-                        .help("This speech model writes the words once you stop speaking")
-                } else {
-                    GlassChoice(title: "Live words", choices: Self.places, selection: $place)
+                HStack(spacing: 10) {
+                    // A model that only transcribes once the recording ends has no words to show while speaking.
+                    let streams = store.dictateOption(local)?.streams != false
+                    InfoTip("Live words", streams ? "Your words show as you speak, in the drop or greyed out where they’ll be written."
+                        : "Your words show as you speak, in the drop or greyed out where they’ll be written. This speech model writes them once you stop speaking.") {
+                        LiveWordsPreview()
+                    }
+                    if streams {
+                        GlassChoice(title: "Live words", choices: Self.places, selection: $place)
+                    } else {
+                        Text("Not with this model").fontWeight(.medium).secondaryText()
+                    }
                 }
             }
         }

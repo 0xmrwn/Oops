@@ -2,17 +2,6 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// What a tool does, on hover, instead of a description under every row.
-struct InfoTip: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-    var body: some View {
-        Image(systemName: "info.circle").font(.system(size: 13)).secondaryText()
-            .help(text)
-            .accessibilityLabel(text)
-    }
-}
-
 /// A connection or permission state: monochrome, the symbol tells ok from not.
 struct StatusBadge: View {
     let title: String, ok: Bool
