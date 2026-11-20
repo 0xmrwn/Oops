@@ -119,7 +119,7 @@ extension DictationSession {
                 let outcome: InsertReplacement = sameText(cleaned, text) ? .replaced : await cleanup.replace(text, cleaned)
                 guard turn == mine else { return Self.log.notice("cleanup button ending=superseded") }
                 switch outcome {
-                case .replaced: ending = .done; lastTranscript = cleaned
+                case .replaced: ending = .done; lastTranscript = cleaned; history.replaceLast(cleaned)
                 case .changed: ending = .failed(.textChanged)
                 case .failed: ending = .failed(.cannotWrite)
                 }

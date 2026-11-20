@@ -5,7 +5,7 @@ import SwiftUI
 // with the action library. Dictate's settings are all live.
 
 /// Dictate's settings: the shortcut and the mode, the speech model and its vocabulary, the microphone and audio,
-/// cleanup, and the drop.
+/// cleanup, the drop, and the history.
 struct DictatePage: View {
     let store: ProviderStore
     var local = LocalModels.shared
@@ -13,7 +13,7 @@ struct DictatePage: View {
     /// The keyboards to map; this Mac's enabled ones unless a snapshot passes others.
     var sources: [KeyboardInputSource]?
     var picker = SpeechModelPicker.shared
-    @Binding var vocabulary: Bool
+    @Binding var detail: DictateDetail?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -21,9 +21,17 @@ struct DictatePage: View {
             if let target = picker.target {
                 SpeechModelPage(target: target, store: store, local: local) { picker.target = nil }
                     .drillPane(edge: 1, reduceMotion: reduceMotion)
-            } else if vocabulary {
+            } else if detail == .history {
                 VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Vocabulary", parent: "Dictate", back: { vocabulary = false }) {
+                    DrillHeader(title: "History", parent: "Dictate", back: { detail = nil }) {
+                        Image(systemName: DictationHistoryPage.symbol).font(.system(size: 18, weight: .medium))
+                    }
+                    DictationHistoryPage()
+                }
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
+            } else if detail == .vocabulary {
+                VStack(alignment: .leading, spacing: 20) {
+                    DrillHeader(title: "Vocabulary", parent: "Dictate", back: { detail = nil }) {
                         Image(systemName: "character.book.closed").font(.system(size: 18, weight: .medium))
                     }
                     VocabularyPage()
@@ -33,7 +41,7 @@ struct DictatePage: View {
                 dictate.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
         }
-        .animation(SettingsMotion.drill(reduceMotion), value: vocabulary)
+        .animation(SettingsMotion.drill(reduceMotion), value: detail)
         .animation(SettingsMotion.drill(reduceMotion), value: picker.target != nil)
     }
 
@@ -41,10 +49,11 @@ struct DictatePage: View {
         VStack(alignment: .leading, spacing: 20) {
             // What starting needs, then what decides the words, then how the drop looks.
             DictateShortcutCard()
-            DictateModelCard(store: store, local: local, keyboards: keyboards, sources: sources) { vocabulary = true }
+            DictateModelCard(store: store, local: local, keyboards: keyboards, sources: sources) { detail = .vocabulary }
             DictateAudioCard()
             DictateCleanupCard(store: store)
             DictateDropCard(store: store, local: local)
+            DictateHistoryCard { detail = .history }
         }
     }
 }

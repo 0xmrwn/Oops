@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import OopsCore
 
 extension AppDelegate {
@@ -36,6 +36,7 @@ extension AppDelegate {
         let hosted: @MainActor () -> (any SpeechEngine)? = {
             DebugFlags.dictationModel?.isEmpty == false ? nil : providers.dictationHostedEngine(local)
         }
+        let history = dictationHistory(providers, local)
         return DictationSession(recorder: recorder, engine: engine, hostedEngine: hosted,
                                 modelPath: { providers.dictationModelPath(local, override: DebugFlags.dictationModel) },
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
@@ -43,7 +44,40 @@ extension AppDelegate {
                                 status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup,
                                 escape: { [weak self] in self?.shortcuts.armCancel($0) },
                                 shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers },
-                                environment: recorder.map { _ in DictationRecordingEnvironment() })
+                                environment: recorder.map { _ in DictationRecordingEnvironment() }, history: history)
+    }
+
+    /// The session's history, kept by `DictationHistoryModel`, whose first touch here opens the store and so expires
+    /// old entries at launch. An entry records the app in front, and the model the dictation ran with.
+    private func dictationHistory(_ providers: ProviderStore, _ local: LocalModels) -> DictationSession.History {
+        let model = DictationHistoryModel.shared
+        model.insert = { [weak self] text in
+            Task {
+                await Self.stepBack()
+                self?.dictation?.paste(text)
+            }
+        }
+        return DictationSession.History(
+            record: { text, language in
+                let app = NSWorkspace.shared.frontmostApplication, bundleID = app?.bundleIdentifier
+                let override = DebugFlags.dictationModel.flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0).lastPathComponent }
+                model.record(text: text, language: language, model: override ?? providers.dictateOption(local)?.name,
+                             application: app?.localizedName ?? bundleID.map(AppScope.name), bundleID: bundleID)
+            },
+            replaceLast: { model.replaceLast($0) },
+            last: { model.lastText(inMemory: $0) })
+    }
+
+    /// Settings' Insert: the caret is in the app Settings covered, so Oops hides and waits, at most about a second,
+    /// for that app to come back to the front.
+    private static func stepBack() async {
+        NSApp.hide(nil)
+        let me = ProcessInfo.processInfo.processIdentifier
+        var polls = 0
+        while polls < 20, NSWorkspace.shared.frontmostApplication?.processIdentifier == me {
+            polls += 1
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 
     /// Swaps text a dictation wrote for its cleanup, as Fix swaps a correction in: the modifiers up, the clipboard

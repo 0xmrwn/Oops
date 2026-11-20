@@ -58,7 +58,10 @@ extension DictationSession {
         if let live, live.turn == turn { drop.showWords(nil) }
         let outcome = await insert(polished)
         // A cancelled insert leaves the last transcript alone, as Hex's cancelled jobs do.
-        if outcome != .refused(.cancelled) { lastTranscript = polished }
+        if outcome != .refused(.cancelled) {
+            lastTranscript = polished
+            history.record(polished, language)
+        }
         if outcome == .inserted {
             lastWritten = polished
             onInserted?(polished, Double(DebugLog.milliseconds(since: began)) / 1000)
@@ -83,11 +86,11 @@ extension DictationSession {
         }
     }
 
-    /// The kept drop's Copy: the last transcript goes on the clipboard and stays there, as Hex's copy-only
-    /// dictation leaves it, and the drop says so.
-    func copyLast() {
-        guard let lastTranscript else { return }
-        copy(lastTranscript)
+    /// The kept drop's Copy: `text`, or the last transcript, goes on the clipboard and stays there, as Hex's
+    /// copy-only dictation leaves it, and the drop says so.
+    func copyLast(_ text: String? = nil) {
+        guard let text = text ?? lastTranscript else { return }
+        copy(text)
         drop.show(.copied)
     }
 

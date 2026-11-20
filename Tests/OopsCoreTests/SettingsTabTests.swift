@@ -19,7 +19,7 @@ final class SettingsTabTests: XCTestCase {
             XCTAssertEqual(SettingsTab.launch(name, visible: all), .general, name)
         }
         XCTAssertEqual(SettingsTab.launch("provider", visible: all), .providers)
-        XCTAssertEqual(SettingsTab.launch("dictate", visible: all), .dictate)
+        for name in ["dictate", "dictation", "history"] { XCTAssertEqual(SettingsTab.launch(name, visible: all), .dictate, name) }
         XCTAssertEqual(SettingsTab.launch(nil, visible: all), .general)
     }
     func testHiddenTabsNeverOpen() {

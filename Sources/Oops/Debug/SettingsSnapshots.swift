@@ -30,17 +30,21 @@ import SwiftUI
 
         let claude = store.provider("claude-code")
         let target = SpeechModelPickerTarget(id: "snapshot", language: "en", current: { .local("whisper_large_v3_turbo") }, choose: { _ in })
+        let historyFolder = FileManager.default.temporaryDirectory.appendingPathComponent("oops-history-snapshot-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: historyFolder) }
+        let history = sampleHistory(in: historyFolder)
         let pages: [(String, () -> AnyView)] = [
+            ("dictate-history", { AnyView(DictationHistoryPage(model: history)) }),
             ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences)) }),
             ("picker-picks", { AnyView(SpeechModelPage(target: target, store: store, local: local) {}) }),
             ("provider-models", { AnyView(claude.map { ProviderDetail(provider: $0, store: store, preferences: preferences) }) }),
             ("dictate-whisper", {
                 store.chooseDictateModel(.local("whisper_large_v3_turbo")); store.chooseDictateLanguage("fr")
-                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources, vocabulary: .constant(false)))
+                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources, detail: .constant(nil)))
             }),
             ("dictate-parakeet", {
                 store.chooseDictateModel(.local("parakeet_unified_en"))
-                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources, vocabulary: .constant(false)))
+                return AnyView(DictatePage(store: store, local: local, keyboards: keyboards, sources: sources, detail: .constant(nil)))
             }),
         ]
         // The first renders after launch come out without glass buttons; the second pass overwrites them.
@@ -51,6 +55,25 @@ import SwiftUI
                 }
             }
         }
+    }
+
+    /// A history of made-up dictations of several ages, in a folder of its own.
+    private static func sampleHistory(in folder: URL) -> DictationHistoryModel {
+        let file = folder.appendingPathComponent("dictations.json"), now = DictationHistory.now(), minute = 60_000
+        var store = DictationHistoryStore(file: file, retention: .week, now: now)
+        let samples: [(minutes: Int, text: String, app: String, bundleID: String, model: String, language: String?)] = [
+            (26 * 60, "Thanks for the notes, I’ll go through them tonight.", "Mail", "com.apple.mail", "Parakeet Unified", "en"),
+            (3 * 60, "On se retrouve jeudi après-midi pour la démo. J’aurai fini la page d’historique d’ici là, et il restera à "
+                + "vérifier la recherche, la suppression d’une entrée et le menu des dictées récentes avant de livrer la version.",
+             "Notes", "com.apple.Notes", "Whisper Large v3 Turbo", "fr"),
+            (2, "Let’s move the review to Thursday afternoon, the build should be ready by then.", "TextEdit", "com.apple.TextEdit",
+             "Parakeet Unified", nil),
+        ]
+        for sample in samples {
+            _ = try? store.record(DictationHistoryDraft(text: sample.text, application: sample.app, bundleID: sample.bundleID,
+                                                        model: sample.model, language: sample.language), now: now - sample.minutes * minute)
+        }
+        return DictationHistoryModel(file: file, defaults: UserDefaults(suiteName: "oops.snapshots") ?? .standard)
     }
 
     private static func write(_ content: AnyView, scheme: ColorScheme, to url: URL) {

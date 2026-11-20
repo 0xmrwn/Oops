@@ -4,6 +4,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 
 ## 0.1.5 (unreleased)
 
+- Dictate keeps a history of what you dictated, on this Mac and never the audio, for 7 days unless you choose 1 day, 30 days or Off. Settings → Dictate → History lists it with search, and each dictation can be copied, inserted where you're typing or deleted. Recent dictations in the menu bar menu has the last five, and Paste last dictation now still works after Oops restarts.
 - The menu bar menu is grouped by feature: Fix and Dictate each have their own section once both are on, and turning Oops off in the app in front sits with Settings. Paste last dictation is now in that menu only, and no longer has a shortcut to set.
 - In Settings, the ⓘ beside a setting opens a short explanation with examples when you hover over it, click it or reach it with Tab, instead of a plain tooltip. Dictate's Mode is now called Shortcut mode.
 - Long dictations now clean up instead of timing out, and a clean-up that comes back much shorter or longer than what you said is dropped in favour of your words as heard.

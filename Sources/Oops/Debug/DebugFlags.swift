@@ -72,6 +72,8 @@ enum DebugFlags {
     static var probeState: URL? { string("ProbeState").map { URL(fileURLWithPath: $0) } }
     /// Keeps an end-to-end run's debug log apart from the real one.
     static var debugLogDirectory: URL? { string("DebugLogDirectory").map { URL(fileURLWithPath: $0) } }
+    /// Keeps a check's dictation history apart from the real one.
+    static var dictationHistoryDirectory: URL? { string("DictationHistoryDirectory").map { URL(fileURLWithPath: $0) } }
     /// `settings`, `capsule` or `editor`: drives one surface on a loop for `fixtures/perf/run.sh`.
     static var perfHarness: String? { string("PerfHarness") }
     /// Where the perf harness writes its frame-pacing summary, and how long it measures.
