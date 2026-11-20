@@ -95,7 +95,8 @@ struct DictateDropCard: View {
             SettingRow(symbol: "text.bubble", title: "Live words") {
                 // A model that only transcribes once the recording ends has no words to show while speaking.
                 if store.dictateOption(local)?.streams == false {
-                    Text("Unavailable").fontWeight(.medium).secondaryText()
+                    Text("Not with this model").fontWeight(.medium).secondaryText()
+                        .help("This speech model writes the words once you stop speaking")
                 } else {
                     GlassChoice(title: "Live words", choices: Self.places, selection: $place)
                 }
