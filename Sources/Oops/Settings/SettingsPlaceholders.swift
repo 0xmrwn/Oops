@@ -12,12 +12,16 @@ struct DictatePage: View {
     var keyboards = KeyboardModelDriver.shared
     /// The keyboards to map; this Mac's enabled ones unless a snapshot passes others.
     var sources: [KeyboardInputSource]?
-    @State private var vocabulary = false
+    var picker = SpeechModelPicker.shared
+    @Binding var vocabulary: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: .top) {
-            if vocabulary {
+            if let target = picker.target {
+                SpeechModelPage(target: target, store: store, local: local) { picker.target = nil }
+                    .transition(PaneSlideTransition(edge: 1, reduceMotion: reduceMotion))
+            } else if vocabulary {
                 VStack(alignment: .leading, spacing: 20) {
                     DrillHeader(title: "Vocabulary", parent: "Dictate", back: { vocabulary = false }) {
                         Image(systemName: "character.book.closed").font(.system(size: 18, weight: .medium))
@@ -30,6 +34,7 @@ struct DictatePage: View {
             }
         }
         .animation(SettingsMotion.drill(reduceMotion), value: vocabulary)
+        .animation(SettingsMotion.drill(reduceMotion), value: picker.target != nil)
     }
 
     private var dictate: some View {

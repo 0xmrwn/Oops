@@ -26,6 +26,8 @@ struct SettingsView: View {
     @State private var generalDetail = GeneralDetail.launchPreview
     /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
     @State private var fixDetail = FixDetail.launchPreview
+    /// Dictate's Vocabulary page; its speech model page is `SpeechModelPicker`'s target.
+    @State private var dictateVocabulary = false
     @State private var scroll = ScrollPosition(edge: .top)
     /// How far the page is scrolled; read only when a switch starts, so scrolling re-evaluates nothing.
     @State private var scrolled = ScrollOffset()
@@ -100,7 +102,6 @@ struct SettingsView: View {
         }
         .frame(width: 620)
         .frame(maxHeight: .infinity, alignment: .top)
-        .overlay { SpeechModelPickerOverlay(picker: .shared, store: preferences.providers) }
         .background { if style.opaque { Color(nsColor: .windowBackgroundColor) } }
         // Measure and lay out the whole window, title bar included, so the fit is exact.
         .ignoresSafeArea()
@@ -165,6 +166,7 @@ struct SettingsView: View {
                 withAnimation(SettingsMotion.drill(reduceMotion)) {
                     if page == .general { generalDetail = nil }
                     if page == .fix { fixDetail = nil }
+                    if page == .dictate { closeDictateDetail() }
                     if page == .providers { preferences.providers.closeDetail() }
                 }
                 return
@@ -196,7 +198,13 @@ struct SettingsView: View {
     /// An overview row's jump: the tab's own page, not whatever was drilled into there before.
     private func open(_ tab: SettingsTab) {
         if tab == .fix { fixDetail = nil }
+        if tab == .dictate { closeDictateDetail() }
         pageSelection.wrappedValue = tab
+    }
+
+    private func closeDictateDetail() {
+        dictateVocabulary = false
+        SpeechModelPicker.shared.target = nil
     }
 
     /// The update pill: General's top, where the update's card is.
@@ -262,7 +270,7 @@ struct SettingsView: View {
             GeneralPage(hasAccessibility: hasAccessibility, tabs: tabs, store: preferences.providers, preferences: preferences,
                         detail: $generalDetail, open: open, preview: preview, previewPlacement: previewPlacement)
         case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
-        case .dictate: DictatePage(store: preferences.providers)
+        case .dictate: DictatePage(store: preferences.providers, vocabulary: $dictateVocabulary)
         case .actions: ActionsPage()
         case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
         }

@@ -40,11 +40,13 @@ enum MenuIcon {
 }
 
 /// A drilled-in page's first row: back to its list, then what the page is about. ⌘[ goes back.
-struct DrillHeader<Mark: View>: View {
+struct DrillHeader<Mark: View, Accessory: View>: View {
     let title: String
     let parent: String
     let back: () -> Void
     @ViewBuilder var mark: Mark
+    /// What switches the page's whole content, on the trailing edge.
+    @ViewBuilder var accessory: Accessory
 
     var body: some View {
         HStack(spacing: 12) {
@@ -63,8 +65,16 @@ struct DrillHeader<Mark: View>: View {
             mark.frame(width: 24, height: 24).accessibilityHidden(true)
                 .padding(.leading, 4)
             Text(title).font(.system(size: 20, weight: .semibold)).lineLimit(1).accessibilityAddTraits(.isHeader)
+                .layoutPriority(1)
             Spacer(minLength: 0)
+            accessory
         }
+    }
+}
+
+extension DrillHeader where Accessory == EmptyView {
+    init(title: String, parent: String, back: @escaping () -> Void, @ViewBuilder mark: () -> Mark) {
+        self.init(title: title, parent: parent, back: back, mark: mark) { EmptyView() }
     }
 }
 
