@@ -213,7 +213,8 @@ struct SpeechModelOnline: View {
 
 /// The words the picker explains on hover: the ones a first reader wouldn't know.
 enum SpeechModelHelp {
-    static let accuracy = "Words it gets right out of 100 on a public test. The tests differ between models."
+    static let wait = "Wait is how long after you stop speaking the words arrive: Live models write them as you speak."
+    static let accuracy = "Accuracy is the words it gets right out of 100 on a public test; the tests differ between models."
     static let vocabulary = "Follows your vocabulary: the names and unusual words you list under Dictate → Vocabulary"
 }
 

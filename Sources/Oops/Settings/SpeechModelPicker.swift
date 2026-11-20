@@ -199,8 +199,10 @@ private struct SpeechModelList: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 Spacer()
+                // One tip for both columns: they sit too close for one each.
+                InfoTip("Wait and accuracy", SpeechModelHelp.wait + " " + SpeechModelHelp.accuracy)
                 Text("Wait").frame(width: SpeechModelRow.wait, alignment: .leading)
-                Text("Accuracy").frame(width: SpeechModelRow.accuracy, alignment: .leading).help(SpeechModelHelp.accuracy)
+                Text("Accuracy").frame(width: SpeechModelRow.accuracy, alignment: .leading)
                 Color.clear.frame(width: SpeechModelRow.action, height: 1)
             }
             .font(.caption).secondaryText().padding(.horizontal, 8).padding(.bottom, 4)

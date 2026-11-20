@@ -15,7 +15,7 @@ struct CustomizePage: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Text("Correction rules").font(.headline)
-                InfoTip("The system prompt Oops sends to the model with every fix.")
+                InfoTip("Correction rules", "The system prompt Oops sends to the model with every fix.")
                 Spacer()
                 if custom {
                     Text("Custom").font(.caption.weight(.semibold))

@@ -16,15 +16,20 @@ struct DictateCleanupCard: View {
         VStack(alignment: .leading, spacing: 0) {
             SettingRow(symbol: "wand.and.sparkles", title: "Clean up") {
                 HStack(spacing: 10) {
-                    InfoTip("Basic tidies what you said on your Mac, instantly. AI also has a model rewrite it, which takes a few seconds.")
+                    InfoTip("Clean up", "Basic tidies what you said on your Mac, instantly. AI also has a model rewrite it, which takes a few seconds.") {
+                        SaysWrites.cleanup
+                    }
                     GlassChoice(title: "Clean up", choices: DictationCleanupMode.choices, selection: Binding(get: { mode }, set: choose))
                 }
             }
             if mode != .off {
                 VStack(spacing: 0) {
-                    toggle("text.badge.minus", "Remove filler words", $fillers)
-                    toggle("return", "Spoken formatting", $formatting)
-                    toggle("number", "Spoken symbols", $symbols)
+                    toggle("text.badge.minus", "Remove filler words", $fillers,
+                           tip: "Drops hesitations like “um” and “uh” in English and “euh” in French, with the commas around them.", SaysWrites.fillers)
+                    toggle("return", "Spoken formatting", $formatting,
+                           tip: "Say where lines break and quotes go, in English, French or Spanish.", SaysWrites.formatting)
+                    toggle("number", "Spoken symbols", $symbols,
+                           tip: "Say a punctuation mark or symbol by name, in English, French or Spanish.", SaysWrites.symbols)
                 }
                 .padding(.bottom, 6)
                 // As the keyboard rows open under their switch: the card makes room and the rows settle in from just
@@ -37,7 +42,7 @@ struct DictateCleanupCard: View {
             SettingRow(symbol: "cpu", title: "Model") { model }
             SettingRow(symbol: "keyboard", title: ShortcutSettings.Action.dictateAndCleanUp.title) {
                 HStack(spacing: 10) {
-                    InfoTip("Cleans your last dictation while it’s still where Oops wrote it. Otherwise, dictates and cleans.")
+                    InfoTip("Clean up with AI", "Cleans your last dictation with the model, while it’s still where Oops wrote it. Otherwise, it dictates and cleans what you say next.")
                     ShortcutControl(title: ShortcutSettings.Action.dictateAndCleanUp.title, action: .dictateAndCleanUp, error: $shortcutError)
                 }
             }
@@ -73,11 +78,12 @@ struct DictateCleanupCard: View {
     }
 
     /// A small cleanup, under the level it belongs to: indented, with a lighter icon and title than the card's rows.
-    private func toggle(_ symbol: String, _ title: String, _ isOn: Binding<Bool>) -> some View {
+    private func toggle(_ symbol: String, _ title: String, _ isOn: Binding<Bool>, tip: String, _ examples: SaysWrites) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol).font(.system(size: 14, weight: .medium)).frame(width: 20).secondaryText().accessibilityHidden(true)
             Text(title).fontWeight(.medium)
             Spacer(minLength: 8)
+            InfoTip(title, tip) { examples }
             Toggle(title, isOn: isOn).settingsSwitch().labelsHidden()
         }
         .padding(.vertical, 6).frame(minHeight: 40)
