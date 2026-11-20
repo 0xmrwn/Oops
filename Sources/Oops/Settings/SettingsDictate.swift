@@ -105,7 +105,7 @@ struct DictateDropCard: View {
                     // A model that only transcribes once the recording ends has no words to show while speaking.
                     let streams = store.dictateOption(local)?.streams != false
                     InfoTip("Live words", streams ? "Your words show as you speak, in the drop or greyed out where they’ll be written."
-                        : "Your words show as you speak, in the drop or greyed out where they’ll be written. This speech model writes them once you stop speaking.") {
+                        : "This speech model writes your words once you stop speaking. With a model that streams, they show as you speak, like this.") {
                         LiveWordsPreview()
                     }
                     if streams {

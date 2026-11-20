@@ -4,6 +4,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 
 ## 0.1.5 (unreleased)
 
+- In Settings, the ⓘ beside a setting opens a short explanation with examples when you hover over it, click it or reach it with Tab, instead of a plain tooltip. Dictate's Mode is now called Shortcut mode.
 - Long dictations now clean up instead of timing out, and a clean-up that comes back much shorter or longer than what you said is dropped in favour of your words as heard.
 - With the language on Automatic, dictation now removes filler words in English and French. Saying "question mark", "exclamation mark" or "open paren" and "close paren" writes the symbol, and "ah" is kept as a word.
 - Settings has a new layout. General opens with your shortcut and model at a glance, Fix has a tab of its own, and what was in About is now at the bottom of General. A waiting update shows as a button in the top-right corner.

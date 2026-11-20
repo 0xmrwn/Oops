@@ -31,8 +31,9 @@ struct InfoTip<Visual: View>: View {
         .buttonStyle(.plain)
         // The plain style draws no ring; this one shows only once the keyboard is in use.
         .modifier(FocusVisibleRing(radius: 11))
-        // Opened from the keyboard, focus stays here rather than in the popover, so Escape is heard here.
-        .onExitCommand { shown = false }
+        // Opened from the keyboard, focus stays here rather than in the popover, so Escape is heard here; closed, it
+        // leaves Escape to whatever holds the tip, such as the speech model picker.
+        .onExitCommand(perform: shown ? { shown = false } : nil)
         .onHover { overIcon = $0; hovered() }
         .popover(isPresented: $shown, arrowEdge: .bottom) {
             tip.onHover { overTip = $0; hovered() }
@@ -77,9 +78,9 @@ struct SaysWrites: View {
     init(_ pairs: [(said: String, written: String)]) { self.pairs = pairs }
 
     /// What Basic does to a few things said.
-    static let cleanup = SaysWrites([("so um I think", "so I think"), ("new paragraph", "↵"), ("question mark", "?")])
+    static let cleanup = SaysWrites([("so um I think", "so I think"), ("new line", "↵"), ("question mark", "?")])
     static let fillers = SaysWrites([("um, so uh I think", "so I think"), ("euh, je pense", "je pense")])
-    static let formatting = SaysWrites([("new line", "↵"), ("new paragraph", "blank line"), ("open quote hi close quote", "“hi”")])
+    static let formatting = SaysWrites([("new line", "↵"), ("new paragraph", "blank line"), ("open quote hi close quote", "\"hi\"")])
     static let symbols = SaysWrites([("comma · colon · semicolon", ", : ;"), ("question mark · exclamation mark", "? !"),
                                      ("open paren · close paren", "( )"), ("hyphen · slash · underscore", "- / _"),
                                      ("at sign · hashtag", "@ #")])
@@ -109,7 +110,7 @@ struct ShortcutModeGuide: View {
     let selected: DictationMode
     private static let modes: [(DictationMode, String)] = [
         (.holdOrTap, "Hold to talk, or tap to keep listening until you press again."),
-        (.holdOrDoubleTap, "Hold to talk, or double-tap to keep listening. A single tap does nothing, so a stray one never starts it."),
+        (.holdOrDoubleTap, "Hold to talk, or double-tap to keep listening. A single tap writes nothing, so a stray one adds no text."),
         (.holdOnly, "Listens only while you hold the keys."),
         (.tapOnly, "Press to start, press again to stop."),
     ]
