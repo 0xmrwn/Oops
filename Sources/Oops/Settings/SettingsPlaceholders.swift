@@ -4,8 +4,8 @@ import SwiftUI
 // Actions as it is planned, drawn with the controls it will use and every one not yet wired disabled; it comes
 // with the action library. Dictate's settings are all live.
 
-/// Dictate's settings: the shortcut and the mode, the speech model, the drop, the microphone and audio, cleanup and
-/// the vocabulary.
+/// Dictate's settings: the shortcut and the mode, the speech model and its vocabulary, the microphone and audio,
+/// cleanup, and the drop.
 struct DictatePage: View {
     let store: ProviderStore
     var local = LocalModels.shared
@@ -34,16 +34,12 @@ struct DictatePage: View {
 
     private var dictate: some View {
         VStack(alignment: .leading, spacing: 20) {
+            // What starting needs, then what decides the words, then how the drop looks.
             DictateShortcutCard()
-            DictateModelCard(store: store, local: local, keyboards: keyboards, sources: sources)
-            DictateDropCard(store: store, local: local)
+            DictateModelCard(store: store, local: local, keyboards: keyboards, sources: sources) { vocabulary = true }
             DictateAudioCard()
             DictateCleanupCard(store: store)
-            Button { vocabulary = true } label: {
-                SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }.contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .settingsSurface()
+            DictateDropCard(store: store, local: local)
         }
     }
 }
@@ -83,6 +79,6 @@ struct SettingRow<Control: View>: View {
 }
 
 /// A row that opens a page of its own.
-private struct Chevron: View {
+struct Chevron: View {
     var body: some View { Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).secondaryText() }
 }

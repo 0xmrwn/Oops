@@ -8,6 +8,8 @@ struct DictateModelCard: View {
     let local: LocalModels
     let keyboards: KeyboardModelDriver
     let sources: [KeyboardInputSource]?
+    /// Opens Vocabulary, which the speech model takes or which corrects what it heard.
+    let vocabulary: () -> Void
 
     var body: some View {
         let current = store.dictateOption(local)
@@ -34,6 +36,10 @@ struct DictateModelCard: View {
                     }
                 }
             }
+            Button(action: vocabulary) {
+                SettingRow(symbol: "character.book.closed", title: "Vocabulary") { Chevron() }.contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             DictateKeyboardSwitch(local: local, keyboards: keyboards, sources: sources)
         }
         .padding(.vertical, -6)

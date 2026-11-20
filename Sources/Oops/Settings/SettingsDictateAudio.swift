@@ -22,14 +22,14 @@ struct DictateAudioCard: View {
                 let menu = SettingsMicrophones.menu(microphones.snapshot, avoidBluetooth: avoidBluetooth)
                 GlassMenu(title: "Microphone", choices: menu.choices, selection: $microphone, placeholder: menu.placeholder)
             }
+            SettingRow(symbol: "airpods", title: "Avoid Bluetooth microphones") {
+                Toggle("Avoid Bluetooth microphones", isOn: $avoidBluetooth).settingsSwitch().labelsHidden()
+            }
             SettingRow(symbol: "bolt", title: "Keep the microphone ready") {
                 HStack(spacing: 10) {
                     InfoTip("Ready, a dictation starts at once and macOS shows the microphone in use all the time. Off, the first moment of a dictation can be clipped.")
                     Toggle("Keep the microphone ready", isOn: $keepReady).settingsSwitch().labelsHidden()
                 }
-            }
-            SettingRow(symbol: "airpods", title: "Avoid Bluetooth microphones") {
-                Toggle("Avoid Bluetooth microphones", isOn: $avoidBluetooth).settingsSwitch().labelsHidden()
             }
             SettingRow(symbol: "speaker.wave.2", title: "While dictating") {
                 GlassMenu(title: "While dictating", choices: Self.whileChoices, selection: $whileDictating)
