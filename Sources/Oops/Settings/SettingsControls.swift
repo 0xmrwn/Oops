@@ -65,6 +65,41 @@ private struct ChoiceBounds<Value: Hashable>: PreferenceKey {
     }
 }
 
+/// A search field as a glass capsule with the system's magnifier, like the glass buttons beside it: the system's
+/// bordered field is an opaque box on the glass. It never takes focus by itself, and its ring shows only as
+/// `FocusRings` allows.
+struct GlassSearchField: View {
+    let title: String
+    @Binding var text: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).secondaryText().accessibilityHidden(true)
+            TextField(title, text: $text, prompt: Text(title)).textFieldStyle(.plain).focused($focused)
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 13)).secondaryText().contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Clear")
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: GlassSearchField.height)
+        .glassEffect(.regular, in: .capsule)
+        .glassEdge(Capsule(), outside: true)
+        .overlay {
+            // Outside the capsule: the glass's rim light covers a line drawn inside it.
+            if focused, FocusRings.shared.shown { Capsule().inset(by: -2).strokeBorder(Color.accentColor.opacity(0.75), lineWidth: 2).allowsHitTesting(false) }
+        }
+    }
+
+    /// A large glass button's height, so the two line up in a row.
+    static let height: CGFloat = 28
+}
+
 /// A choice from a list, as a glass capsule showing the current value, like the model picker. It is a glass
 /// button that opens a native menu below itself: SwiftUI's `Menu` drops the glass style on macOS and puts
 /// the label's chevron first.

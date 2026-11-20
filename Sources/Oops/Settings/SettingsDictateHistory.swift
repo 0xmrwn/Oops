@@ -47,10 +47,10 @@ struct DictationHistoryPage: View {
             .settingsSurface()
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    TextField("Search", text: $query, prompt: Text("Search")).textFieldStyle(.roundedBorder).labelsHidden()
-                        .frame(maxWidth: .infinity)
+                    GlassSearchField(title: "Search", text: $query)
                     Button { confirming = true } label: { Label("Clear All", systemImage: "trash") }
                         .buttonStyle(.settingsGlass)
+                        .controlSize(.large)
                         .disabled(all.isEmpty)
                 }
                 if let error {
