@@ -9,6 +9,7 @@ struct DictateKeyboardSwitch: View {
     let sources: [KeyboardInputSource]?
     /// Read as the view is made: a task on a view that shows nothing yet would never run.
     @State private var system = KeyboardInputSources.shared.enabled()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var listed: [KeyboardInputSource] { sources ?? system }
 
@@ -18,15 +19,25 @@ struct DictateKeyboardSwitch: View {
             SettingRow(symbol: "keyboard", title: "Switch with keyboard") {
                 HStack(spacing: 10) {
                     InfoTip("Pick a speech model and language for each keyboard. Dictate switches to them when you change keyboards.")
-                    Toggle("Switch with keyboard", isOn: Binding(get: { keyboards.settings.enabled }, set: keyboards.setEnabled))
-                        .settingsSwitch().labelsHidden()
+                    Toggle("Switch with keyboard", isOn: Binding(get: { keyboards.settings.enabled }, set: { on in
+                        withAnimation(SettingsMotion.swap(reduceMotion)) { keyboards.setEnabled(on) }
+                    }))
+                    .settingsSwitch().labelsHidden()
                 }
             }
             if keyboards.settings.enabled {
-                ForEach(listed) { source in
-                    SettingsDivider().padding(.leading, 38)
-                    KeyboardMappingRow(source: source, local: local, keyboards: keyboards).padding(.leading, 38)
+                VStack(spacing: 0) {
+                    ForEach(listed) { source in
+                        SettingsDivider().padding(.leading, 38)
+                        KeyboardMappingRow(source: source, local: local, keyboards: keyboards).padding(.leading, 38)
+                    }
                 }
+                // The card opens to make room and the rows settle in from just above; closing, they fade first, so
+                // none shows past the card's shrinking edge.
+                .transition(.asymmetric(
+                    insertion: reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.975, anchor: .top))
+                        .combined(with: .offset(y: -6)),
+                    removal: .opacity.animation(.easeOut(duration: 0.12))))
             }
         }
     }
