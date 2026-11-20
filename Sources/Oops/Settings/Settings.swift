@@ -10,6 +10,8 @@ struct SettingsView: View {
     let previewPlacement: @MainActor () async -> String
     /// Every page shares one window height, so switching never resizes the window.
     static let height: CGFloat = 744
+    /// The fade under the tab bar, inside the page's 20 pt top padding.
+    private static let fade: CGFloat = 18
     /// Drops keyboard focus to the window, so no ring stays on a control of a page being hidden.
     var clearFocus: () -> Void = {}
     /// The tabs this build shows; fixed for the life of the process.
@@ -24,8 +26,11 @@ struct SettingsView: View {
     @State private var generalDetail = GeneralDetail.launchPreview
     /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
     @State private var fixDetail = FixDetail.launchPreview
-    /// Bumped to bring the page back to its top without a page change (the update pill on General).
-    @State private var toTop = 0
+    @State private var scroll = ScrollPosition(edge: .top)
+    /// How far the page is scrolled; read only when a switch starts, so scrolling re-evaluates nothing.
+    @State private var scrolled = ScrollOffset()
+    /// The leaving page's scroll offset, which holds it in place while it fades (see `PageSwap`).
+    @State private var lift: CGFloat = 0
     @State private var accessibilityEnabled = AccessibilityPermission.granted
     /// Written on every pointer move and page change; only the eyes read it, so nothing else
     /// re-evaluates.
@@ -46,53 +51,52 @@ struct SettingsView: View {
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
 
-                ScrollViewReader { scroller in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Every page is built once and kept: a switch only animates views that
-                            // exist. Rebuilding the destination page on each click stalled its
-                            // first frame by 70–90 ms.
-                            // Inside the scroll view, so glass panes clip with the scrolled content.
-                            // Each page has its own container: one shared container renders its
-                            // children's glass and content itself and ignores a hidden page's
-                            // opacity, so every page would show through.
-                            GlassEffectContainer(spacing: 8) {
-                                ZStack(alignment: .topLeading) {
-                                    ForEach(tabs) { candidate in
-                                        GlassEffectContainer(spacing: 8) { pageContent(candidate) }
-                                            .modifier(PageSwap(position: SettingsTab.side(of: candidate, shown: page, in: tabs),
-                                                               enabled: candidate == enabled || candidate == leaving,
-                                                               reduceMotion: reduceMotion))
-                                    }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Every page is built once and kept: a switch only animates views that
+                        // exist. Rebuilding the destination page on each click stalled its
+                        // first frame by 70–90 ms.
+                        // Inside the scroll view, so glass panes clip with the scrolled content.
+                        // Each page has its own container: one shared container renders its
+                        // children's glass and content itself and ignores a hidden page's
+                        // opacity, so every page would show through.
+                        GlassEffectContainer(spacing: 8) {
+                            ZStack(alignment: .topLeading) {
+                                ForEach(tabs) { candidate in
+                                    GlassEffectContainer(spacing: 8) { pageContent(candidate) }
+                                        .modifier(PageSwap(position: SettingsTab.side(of: candidate, shown: page, in: tabs),
+                                                           enabled: candidate == enabled || candidate == leaving,
+                                                           reduceMotion: reduceMotion, lift: candidate == leaving ? lift : 0))
                                 }
                             }
                         }
-                        .id("top")
-                        .padding(.horizontal, 28)
-                        .padding(.top, 20)
-                        .padding(.bottom, 16)
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.content = $0 }
                     }
-                    .scrollIndicators(.automatic)
-                    .scrollBounceBehavior(.basedOnSize)
-                    // Content leaving under the tab bar fades out instead of a hard cut. The fade fits in
-                    // the page's top padding, so nothing at rest is touched. (The system scroll edge
-                    // effect only draws under an overlapping bar, which the tab bar is not.)
-                    .mask {
-                        VStack(spacing: 0) {
-                            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
-                            Color.black
-                        }
-                    }
-                    // A page taller than the window makes the scroll view a focus stop; AppKit
-                    // then hands it focus after popovers close, with a ring around nothing.
-                    .focusEffectDisabled()
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.viewport = $0 }
-                    // Whatever height the page leaves below it goes to the eyes.
-                    .overlay(alignment: .bottom) { SpareSpace(model: spare, suppressed: tryShown) }
-                    .onChange(of: page) { _, _ in scroller.scrollTo("top", anchor: .top) }
-                    .onChange(of: toTop) { _, _ in withAnimation(SettingsMotion.page(reduceMotion)) { scroller.scrollTo("top", anchor: .top) } }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 20)
+                    .padding(.bottom, 16)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.content = $0 }
                 }
+                .scrollPosition($scroll)
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, y in scrolled.y = y }
+                .scrollIndicators(.automatic)
+                // The scroller starts below the fade, not under it.
+                .contentMargins(.top, Self.fade, for: .scrollIndicators)
+                .scrollBounceBehavior(.basedOnSize)
+                // Content leaving under the tab bar fades out instead of a hard cut. The fade fits in
+                // the page's top padding, so nothing at rest is touched. (The system scroll edge
+                // effect only draws under an overlapping bar, which the tab bar is not.)
+                .mask {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: Self.fade)
+                        Color.black
+                    }
+                }
+                // A page taller than the window makes the scroll view a focus stop; AppKit
+                // then hands it focus after popovers close, with a ring around nothing.
+                .focusEffectDisabled()
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.viewport = $0 }
+                // Whatever height the page leaves below it goes to the eyes.
+                .overlay(alignment: .bottom) { SpareSpace(model: spare, suppressed: tryShown) }
         }
         .frame(width: 620)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -174,8 +178,16 @@ struct SettingsView: View {
             leaving = previous
             enabled = destination
             DispatchQueue.main.async {
+                // Every page opens at its top. The jump is instant, and the leaving page is lifted
+                // by as much, so it fades where it was.
+                var still = Transaction()
+                still.disablesAnimations = true
+                withTransaction(still) {
+                    lift = scrolled.y
+                    scroll.scrollTo(edge: .top)
+                }
                 withAnimation(SettingsMotion.page(reduceMotion)) { page = destination } completion: {
-                    if leaving == previous { leaving = nil }
+                    if leaving == previous { leaving = nil; lift = 0 }
                 }
             }
         })
@@ -191,7 +203,7 @@ struct SettingsView: View {
     private func showUpdate() {
         if page == .general {
             withAnimation(SettingsMotion.drill(reduceMotion)) { generalDetail = nil }
-            toTop += 1
+            withAnimation(SettingsMotion.page(reduceMotion)) { scroll.scrollTo(edge: .top) }
         } else {
             generalDetail = nil
             pageSelection.wrappedValue = .general
@@ -263,6 +275,9 @@ struct SettingsView: View {
 
     private func refreshPermission() { accessibilityEnabled = AccessibilityPermission.granted }
 }
+
+/// A reference, so writing it on every scrolled frame invalidates no view.
+private final class ScrollOffset { var y: CGFloat = 0 }
 
 extension Notification.Name {
     /// Popovers on a page close when it hides: pages stay alive, and so would their popovers.
