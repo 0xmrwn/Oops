@@ -25,15 +25,15 @@ struct AboutPage: View {
                 AboutRow(title: "Changelog") { open(.changelog) } icon: {
                     Image(systemName: "sparkles.rectangle.stack").font(.system(size: 17, weight: .medium))
                 }
-                Divider()
+                SettingsDivider()
                 AboutRow(title: "Show welcome", trailing: "arrow.up.right") { OnboardingWindow.shared.show() } icon: {
                     Image(systemName: "hand.wave").font(.system(size: 16, weight: .medium))
                 }
-                Divider()
+                SettingsDivider()
                 AboutRow(title: "Debug tools") { open(.debug) } icon: {
                     Image(systemName: "ladybug").font(.system(size: 17, weight: .medium))
                 }
-                Divider()
+                SettingsDivider()
                 AboutRow(title: "Source code", trailing: "arrow.up.right") { NSWorkspace.shared.open(Self.source) } icon: {
                     Image(systemName: "chevron.left.forwardslash.chevron.right").font(.system(size: 15, weight: .semibold))
                 }

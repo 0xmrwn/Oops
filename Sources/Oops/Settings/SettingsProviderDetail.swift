@@ -54,7 +54,7 @@ private struct ClaudeConnectionCard: View {
                     Spacer(minLength: 8)
                     StatusBadge("Connected", ok: true)
                 }
-                Divider()
+                SettingsDivider()
                 HStack(spacing: 12) {
                     Text("Using \(account?.plan ?? "Claude") plan").secondaryText()
                     Spacer()
@@ -67,7 +67,7 @@ private struct ClaudeConnectionCard: View {
                     .buttonStyle(.settingsGlass)
                     .accessibilityLabel("Manage Claude usage (opens in browser)")
                 }
-                Divider()
+                SettingsDivider()
                 HStack(spacing: 12) {
                     Button { signIn() } label: { Label("Use a different account…", systemImage: "arrow.triangle.2.circlepath") }.buttonStyle(.settingsGlass)
                         .help("Opens Terminal to sign Claude Code in to another account.")
@@ -105,7 +105,7 @@ private struct ClaudeConnectionCard: View {
             if case .unreachable(let message) = store.health["claude-code"] {
                 Text(message).font(.callout).secondaryText().textSelection(.enabled)
             }
-            Divider()
+            SettingsDivider()
             HStack(spacing: 12) {
                 action()
                 Button { store.refreshClaude(force: true) } label: { Label("Check again", systemImage: "arrow.clockwise") }.buttonStyle(.settingsGlass)
@@ -188,7 +188,7 @@ private struct APIProviderForm: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Divider()
+            SettingsDivider()
             HStack(spacing: 12) {
                 if saved {
                     Button { confirmingRemove = true } label: { Label("Remove", systemImage: "trash") }.buttonStyle(.settingsGlass).disabled(busy)
@@ -227,7 +227,7 @@ private struct APIProviderForm: View {
     private var presetMenu: some View {
         Menu {
             Button { store.chooseDraftPreset(nil) } label: { Label { Text("Custom") } icon: { MenuIcon.symbol("server.rack") } }
-            Divider()
+            SettingsDivider()
             ForEach(ProviderPreset.all) { option($0) }
         } label: {
             HStack(spacing: 8) {
@@ -310,7 +310,7 @@ private struct ModelsCard: View {
             .padding(.bottom, 6)
             ForEach(primary) { ModelSwitchRow(model: $0, provider: provider, store: store) }
             if !rest.isEmpty {
-                if !primary.isEmpty { Divider() }
+                if !primary.isEmpty { SettingsDivider() }
                 Button { more = rest; showingMore = true } label: {
                     HStack {
                         Text(primary.isEmpty ? "Choose models" : "More models").fontWeight(.medium)

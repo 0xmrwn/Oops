@@ -20,10 +20,10 @@ struct DictateCleanupCard: View {
                 GlassChoice(title: "Clean up", choices: DictationCleanupMode.choices, selection: $mode)
             }
             if usesModel {
-                Divider()
+                SettingsDivider()
                 SettingRow(symbol: "cpu", title: "Model") { model }
             }
-            Divider()
+            SettingsDivider()
             SettingRow(symbol: "keyboard", title: ShortcutSettings.Action.dictateAndCleanUp.title) {
                 ShortcutControl(title: ShortcutSettings.Action.dictateAndCleanUp.title, action: .dictateAndCleanUp, error: $shortcutError)
             }
@@ -31,11 +31,11 @@ struct DictateCleanupCard: View {
                 Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
                     .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
             }
-            Divider()
+            SettingsDivider()
             toggle("text.badge.minus", "Remove filler words", $fillers)
-            Divider()
+            SettingsDivider()
             toggle("return", "Spoken formatting", $formatting)
-            Divider()
+            SettingsDivider()
             toggle("number", "Spoken symbols", $symbols)
         }
         .padding(.vertical, -6)

@@ -206,14 +206,14 @@ private struct SpeechModelList: View {
             .font(.caption).secondaryText().padding(.horizontal, 8).padding(.bottom, 4)
             let listed = picks.picks.map(\.model) + picks.others
             ForEach(Array(listed.enumerated()), id: \.element.id) { index, model in
-                if index > 0 { Divider().padding(.leading, 42) }
+                if index > 0 { SettingsDivider().padding(.leading, 42) }
                 SpeechModelRow(model: model, picks: picks, figures: true, actions: actions)
             }
             if !picks.elsewhere.isEmpty {
                 Label("Other languages", systemImage: "globe").font(.caption).secondaryText()
                     .padding(.horizontal, 8).padding(.top, 16).padding(.bottom, 4)
                 ForEach(Array(picks.elsewhere.enumerated()), id: \.element.id) { index, model in
-                    if index > 0 { Divider().padding(.leading, 42) }
+                    if index > 0 { SettingsDivider().padding(.leading, 42) }
                     SpeechModelRow(model: model, picks: picks, figures: false, actions: actions)
                 }
             }

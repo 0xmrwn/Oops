@@ -27,10 +27,10 @@ struct ProvidersPage: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(spacing: 0) {
                 ForEach(Array(store.providers.enumerated()), id: \.element.id) { index, provider in
-                    if index > 0 { Divider() }
+                    if index > 0 { SettingsDivider() }
                     ProviderRow(provider: provider, status: store.status(provider.id)) { store.openProvider = provider.id }
                 }
-                Divider()
+                SettingsDivider()
                 addMenu
             }
             .padding(.vertical, -6)
@@ -47,7 +47,7 @@ struct ProvidersPage: View {
             } else {
                 Toggle(isOn: .constant(true)) { Label { Text("Claude Code") } icon: { MenuIcon.image("ClaudeMark", template: true) } }.disabled(true)
             }
-            Divider()
+            SettingsDivider()
             Button { store.startDraft() } label: { Label { Text("API provider…") } icon: { MenuIcon.symbol("server.rack") } }
         } label: {
             HStack(spacing: 12) {

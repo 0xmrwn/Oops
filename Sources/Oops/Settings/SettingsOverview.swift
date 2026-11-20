@@ -14,7 +14,7 @@ struct FeatureOverview: View {
         let features = tabs.filter { [.fix, .dictate, .actions].contains($0) }
         VStack(spacing: 0) {
             ForEach(Array(features.enumerated()), id: \.element) { index, tab in
-                if index > 0 { Divider() }
+                if index > 0 { SettingsDivider() }
                 row(tab)
             }
         }
@@ -71,6 +71,6 @@ struct FeatureOverview: View {
             if key == Shortcut.hyperKey { HyperKeyLegend(size: 12.5, partSize: 9).padding(.vertical, 3) } else { Text(key).font(.system(size: 14, weight: .medium)) }
         }
         .frame(minWidth: 28, minHeight: 32).padding(.horizontal, key.count > 1 ? 8 : 0)
-        .background(.quaternary, in: .rect(cornerRadius: 6))
+        .keycapFill(cornerRadius: 6)
     }
 }

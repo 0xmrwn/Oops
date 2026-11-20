@@ -38,7 +38,7 @@ struct ChangelogPage: View {
         let releases = releases
         VStack(alignment: .leading, spacing: 0) {
             ForEach(releases) { release in
-                if release.id != releases.first?.id { Divider() }
+                if release.id != releases.first?.id { SettingsDivider() }
                 let expanded = release.id == releases.first?.id || open.contains(release.id)
                 VStack(alignment: .leading, spacing: 10) {
                     // The newest release is always open; the older ones toggle.

@@ -28,7 +28,7 @@ struct ModelCard: View {
                 Label(notice, systemImage: "info.circle").font(.caption).secondaryText()
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Divider().padding(.top, 4)
+            SettingsDivider().padding(.top, 4)
             Button(action: customize) {
                 HStack(spacing: 14) {
                     Image(systemName: "wand.and.stars").font(.system(size: 17, weight: .medium)).frame(width: 24)
@@ -273,7 +273,7 @@ private struct ModelPopover: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(store.pickerGroups.enumerated()), id: \.element.provider.id) { index, group in
                         let problem = store.problem(group.provider.id)
-                        if index > 0 { Divider().padding(.vertical, 6) }
+                        if index > 0 { SettingsDivider().padding(.vertical, 6) }
                         HStack(spacing: 8) {
                             ProviderMark(provider: group.provider, size: 18)
                             Text(group.provider.name).fontWeight(.semibold)
@@ -302,7 +302,7 @@ private struct ModelPopover: View {
                 return .handled
             }
             .onKeyPress(.leftArrow) { if Self.hasOptions(store.currentModel) { drill(false) }; return .handled }
-            Divider()
+            SettingsDivider()
             Button(action: openProviders) {
                 HStack {
                     Text("Providers…")

@@ -20,7 +20,7 @@ struct DictateKeyboardsCard: View {
                     }
                     .padding(.bottom, 6)
                     ForEach(Array(listed.enumerated()), id: \.element.id) { index, source in
-                        if index > 0 { Divider() }
+                        if index > 0 { SettingsDivider() }
                         KeyboardMappingRow(source: source, local: local, keyboards: keyboards)
                     }
                 }

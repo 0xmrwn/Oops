@@ -16,16 +16,16 @@ struct DebugToolsPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             debugLog
-            Divider()
+            SettingsDivider()
             HStack(spacing: 16) {
                 title("Capsule", tip: "Plays the capsule’s busy and done animation here, without sending any text.")
                 Spacer()
                 Button(action: preview) { Label("Play", systemImage: "play") }.buttonStyle(.settingsGlass)
             }
-            Divider()
+            SettingsDivider()
             placementProbe
             if !preferences.status.isEmpty {
-                Divider()
+                SettingsDivider()
                 Text(preferences.status).font(.callout).textSelection(.enabled)
             }
         }

@@ -33,7 +33,7 @@ struct CustomizePage: View {
                     .padding(10)
                     .frame(height: 220)
                     .accessibilityLabel("Correction rules")
-                Divider()
+                SettingsDivider()
                 Label(CorrectionPolicy.contract, systemImage: "lock.fill")
                     .font(.system(size: 11.5, design: .monospaced)).secondaryText()
                     .fixedSize(horizontal: false, vertical: true)

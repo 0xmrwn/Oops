@@ -139,7 +139,7 @@ private struct AppsList: View {
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(scope.apps.enumerated()), id: \.element) { index, app in
-                    if index > 0 { Divider() }
+                    if index > 0 { SettingsDivider() }
                     HStack(spacing: 14) {
                         Image(nsImage: AppScope.icon(app)).resizable().frame(width: 24, height: 24).accessibilityHidden(true)
                         Text(AppScope.name(app)).fontWeight(.semibold)
@@ -242,7 +242,7 @@ private struct ShortcutRecorder: View {
             if key == Shortcut.hyperKey { HyperKeyLegend(size: 12.5, partSize: 8.5) } else { Text(key).font(.system(size: 15, weight: .medium)) }
         }
         .frame(minWidth: 29, minHeight: 32).padding(.horizontal, key.count > 1 ? 6 : 0)
-        .background(.quaternary, in: .rect(cornerRadius: 6))
+        .keycapFill(cornerRadius: 6)
         .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
 
