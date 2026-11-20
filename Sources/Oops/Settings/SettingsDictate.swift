@@ -84,8 +84,8 @@ struct DictateDropCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingRow(symbol: "circle.grid.3x3", title: "Visualizer") {
-                GlassChoice(title: "Visualizer", choices: Self.visualizers, selection: $visualizer)
+            SettingRow(symbol: "alternatingcurrent", title: "Animation") {
+                GlassChoice(title: "Animation", choices: Self.visualizers, selection: $visualizer)
             }
             Divider()
             SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
