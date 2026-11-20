@@ -37,12 +37,13 @@ public enum DictationText {
     }
 
     /// The filler-supporting language `text` is written in, or nil when it is neither or the guess is weak. Apple's
-    /// recognizer runs on-device in a few milliseconds and, held to English and French, only has to tell those apart.
+    /// recognizer runs on-device in a few milliseconds. It judges among every language, not only the two with fillers:
+    /// held to English and French it would call German one of them, and strip its words.
     static func fillerLanguage(of text: String, floor: Double = 0.8) -> String? {
         let recognizer = NLLanguageRecognizer()
-        recognizer.languageConstraints = [.english, .french]
         recognizer.processString(text)
-        guard let best = recognizer.languageHypotheses(withMaximum: 1).first, best.value >= floor else { return nil }
+        guard let best = recognizer.languageHypotheses(withMaximum: 1).first, best.value >= floor,
+              FillerWords.applies(to: best.key.rawValue) else { return nil }
         return best.key.rawValue
     }
 }
