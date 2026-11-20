@@ -3,7 +3,7 @@ import OopsCore
 
 /// Returns the input unchanged: a baseline, and a way to test the harness without a model.
 struct EchoBackend: CorrectionBackend {
-    func complete(_ text: String, instructions: String) async throws -> String {
+    func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         String(decoding: try JSONSerialization.data(withJSONObject: ["text": text]), as: UTF8.self)
     }
 }

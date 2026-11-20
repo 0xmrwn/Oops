@@ -199,8 +199,8 @@ public struct TextTransaction: Equatable, Sendable {
 /// A model behind a provider. The caller gives the system prompt with each call, so each feature sends its own:
 /// Fix passes `CorrectionPolicy.instructions`, dictation's cleanup `CleanupPrompt.instructions`.
 public protocol CorrectionBackend: Sendable {
-    /// The model's answer before decoding: the schema object as JSON text.
-    func complete(_ text: String, instructions: String) async throws -> String
+    /// The model's answer before decoding: the schema object as JSON text, or a slow failure once `deadline` passes.
+    func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String
     /// Called when the shortcut is pressed, before the draft is read: a chance to start up early with the
     /// instructions the next `complete` will send.
     func prepare(instructions: String) async
@@ -219,6 +219,13 @@ public func withDeadline<T: Sendable>(_ limit: Duration, orThrow timeout: Error,
 
 public extension CorrectionBackend {
     func prepare(instructions: String) async {}
+
+    /// How long Fix waits for a model; dictation's cleanup passes its own, scaled to the transcript.
+    static var defaultDeadline: Duration { .seconds(40) }
+
+    func complete(_ text: String, instructions: String) async throws -> String {
+        try await complete(text, instructions: instructions, deadline: Self.defaultDeadline)
+    }
 
     /// Fix's correction of `text`, decoded.
     func correct(_ text: String) async throws -> String {

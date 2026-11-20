@@ -71,6 +71,17 @@ final class CleanupSpokenSymbolsTests: XCTestCase {
         XCTAssertEqual(SpokenSymbols.apply("la lista dos puntos de manzanas"), "la lista: de manzanas")
     }
 
+    func testAMarkTheModelAlreadyWroteIsNotDoubled() {
+        XCTAssertEqual(SpokenSymbols.apply("Are you coming question mark?"), "Are you coming?")
+        XCTAssertEqual(SpokenSymbols.apply("Stop exclamation mark! Now"), "Stop! Now")
+        XCTAssertEqual(SpokenSymbols.apply("Go exclamation point!"), "Go!")
+    }
+
+    func testAClosingParenthesisKeepsThePunctuationAfterIt() {
+        XCTAssertEqual(SpokenSymbols.apply("see open paren the note close paren. Next point."), "see (the note). Next point.")
+        XCTAssertEqual(SpokenSymbols.apply("a open paren b close paren, c"), "a (b), c")
+    }
+
     func testOtherWordsAreLeftAlone() {
         for text in [
             "comas", "guiones largos", "un punto y aparte", "commas", "slashed prices", "hashtags everywhere",

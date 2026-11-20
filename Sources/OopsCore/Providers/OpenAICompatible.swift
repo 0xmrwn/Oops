@@ -52,11 +52,11 @@ public struct OpenAICompatibleBackend: CorrectionBackend {
     public init(configuration: APIConfiguration, session: URLSession = .shared) {
         self.configuration = configuration; self.session = session
     }
-    public func complete(_ text: String, instructions: String) async throws -> String {
+    public func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         let data: Data, response: URLResponse
         let request = try configuration.request(for: text, instructions: instructions), session = session
         // The request timeout only bounds silence between bytes; the deadline bounds the whole answer.
-        do { (data, response) = try await withDeadline(.seconds(40), orThrow: URLError(.timedOut)) { try await session.data(for: request) } }
+        do { (data, response) = try await withDeadline(deadline, orThrow: URLError(.timedOut)) { try await session.data(for: request) } }
         catch let error as URLError where error.code == .cancelled { throw CancellationError() }
         catch let error as URLError where error.code == .timedOut { throw CorrectionError.failure(.slow, "The API took too long to correct this text. Try again.") }
         catch is URLError { throw CorrectionError.failure(.offline, "Couldn't reach the API. Check your connection and try again.") }

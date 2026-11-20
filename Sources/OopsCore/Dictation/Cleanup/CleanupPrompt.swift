@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 import os
 
 /// When a dictation's transcript is rewritten by a language model.
@@ -37,11 +38,20 @@ public enum CleanupPrompt {
     /// 60 s. Measured medians run 2.5 s for 50 words, 7 s for 300 and 14 s for 1,200 (25 s on the slower models), so
     /// a long dictation gets the time its rewrite takes instead of a fixed 15 s.
     public static func timeout(for transcript: String) -> Duration {
-        let words = transcript.split(whereSeparator: \.isWhitespace).count
+        // Whitespace splitting counts a long Japanese or Chinese transcript as one word; the tokenizer segments it.
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = transcript
+        var words = 0
+        tokenizer.enumerateTokens(in: transcript.startIndex..<transcript.endIndex) { _, _ in words += 1; return true }
         return .milliseconds(min(60_000, 5000 + 30 * words))
     }
     /// Inputs shorter than this skip the length guard: a few words' answer is too noisy to judge by length.
     static let guardedLength = 80
+    /// `transcript` after the contractions the model is told to make anyway (spoken formatting and symbols, and
+    /// fillers where its language is known), so "apples new paragraph oranges" is judged as "apples\n\noranges".
+    static func expected(from transcript: String) -> String {
+        TranscriptCleanup.apply(transcript, fillers: DictationText.fillerLanguage(of: transcript) != nil, formatting: true, symbols: true)
+    }
     /// Whether `answer` is about as long as `input`, between 70 % and 130 % of it. A rewrite that drops or adds more
     /// has summarised, truncated or answered the transcript rather than cleaned it.
     static func keepsLength(_ answer: String, of input: String) -> Bool {
@@ -77,13 +87,13 @@ public enum CleanupPrompt {
     /// longer than `timeout` or answers nothing usable: the caller then writes the transcript as heard.
     public static func clean(_ transcript: String, with backend: any CorrectionBackend, timeout: Duration? = nil) async -> String? {
         guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, transcript.utf16.count <= maximumLength else { return nil }
-        let input = input(transcript), instructions = instructions
+        let input = input(transcript), instructions = instructions, budget = timeout ?? Self.timeout(for: transcript)
         do {
-            let raw = try await withDeadline(timeout ?? Self.timeout(for: transcript), orThrow: CancellationError()) {
-                try await backend.complete(input, instructions: instructions)
+            let raw = try await withDeadline(budget, orThrow: CancellationError()) {
+                try await backend.complete(input, instructions: instructions, deadline: budget)
             }
             guard let answer = decode(raw) else { return nil }
-            guard keepsLength(answer, of: transcript) else {
+            guard keepsLength(answer, of: expected(from: transcript)) else {
                 log.notice("cleanup rejected=length input=\(transcript.count, privacy: .public) answer=\(answer.count, privacy: .public)")
                 return nil
             }

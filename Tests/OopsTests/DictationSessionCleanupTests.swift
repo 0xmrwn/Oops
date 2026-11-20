@@ -160,7 +160,7 @@ private actor CleanupStub: CorrectionBackend {
 
     init(_ behaviour: Behaviour) { self.behaviour = behaviour }
 
-    func complete(_ text: String, instructions: String) async throws -> String {
+    func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         calls.append((text, instructions))
         switch behaviour {
         case .answer(let answer): return String(decoding: try JSONSerialization.data(withJSONObject: ["text": answer]), as: UTF8.self)
