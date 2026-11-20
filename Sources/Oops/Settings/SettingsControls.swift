@@ -16,27 +16,27 @@ struct GlassChoice<Value: Hashable>: View {
         HStack(spacing: 2) {
             ForEach(choices, id: \.value) { choice in
                 let selected = choice.value == selection
-                Button {
-                    withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(duration: 0.35, bounce: 0.15)) { selection = choice.value }
-                } label: {
+                Button { selection = choice.value } label: {
                     Text(choice.label)
                         .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(.primary.opacity(selected ? 1 : 0.68))
                         .padding(.horizontal, 12).frame(minHeight: 26)
-                        .background {
-                            if selected {
-                                Capsule().fill(.clear)
-                                    .glassEffect(.regular.interactive(enabled), in: .capsule)
-                                    .glassEdge(Capsule(), outside: true)
-                                    .matchedGeometryEffect(id: "pill", in: pill)
-                            }
-                        }
                         .contentShape(Capsule())
+                        .matchedGeometryEffect(id: choice.value, in: pill)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
+        // One pill that follows the chosen label, animated on the value itself: a selection kept in UserDefaults
+        // reaches the view outside any `withAnimation`, and a pill per label would only cross-fade.
+        .background {
+            Capsule().fill(.clear)
+                .glassEffect(.regular.interactive(enabled), in: .capsule)
+                .glassEdge(Capsule(), outside: true)
+                .matchedGeometryEffect(id: selection, in: pill, isSource: false)
+        }
+        .animation(reduceMotion ? .easeInOut(duration: 0.15) : .spring(duration: 0.35, bounce: 0.15), value: selection)
         .padding(3)
         .background {
             Capsule().fill(.primary.opacity(colorScheme == .dark ? 0.07 : 0.05))
