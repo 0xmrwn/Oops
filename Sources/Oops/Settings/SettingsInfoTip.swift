@@ -28,6 +28,10 @@ struct InfoTip<Visual: View>: View {
                 .frame(width: 22, height: 22).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The plain style draws no ring; this one shows only once the keyboard is in use.
+        .modifier(FocusVisibleRing(radius: 11))
+        // Opened from the keyboard, focus stays here rather than in the popover, so Escape is heard here.
+        .onExitCommand { shown = false }
         .onHover { overIcon = $0; hovered() }
         .popover(isPresented: $shown, arrowEdge: .bottom) {
             tip.onHover { overTip = $0; hovered() }
