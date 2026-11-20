@@ -8,7 +8,23 @@ extension DictationCleanupMode {
     /// Clean up as saved, off until it's chosen.
     static var saved: DictationCleanupMode { UserDefaults.standard.string(forKey: key).flatMap(Self.init(rawValue:)) ?? .off }
     /// The Clean up choice's values, in its order.
-    static let choices: [(value: DictationCleanupMode, label: String)] = [(.off, "Off"), (.button, "Button"), (.always, "Always")]
+    static let choices: [(value: DictationCleanupMode, label: String)] = [(.off, "Off"), (.basic, "Basic"), (.ai, "AI")]
+
+    /// Set once Clean up is saved as a level.
+    static let levelsKey = "DictationCleanUpLevels"
+
+    /// Clean up as it was saved before the levels, once: Always cleaned with the model, so it is AI; Off and Button
+    /// wrote the transcript after the small cleanups, so they are Basic when one is switched on and Off otherwise.
+    /// Off is a level too, so a flag, not the value, tells that it's done.
+    static func migrate(_ defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: levelsKey) else { return }
+        defaults.set(true, forKey: levelsKey)
+        let saved = defaults.string(forKey: key)
+        if let saved, Self(rawValue: saved).map({ $0 != .off }) == true { return }
+        let small = [SmallCleanups.fillersKey, SmallCleanups.formattingKey, SmallCleanups.symbolsKey].contains { defaults.bool(forKey: $0) }
+        let level: Self = saved == "always" ? .ai : small ? .basic : .off
+        if saved != nil || level != .off { defaults.set(level.rawValue, forKey: key) }
+    }
 }
 
 extension SmallCleanups {

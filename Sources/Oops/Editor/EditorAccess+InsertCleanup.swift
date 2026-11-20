@@ -32,4 +32,16 @@ extension EditorAccess {
         lastInsert = nil
         return .replaced
     }
+
+    /// Whether the field the last insert wrote `inserted` into still has focus, reads what the insert left there and
+    /// has its caret right after it. Read only, the same way `replaceInserted` reads it.
+    func insertedIntact(_ inserted: String) -> Bool {
+        guard let record = lastInsert, sameText(record.text, inserted) else { return false }
+        let heldSwitch = switches.attribute(for: record.pid) != nil
+        defer { if !heldSwitch { restoreFullAccessibility(pid: record.pid) } }
+        guard let snapshot = try? capture() else { return false }
+        guard snapshot.pid == record.pid else { restoreFullAccessibility(pid: snapshot.pid); return false }
+        return CFEqual(snapshot.element, record.element) && sameDraft(snapshot.transaction.before, record.field)
+            && snapshot.transaction.selection == NSRange(location: NSMaxRange(record.range), length: 0)
+    }
 }

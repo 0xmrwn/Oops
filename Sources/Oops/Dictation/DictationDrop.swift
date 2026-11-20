@@ -261,10 +261,12 @@ extension DictationDropPosition {
     }
 
     /// A failure, or the word that the microphone is ready, stays as long as Fix's results do, then leaves; a
-    /// kept transcript stays as long as Fix's failures, for its button, and the word that it was copied briefly.
+    /// kept transcript, or a written one with a button, stays as long as Fix's failures, for its button, and the word
+    /// that it was copied briefly. The pointer on the drop holds it up.
     private func settle() {
         switch model.state {
-        case .failed, .ready, .written: panel.hide(after: ResultTiming.seconds)
+        case .failed, .ready: panel.hide(after: ResultTiming.seconds)
+        case .written: panel.hide(after: model.action == nil ? ResultTiming.seconds : 8)
         case .kept: panel.hide(after: 8)
         case .copied: panel.hide(after: 0.9)
         case .recording, .transcribing, .cleaningUp: break

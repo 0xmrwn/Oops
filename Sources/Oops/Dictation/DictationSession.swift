@@ -14,7 +14,7 @@ import OSLog
 /// transcribed as far as it got. The last transcript is kept for Paste last dictation and the drop's Copy.
 @MainActor final class DictationSession {
     enum Event {
-        /// A key went down or up; `cleanUp` for the "Dictate and clean up" shortcut.
+        /// A key went down or up; `cleanUp` for the "Clean up with AI" shortcut.
         case key(HotkeyPhase, CaptureInstant, ContinuousClock.Instant, cleanUp: Bool)
         /// The activation's deadline passed.
         case timer(ContinuousClock.Instant)
@@ -34,7 +34,7 @@ import OSLog
     enum Ending: Equatable {
         /// Written, or nothing worth writing (no speech, an empty transcript): the drop just leaves.
         case done
-        /// Written as `text`, with Clean up on Button: the drop offers to clean it up.
+        /// Written as `text` below AI, with a model to clean it: the drop offers to.
         case offer(String)
         case failed(DictationFailure)
         /// No text field had focus: the transcript is kept, and the drop offers to copy it.
@@ -79,7 +79,7 @@ import OSLog
     private var lastPress: CaptureInstant?
     /// The last key-up, which a release deferred by the activation's grace still ends the recording at.
     private var lastRelease: CaptureInstant?
-    /// The last key-down came from "Dictate and clean up".
+    /// The last key-down came from "Clean up with AI".
     private var lastPressCleans = false
     /// The model this session loaded, or is loading or warming up, and that work.
     var loadedModel: URL?
@@ -89,6 +89,8 @@ import OSLog
     /// The most recent transcript, written or not, held in memory only: Paste last dictation writes it again,
     /// and the kept drop copies it.
     var lastTranscript: String?
+    /// The last dictation's text where it wrote it into a field, until the next starts: "Clean up with AI" cleans it.
+    var lastWritten: String?
     /// Told each dictation written into a field, with the seconds from its release: first run's Try it shows them.
     var onInserted: ((String, Double) -> Void)?
     /// Told when a dictation takes the drop and when it lets go: Try it says it is listening in between.
@@ -109,7 +111,7 @@ import OSLog
     /// microphone. `modelPath`, `language` and `mode` are read at each start and press; `status` hears a refused
     /// start; `askMicrophone` shows the system's prompt and answers whether access was given. `escape` registers
     /// the Escape chords given (none: unregisters them), `shortcutModifiers` are the held shortcut's (Dictate's, or
-    /// "Dictate and clean up"'s when `cleanUp`), and
+    /// "Clean up with AI"'s when `cleanUp`), and
     /// `copy` puts a transcript on the clipboard. `hostedEngine` is read at each press: non-nil, that dictation streams
     /// through it and needs no model file.
     init(recorder: DictationRecorder?, engine: any SpeechEngine?, hostedEngine: @escaping @MainActor () -> (any SpeechEngine)? = { nil },
@@ -134,7 +136,7 @@ import OSLog
         }
     }
 
-    /// The Dictate shortcut, or "Dictate and clean up" (`cleanUp`), went down or up, at the instants the hotkey
+    /// The Dictate shortcut, or "Clean up with AI" (`cleanUp`), went down or up, at the instants the hotkey
     /// event was taken.
     func shortcut(_ phase: HotkeyPhase, at capture: CaptureInstant, now: ContinuousClock.Instant, cleanUp: Bool = false) {
         events.yield(.key(phase, capture, now, cleanUp: cleanUp))
@@ -178,6 +180,7 @@ import OSLog
         }
         switch event {
         case let .key(.pressed, capture, now, cleanUp):
+            if cleanUp, await cleanLastWritten() { break }
             activation.mode = mode()
             lastPress = capture; lastPressCleans = cleanUp; lastPressedAt = now
             await perform(activation.pressed(at: now), stoppingAt: capture)
@@ -265,7 +268,7 @@ import OSLog
             Self.log.notice("start refused=dropHeld")
             return
         }
-        holdsDrop = true; turn += 1
+        holdsDrop = true; turn += 1; lastWritten = nil
         let hosted = hostedEngine()
         guard let engine = hosted ?? self.engine, let recorder else { return refuse(.notInBuild) }
         if hosted == nil {

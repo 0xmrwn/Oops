@@ -15,26 +15,40 @@ import XCTest
     private static func failed(_ shown: FakeDictationDrop.Shown) -> Bool { if case .failed = shown { true } else { false } }
 
     private func cleanup(_ mode: DictationCleanupMode, _ model: CleanupStub?, small: SmallCleanups = .off,
-                         vocabulary: VocabularyDelivery? = nil,
+                         vocabulary: VocabularyDelivery? = nil, intact: Bool = false, shortcut: String? = nil,
                          replace: @escaping @MainActor (String, String) async -> InsertReplacement = { _, _ in .replaced }) -> DictationSession.Cleanup {
         DictationSession.Cleanup(vocabulary: { vocabulary }, small: { small }, language: { "en" }, mode: { mode },
                                  backend: { if let model { return model }; throw CorrectionError.message("none") },
-                                 timeout: .milliseconds(200), replace: replace)
+                                 timeout: .milliseconds(200), replace: replace, intact: { _ in intact }, shortcutLabel: { shortcut })
     }
 
-    func testOffMakesNoModelCallAndWritesTheTranscript() async throws {
+    func testOffMakesNoModelCallAndWritesTheTranscriptAsHeard() async throws {
         let model = CleanupStub(.answer("Cleaned."))
-        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.off, model))
+        let small = SmallCleanups(fillers: true, formatting: true, symbols: true)
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello comma"),
+                                          cleanup: cleanup(.off, model, small: small))
         try await dictate(run)
-        XCTAssertEqual(run.inserts.texts, ["um hello"])
-        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .left])
+        XCTAssertEqual(run.inserts.texts, ["um hello comma"], "Off runs none of the small cleanups, even switched on")
+        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .written])
         let calls = await model.calls
         XCTAssertTrue(calls.isEmpty)
     }
 
-    func testAlwaysWritesTheCleanedText() async throws {
+    func testBasicRunsTheSmallCleanupsWithoutTheModel() async throws {
+        let model = CleanupStub(.answer("Cleaned."))
+        let small = SmallCleanups(fillers: true, formatting: true, symbols: true)
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello comma"),
+                                          cleanup: cleanup(.basic, model, small: small))
+        try await dictate(run)
+        XCTAssertEqual(run.inserts.texts.count, 1)
+        XCTAssertNotEqual(run.inserts.texts.first, "um hello comma")
+        let calls = await model.calls
+        XCTAssertTrue(calls.isEmpty)
+    }
+
+    func testAIWritesTheCleanedText() async throws {
         let model = CleanupStub(.answer("Hello."))
-        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.always, model))
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.ai, model))
         try await dictate(run)
         XCTAssertEqual(run.inserts.texts, ["Hello."])
         XCTAssertEqual(run.drop.states, [.recording, .transcribing, .cleaningUp, .left])
@@ -42,16 +56,17 @@ import XCTest
         XCTAssertEqual(calls.map(\.instructions), [CleanupPrompt.instructions])
     }
 
-    func testAProviderErrorATimeoutOrNoModelWritesTheRawTranscript() async throws {
+    func testAProviderErrorATimeoutOrNoModelWritesTheBasicTextAndSaysSo() async throws {
         for model in [CleanupStub(.fail), CleanupStub(.slow), nil] {
-            let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.always, model))
+            let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.ai, model))
             try await dictate(run)
             XCTAssertEqual(run.inserts.texts, ["um hello"])
-            XCTAssertEqual(run.drop.states.last, .left)
+            XCTAssertEqual(run.drop.states.last, .failed(.cleanup))
+            XCTAssertNil(run.drop.action, "no button offers the cleanup that just failed")
         }
     }
 
-    func testDictateAndCleanUpCleansWhateverTheSettingSays() async throws {
+    func testCleanUpWithAIDictatesCleanedWhateverTheLevelSays() async throws {
         let model = CleanupStub(.answer("Hello."))
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.off, model))
         try await dictate(run, cleanUp: true)
@@ -65,22 +80,22 @@ import XCTest
         let model = CleanupStub(.answer("Done."))
         let small = SmallCleanups(fillers: true, formatting: true, symbols: true)
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "Um, tail scale comma new line"),
-                                          cleanup: cleanup(.always, model, small: small, vocabulary: .fuzzyReplacement(["Tailscale"])))
+                                          cleanup: cleanup(.ai, model, small: small, vocabulary: .fuzzyReplacement(["Tailscale"])))
         try await dictate(run)
         let calls = await model.calls
         XCTAssertEqual(calls.map(\.text), ["<transcript>\nTailscale,\n\n</transcript>"])
     }
 
-    func testButtonOffersCleanUpAndPressingItReplacesTheInsertedText() async throws {
+    func testBasicOffersCleanUpAndPressingItReplacesTheInsertedText() async throws {
         let model = CleanupStub(.answer("Hello."))
         var replaced: [(String, String)] = []
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
-                                          cleanup: cleanup(.button, model) { replaced.append(($0, $1)); return .replaced })
+                                          cleanup: cleanup(.basic, model, shortcut: "⌃⌘E") { replaced.append(($0, $1)); return .replaced })
         try await dictate(run)
         XCTAssertEqual(run.inserts.texts, ["um hello"])
         XCTAssertEqual(run.drop.states, [.recording, .transcribing, .written])
         let action = try XCTUnwrap(run.drop.action)
-        XCTAssertEqual(action.label, "Clean up")
+        XCTAssertEqual(action.label, "Clean up with AI · ⌃⌘E")
         var calls = await model.calls
         XCTAssertTrue(calls.isEmpty, "nothing is cleaned until the button is pressed")
         action.perform()
@@ -96,7 +111,7 @@ import XCTest
     func testACleanupOvertakenByANewDictationReplacesNothing() async throws {
         var replaced = 0
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
-                                          cleanup: cleanup(.button, CleanupStub(.late("Hello."))) { _, _ in replaced += 1; return .replaced })
+                                          cleanup: cleanup(.basic, CleanupStub(.late("Hello."))) { _, _ in replaced += 1; return .replaced })
         try await dictate(run)
         try XCTUnwrap(run.drop.action).perform()
         run.press(3_000)
@@ -109,7 +124,7 @@ import XCTest
 
     func testButtonReplacesNothingWhenTheFieldChangedAndTheDropSaysSo() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
-                                          cleanup: cleanup(.button, CleanupStub(.answer("Hello."))) { _, _ in .changed })
+                                          cleanup: cleanup(.basic, CleanupStub(.answer("Hello."))) { _, _ in .changed })
         try await dictate(run)
         try XCTUnwrap(run.drop.action).perform()
         try await run.until { run.drop.states.last == .failed(.textChanged) }
@@ -119,20 +134,87 @@ import XCTest
     func testButtonWithAFailingModelReplacesNothingAndSaysSo() async throws {
         var replaced = 0
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
-                                          cleanup: cleanup(.button, CleanupStub(.fail)) { _, _ in replaced += 1; return .replaced })
+                                          cleanup: cleanup(.basic, CleanupStub(.fail)) { _, _ in replaced += 1; return .replaced })
         try await dictate(run)
         try XCTUnwrap(run.drop.action).perform()
         try await run.until { run.drop.states.last == .failed(.cleanup) }
         XCTAssertEqual(replaced, 0)
     }
 
-    func testButtonIsOfferedOnlyWhereTheFieldReadTheTextBack() async throws {
+    func testButtonIsOfferedOnlyWhereTheFieldReadTheTextBackAndWithAModel() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
-                                          cleanup: cleanup(.button, CleanupStub(.answer("Hello."))))
+                                          cleanup: cleanup(.basic, CleanupStub(.answer("Hello."))))
         run.inserts.outcome = .unconfirmed
         try await dictate(run)
         XCTAssertEqual(run.drop.states, [.recording, .transcribing, .left])
         XCTAssertNil(run.drop.action)
+        let none = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"), cleanup: cleanup(.basic, nil))
+        try await dictate(none)
+        XCTAssertEqual(none.drop.states, [.recording, .transcribing, .left])
+    }
+
+    func testTheShortcutCleansTheLastDictationWhileItIsIntact() async throws {
+        let model = CleanupStub(.answer("Hello."))
+        var replaced: [(String, String)] = []
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
+                                          cleanup: cleanup(.basic, model, intact: true) { replaced.append(($0, $1)); return .replaced })
+        try await dictate(run)
+        run.press(3_000, cleanUp: true)
+        try await run.until { run.drop.states.last == .left }
+        run.release(3_100)
+        try await run.settle()
+        XCTAssertEqual(run.drop.states, [.recording, .transcribing, .written, .cleaningUp, .left], "nothing recorded")
+        XCTAssertEqual(replaced.map(\.0), ["um hello"])
+        XCTAssertEqual(replaced.map(\.1), ["Hello."])
+        XCTAssertEqual(run.inserts.texts, ["um hello"])
+    }
+
+    func testTheShortcutDictatesWhenTheLastDictationIsNoLongerIntact() async throws {
+        let model = CleanupStub(.answer("Hello."))
+        var replaced = 0
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
+                                          cleanup: cleanup(.basic, model, intact: false) { _, _ in replaced += 1; return .replaced })
+        try await dictate(run)
+        try await dictate(run, at: 3_000, cleanUp: true)
+        XCTAssertEqual(run.inserts.texts, ["um hello", "Hello."])
+        XCTAssertEqual(replaced, 0)
+    }
+
+    func testTheShortcutDictatesWhenTheLastDictationWasOnlyKept() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly, engine: FakeSpeechEngine(text: "um hello"),
+                                          cleanup: cleanup(.basic, CleanupStub(.answer("Hello.")), intact: true))
+        run.inserts.outcome = .refused(.noEditor)
+        run.press(0)
+        try await run.until { run.drop.states.last == .recording }
+        run.release(1_200)
+        try await run.until { run.drop.states.last == .kept }
+        run.inserts.outcome = .inserted
+        try await dictate(run, at: 3_000, cleanUp: true)
+        XCTAssertEqual(run.inserts.texts, ["um hello", "Hello."])
+    }
+
+    func testTheSavedChoiceMovesToTheLevelsOnce() throws {
+        let suite = "DictationSessionCleanupTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults.standard.removePersistentDomain(forName: suite) }
+        let key = DictationCleanupMode.key
+        for (saved, small, level) in [("always", false, "ai"), ("button", true, "basic"), ("off", true, "basic"),
+                                      ("button", false, "off"), ("off", false, "off"), ("ai", false, "ai"), ("basic", false, "basic")] {
+            defaults.removeObject(forKey: DictationCleanupMode.levelsKey)
+            defaults.set(saved, forKey: key)
+            defaults.set(small, forKey: SmallCleanups.symbolsKey)
+            DictationCleanupMode.migrate(defaults)
+            XCTAssertEqual(defaults.string(forKey: key), level, "\(saved) small=\(small)")
+        }
+        defaults.set("off", forKey: key)
+        defaults.set(true, forKey: SmallCleanups.symbolsKey)
+        DictationCleanupMode.migrate(defaults)
+        XCTAssertEqual(defaults.string(forKey: key), "off", "once only: Off chosen since stays")
+        defaults.removeObject(forKey: DictationCleanupMode.levelsKey)
+        defaults.removeObject(forKey: key)
+        defaults.set(false, forKey: SmallCleanups.symbolsKey)
+        DictationCleanupMode.migrate(defaults)
+        XCTAssertNil(defaults.string(forKey: key), "nothing saved and nothing on stays unsaved")
     }
 
     func testTheEngineGetsOnlyItsOwnVocabularyAndAnEmptyOneSendsNothing() async throws {

@@ -76,7 +76,8 @@ struct Shortcut: Codable, Equatable {
     enum Action: String, CaseIterable {
         case correct
         case dictate
-        /// One dictation cleaned up whatever Clean up says; no default, so no hotkey until one is chosen.
+        /// Cleans the last dictation with the model while it is intact, or dictates one cleaned whatever Clean up says;
+        /// no default, so no hotkey until one is chosen.
         case dictateAndCleanUp
         case pasteLast
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
@@ -93,7 +94,7 @@ struct Shortcut: Codable, Equatable {
             switch self {
             case .correct: "Fix text"
             case .dictate: "Dictate"
-            case .dictateAndCleanUp: "Dictate and clean up"
+            case .dictateAndCleanUp: "Clean up with AI"
             case .pasteLast: "Paste last dictation"
             }
         }
@@ -149,7 +150,7 @@ struct Shortcut: Codable, Equatable {
     func label(_ action: Action) -> String { shortcut(action)?.label ?? "—" }
 
     func registration(_ action: Action) -> Registration {
-        // Paste last dictation and Dictate and clean up go off with Dictate, as Paste last dictation's menu item
+        // Paste last dictation and Clean up with AI go off with Dictate, as Paste last dictation's menu item
         // does: only a feature's own shortcut stands without it.
         let dictation = DebugFlags.dictation && (action.isSwitch || shortcut(.dictate) != nil)
         return Self.registration(action, shortcut: shortcut(action), dictation: dictation, off: off.contains(action))

@@ -52,16 +52,21 @@ extension DictationSession {
             Self.log.notice("live engine=\(live.hosted ? "openai" : "local", privacy: .public) updates=\(live.updates, privacy: .public) first_ms=\(first, privacy: .public)")
         }
         guard !trimmed.isEmpty else { return .done }
-        let polished = await polish(trimmed)
+        let (polished, cleanupFailed) = await polish(trimmed)
         guard !polished.isEmpty else { return .done }
         // Gone before the one write, so the words never show twice; a newer dictation's words are its own.
         if let live, live.turn == turn { drop.showWords(nil) }
         let outcome = await insert(polished)
         // A cancelled insert leaves the last transcript alone, as Hex's cancelled jobs do.
         if outcome != .refused(.cancelled) { lastTranscript = polished }
-        if outcome == .inserted { onInserted?(polished, Double(DebugLog.milliseconds(since: began)) / 1000) }
-        // Clean up's button replaces the text later, so only a field that read the text back offers it.
-        if outcome == .inserted, plan.mode == .button { return .offer(polished) }
+        if outcome == .inserted {
+            lastWritten = polished
+            onInserted?(polished, Double(DebugLog.milliseconds(since: began)) / 1000)
+        }
+        // Written, but not as the model would have it: the drop says so rather than a plain success.
+        if cleanupFailed, [.inserted, .unconfirmed].contains(outcome) { return .failed(.cleanup) }
+        // The cleanup replaces the text later, so only a field that read the text back offers it.
+        if outcome == .inserted, offersCleanup { return .offer(polished) }
         return Self.ending(outcome)
     }
 
