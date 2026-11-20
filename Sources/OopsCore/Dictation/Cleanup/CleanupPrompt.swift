@@ -32,8 +32,6 @@ public enum CleanupPrompt {
     /// The system prompt cleanup sends.
     public static var instructions: String { rules + " " + contract }
 
-    /// A caller's fixed deadline; nil, the default, lets `timeout(for:)` scale it with the transcript.
-    public static let timeout: Duration? = nil
     /// How long a cleanup of `transcript` may take before it is written as heard: 5 s plus 3 s per 100 words, up to
     /// 60 s. Measured medians run 2.5 s for 50 words, 7 s for 300 and 14 s for 1,200 (25 s on the slower models), so
     /// a long dictation gets the time its rewrite takes instead of a fixed 15 s.

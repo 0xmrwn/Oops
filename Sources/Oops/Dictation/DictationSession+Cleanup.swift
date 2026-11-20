@@ -18,7 +18,8 @@ extension DictationSession {
         var available: @MainActor () -> Bool = { false }
         /// The cleanup model; throws when none is chosen. Built only when a cleanup runs.
         var backend: @MainActor () throws -> any CorrectionBackend = { throw CorrectionError.failure(.setup, "Choose a model for Clean up.") }
-        var timeout = CleanupPrompt.timeout
+        /// A fixed deadline for tests; nil scales it with the transcript (`CleanupPrompt.timeout(for:)`).
+        var timeout: Duration?
         /// Replaces `inserted`, the text the last insert wrote, with `cleaned`, only while the field still reads it.
         var replace: @MainActor (_ inserted: String, _ cleaned: String) async -> InsertReplacement = { _, _ in .changed }
         /// Whether the field still reads `inserted`, which the last insert wrote, with the caret right after it.
