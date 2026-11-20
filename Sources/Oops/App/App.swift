@@ -44,13 +44,12 @@ import OopsCore
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
         dictation = makeDictation()
         dictationReadiness = dictation?.recorder.map { DictationReadiness(recorder: $0) }
-        // Fix and Paste last dictation run on their press; their release ends nothing. Dictate hears both, at the
-        // instants they happened, and Escape while it records.
+        // Fix runs on its press; its release ends nothing. Dictate hears both, at the instants they happened,
+        // and Escape while it records.
         shortcuts.invoke = { [weak self] action, phase, instant in
             switch (action, phase) {
             case (.correct, .pressed): self?.session.correct()
-            case (.pasteLast, .pressed): self?.dictation?.pasteLast()
-            case (.correct, .released), (.pasteLast, .released): break
+            case (.correct, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
             case (.dictateAndCleanUp, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock, cleanUp: true)
             }

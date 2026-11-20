@@ -24,7 +24,7 @@ import OSLog
         case cancel
         /// The recording's microphone went away.
         case inputLost
-        /// Paste last dictation, from the menu or its shortcut.
+        /// Paste last dictation, from the menu.
         case pasteLast
         /// Dictate lost its shortcut.
         case off

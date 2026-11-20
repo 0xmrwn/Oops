@@ -70,7 +70,7 @@ struct Shortcut: Codable, Equatable {
 }
 
 /// The shortcuts. Fix text defaults to ⌃⌘W wherever the layout puts W; pressed again it restores (D10).
-/// Dictate and Paste last dictation have no default: without a shortcut they are off. A custom one is stored
+/// Dictate and Clean up with AI have no default: without a shortcut they are off. A custom one is stored
 /// by key code under `Shortcut.<action>`.
 @MainActor @Observable final class ShortcutSettings {
     enum Action: String, CaseIterable {
@@ -79,14 +79,12 @@ struct Shortcut: Codable, Equatable {
         /// Cleans the last dictation with the model while it is intact, or dictates one cleaned whatever Clean up says;
         /// no default, so no hotkey until one is chosen.
         case dictateAndCleanUp
-        case pasteLast
         /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
         var symbol: String {
             switch self {
             case .correct: "checkmark.bubble"
             case .dictate: SettingsTab.dictate.symbol
             case .dictateAndCleanUp: "wand.and.sparkles"
-            case .pasteLast: "doc.on.clipboard"
             }
         }
         /// The action's name in Settings.
@@ -95,14 +93,13 @@ struct Shortcut: Codable, Equatable {
             case .correct: "Fix text"
             case .dictate: "Dictate"
             case .dictateAndCleanUp: "Clean up with AI"
-            case .pasteLast: "Paste last dictation"
             }
         }
         /// The Settings tab the action belongs to.
         var tab: SettingsTab {
             switch self {
             case .correct: .fix
-            case .dictate, .dictateAndCleanUp, .pasteLast: .dictate
+            case .dictate, .dictateAndCleanUp: .dictate
             }
         }
         /// Whether the shortcut is its feature's switch, which General's Turn on records.
@@ -128,9 +125,10 @@ struct Shortcut: Codable, Equatable {
     @ObservationIgnored weak var hotkeys: HyperShortcuts?
 
     private init() {
-        // Restore had a shortcut of its own until Fix text pressed again took its place (D10): one
-        // recorded then is dropped, so it never fires or blocks a chord again.
-        UserDefaults.standard.removeObject(forKey: "Shortcut.restore")
+        // Restore had a shortcut of its own until Fix text pressed again took its place (D10), and Paste last
+        // dictation until it became a menu item only: one recorded then is dropped, so it never fires or
+        // blocks a chord again.
+        for retired in ["restore", "pasteLast"] { UserDefaults.standard.removeObject(forKey: "Shortcut." + retired) }
         for action in Action.allCases {
             if let data = UserDefaults.standard.data(forKey: key(action)), let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) {
                 custom[action] = shortcut
@@ -150,8 +148,8 @@ struct Shortcut: Codable, Equatable {
     func label(_ action: Action) -> String { shortcut(action)?.label ?? "—" }
 
     func registration(_ action: Action) -> Registration {
-        // Paste last dictation and Clean up with AI go off with Dictate, as Paste last dictation's menu item
-        // does: only a feature's own shortcut stands without it.
+        // Clean up with AI goes off with Dictate, as Paste last dictation's menu item does: only a feature's
+        // own shortcut stands without it.
         let dictation = DebugFlags.dictation && (action.isSwitch || shortcut(.dictate) != nil)
         return Self.registration(action, shortcut: shortcut(action), dictation: dictation, off: off.contains(action))
     }
