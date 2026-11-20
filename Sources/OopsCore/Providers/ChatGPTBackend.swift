@@ -12,11 +12,11 @@ public struct ChatGPTBackend: CorrectionBackend {
         self.auth = auth; self.model = model; self.effort = effort; self.serviceTier = serviceTier
     }
 
-    public func complete(_ text: String, instructions: String) async throws -> String {
+    public func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         do {
             try Task.checkCancellation()
             let (auth, model, effort, tier) = (auth, model, effort, serviceTier)
-            return try await withDeadline(.seconds(40), orThrow: Self.slow) {
+            return try await withDeadline(deadline, orThrow: Self.slow) {
                 try await auth.withAccessToken { token in
                     try await Responses.stream(request: Self.request(model: model, effort: effort, serviceTier: tier, instructions: instructions,
                                                                      text: text, token: token),

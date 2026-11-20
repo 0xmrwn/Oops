@@ -78,7 +78,7 @@ final class FixRequestTests: XCTestCase {
 
 private actor Recorder: CorrectionBackend {
     private(set) var instructions: [String] = []
-    func complete(_ text: String, instructions: String) async throws -> String {
+    func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         self.instructions.append(instructions)
         return #"{"text":"the"}"#
     }

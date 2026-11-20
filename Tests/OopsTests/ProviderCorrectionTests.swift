@@ -287,7 +287,7 @@ private actor Probe: CorrectionBackend {
         }
         preparationFinished = true
     }
-    func complete(_ text: String, instructions: String) async throws -> String {
+    func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         sources.append(text)
         await submitted.release()
         await withTaskCancellationHandler { await answer.wait() }

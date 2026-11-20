@@ -28,6 +28,14 @@ public enum SpokenSymbols {
         ("hyphen", "-", .both),
         ("slash", "/", .both),
         ("comma", ",", .previous),
+        ("question mark", "?", .previous),
+        ("exclamation mark", "!", .previous),
+        ("exclamation point", "!", .previous),
+        // "open paren" is a prefix of "open parenthesis"; whole-word matching keeps the longer one from half-matching.
+        ("open parenthesis", "(", .next),
+        ("open paren", "(", .next),
+        ("close parenthesis", ")", .previous),
+        ("close paren", ")", .previous),
         ("semicolon", ";", .previous),
         ("colon", ":", .previous),
         ("arroba", "@", .next),
@@ -113,6 +121,12 @@ public enum SpokenSymbols {
         return index
     }
 
+    private static func skipSpaces(_ chars: [Unicode.Scalar], _ from: Int) -> Int {
+        var index = from
+        while index < chars.count, chars[index].isInlineSpace { index += 1 }
+        return index
+    }
+
     /// Writes `symbol` and returns where the text continues.
     private static func emit(
         _ out: inout String.UnicodeScalarView, _ floor: inout Int, _ symbol: Unicode.Scalar, _ join: Join,
@@ -121,7 +135,10 @@ public enum SpokenSymbols {
         if join != .next { out.trimEnd(also: [","], floor: floor) }
         out.append(symbol)
         floor = out.count
-        let next = skip(chars, end)
+        // A closing parenthesis keeps the comma or period a model wrote after it: "(the note)." not "(the note)".
+        var next = symbol == ")" ? skipSpaces(chars, end) : skip(chars, end)
+        // "question mark?" is one mark: the model had already written the symbol the words ask for.
+        if symbol == "?" || symbol == "!", next < chars.count, chars[next] == symbol { next = skipSpaces(chars, next + 1) }
         if join == .previous, next < chars.count, !"\n,.;:!?)]\"".unicodeScalars.contains(chars[next]) { out.append(" ") }
         return next
     }

@@ -8,7 +8,7 @@ public struct OpenAIResponsesBackend: CorrectionBackend {
         self.configuration = configuration; self.session = session
     }
 
-    public func complete(_ text: String, instructions: String) async throws -> String {
+    public func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         guard configuration.usesOpenAIResponses, !configuration.model.trimmingCharacters(in: .whitespaces).isEmpty,
               !configuration.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw CorrectionError.failure(.setup, "Set the OpenAI API endpoint, key and model in Settings.")
@@ -18,7 +18,7 @@ public struct OpenAIResponsesBackend: CorrectionBackend {
             let effort = OpenAIReasoning.effort(model: configuration.model, selected: configuration.reasoningEffort)
             let request = try Responses.request(model: configuration.model, effort: effort,
                                                 serviceTier: nil, instructions: instructions, text: text, token: configuration.apiKey)
-            let raw = try await withDeadline(.seconds(40), orThrow: Self.slow) {
+            let raw = try await withDeadline(deadline, orThrow: Self.slow) {
                 try await Responses.stream(request: request, session: session)
             }
             try Task.checkCancellation()

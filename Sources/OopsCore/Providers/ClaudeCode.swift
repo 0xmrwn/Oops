@@ -206,14 +206,14 @@ public actor ClaudeCodeBackend: CorrectionBackend {
         }
     }
 
-    public func complete(_ text: String, instructions: String) async throws -> String {
+    public func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         let process = try take(instructions)
         // The draft is written off this task, inside the deadline: a long draft can fill the pipe
         // before Claude starts reading.
         process.finishInput(text)
         let line: Data
         do {
-            line = try await withDeadline(.seconds(40), orThrow: CorrectionError.failure(.slow, "Claude took too long to correct this text. Try again.")) {
+            line = try await withDeadline(deadline, orThrow: CorrectionError.failure(.slow, "Claude took too long to correct this text. Try again.")) {
                 try await process.firstEvent(ofType: "result")
             }
         } catch {

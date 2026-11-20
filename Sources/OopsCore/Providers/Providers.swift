@@ -122,6 +122,12 @@ public struct ModelSelection: Codable, Equatable, Sendable {
         Settings(effort: nearestEffort(defaultEffort, in: model), fast: false)
     }
 
+    /// The lightest effort the model accepts (`none` when it lists it), for work that wants speed over depth; a
+    /// model that lists no efforts gets none sent.
+    public static func lightest(_ model: CatalogModel) -> Settings {
+        Settings(effort: order.first { id in model.efforts.contains { $0.id == id } }, fast: false)
+    }
+
     // MARK: Resolving
 
     public enum Adjustment: Equatable, Sendable {

@@ -33,6 +33,60 @@ final class CleanupPromptTests: XCTestCase {
         XCTAssertLessThan(ContinuousClock.now - started, .seconds(5))
     }
 
+    func testTheDeadlineIsFiveSecondsPlusThreePerHundredWordsUpToAMinute() {
+        func words(_ count: Int) -> String { Array(repeating: "word", count: count).joined(separator: " ") }
+        XCTAssertEqual(CleanupPrompt.timeout(for: ""), .seconds(5))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(100)), .seconds(8))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(300)), .seconds(14))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(1200)), .seconds(41))
+        XCTAssertEqual(CleanupPrompt.timeout(for: words(5000)), .seconds(60))
+    }
+
+    func testTheBackendIsGivenTheCleanupBudgetNotItsOwnDefault() async {
+        let transcript = Array(repeating: "word", count: 1200).joined(separator: " ")
+        let backend = CleanupStub(.answer(transcript))
+        _ = await CleanupPrompt.clean(transcript, with: backend)
+        let scaled = await backend.deadlines
+        XCTAssertEqual(scaled, [CleanupPrompt.timeout(for: transcript)])
+        _ = await CleanupPrompt.clean("hello", with: backend, timeout: .seconds(7))
+        let fixed = await backend.deadlines
+        XCTAssertEqual(fixed.last, .seconds(7))
+        XCTAssertEqual(CleanupStub.defaultDeadline, .seconds(40), "Fix keeps today's deadline")
+    }
+
+    func testALongTranscriptWithoutSpacesGetsATimeScaledToItsWords() {
+        let transcript = String(repeating: "今日は天気がとても良いので散歩に行きます。", count: 100)
+        XCTAssertGreaterThan(CleanupPrompt.timeout(for: transcript), .seconds(20))
+    }
+
+    func testSpokenFormattingContractionsAreNotTruncation() async {
+        let input = "apples new paragraph oranges new paragraph bananas new paragraph pears new paragraph grapes"
+        let answer = "Apples\n\nOranges\n\nBananas\n\nPears\n\nGrapes"
+        let kept = await CleanupPrompt.clean(input, with: CleanupStub(.answer(answer)))
+        XCTAssertEqual(kept, answer)
+        let long = "buy apples and some very ripe oranges new paragraph then bananas and pears new paragraph and finally grapes for the trip"
+        let whole = "Buy apples and some very ripe oranges.\n\nThen bananas and pears.\n\nAnd finally grapes for the trip."
+        let halved = await CleanupPrompt.clean(long, with: CleanupStub(.answer("Buy apples and some very ripe oranges.")))
+        XCTAssertNil(halved)
+        let complete = await CleanupPrompt.clean(long, with: CleanupStub(.answer(whole)))
+        XCTAssertEqual(complete, whole)
+    }
+
+    func testAnAnswerFarShorterOrLongerThanALongInputIsRejected() async {
+        let input = String(repeating: "a", count: 100)
+        for (length, kept) in [(69, false), (70, true), (100, true), (130, true), (131, false)] {
+            let backend = CleanupStub(.answer(String(repeating: "b", count: length)))
+            let cleaned = await CleanupPrompt.clean(input, with: backend)
+            XCTAssertEqual(cleaned != nil, kept, "\(length)")
+        }
+    }
+
+    func testShortInputsSkipTheLengthGuard() async {
+        let backend = CleanupStub(.answer("Hello there, how are you doing today my friend?"))
+        let cleaned = await CleanupPrompt.clean("hello there", with: backend)
+        XCTAssertNotNil(cleaned)
+    }
+
     func testABlankOrTooLongTranscriptMakesNoCall() async {
         let backend = CleanupStub(.answer("x"))
         for transcript in ["", "  \n", String(repeating: "a", count: CleanupPrompt.maximumLength + 1)] {
@@ -62,11 +116,13 @@ actor CleanupStub: CorrectionBackend {
     enum Behaviour: Sendable { case answer(String), fail, slow }
     private let behaviour: Behaviour
     private(set) var calls: [(text: String, instructions: String)] = []
+    private(set) var deadlines: [Duration] = []
 
     init(_ behaviour: Behaviour) { self.behaviour = behaviour }
 
-    func complete(_ text: String, instructions: String) async throws -> String {
+    func complete(_ text: String, instructions: String, deadline: Duration) async throws -> String {
         calls.append((text, instructions))
+        deadlines.append(deadline)
         switch behaviour {
         case .answer(let answer): return String(decoding: try JSONSerialization.data(withJSONObject: ["text": answer]), as: UTF8.self)
         case .fail: throw CorrectionError.failure(.offline, "Stub failure.")

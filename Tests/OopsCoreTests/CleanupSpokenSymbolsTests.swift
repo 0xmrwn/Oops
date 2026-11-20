@@ -19,6 +19,17 @@ final class CleanupSpokenSymbolsTests: XCTestCase {
         XCTAssertEqual(SpokenSymbols.apply("a comma comma b"), "a,, b")
     }
 
+    func testEnglishPunctuationWordsBecomeSymbols() {
+        XCTAssertEqual(SpokenSymbols.apply("are you coming question mark"), "are you coming?")
+        XCTAssertEqual(SpokenSymbols.apply("great exclamation mark thanks"), "great! thanks")
+        XCTAssertEqual(SpokenSymbols.apply("great exclamation point"), "great!")
+        XCTAssertEqual(SpokenSymbols.apply("see open paren the note close paren now"), "see (the note) now")
+        XCTAssertEqual(SpokenSymbols.apply("see open parenthesis the note close parenthesis now"), "see (the note) now")
+        for kept in ["the period ends", "a dot com", "a dash of salt"] {
+            XCTAssertEqual(SpokenSymbols.apply(kept), kept)
+        }
+    }
+
     func testSpanishWordsBecomeSymbolsWithOrWithoutAccents() {
         XCTAssertEqual(SpokenSymbols.apply("escríbeme a arroba casa"), "escríbeme a @casa")
         XCTAssertEqual(SpokenSymbols.apply("mi guion bajo variable"), "mi_variable")
@@ -58,6 +69,17 @@ final class CleanupSpokenSymbolsTests: XCTestCase {
         XCTAssertEqual(SpokenSymbols.apply("deux points de vue deux-points le mien"), "deux points de vue: le mien")
         XCTAssertEqual(SpokenSymbols.apply("les deux-points pommes"), "les: pommes")
         XCTAssertEqual(SpokenSymbols.apply("la lista dos puntos de manzanas"), "la lista: de manzanas")
+    }
+
+    func testAMarkTheModelAlreadyWroteIsNotDoubled() {
+        XCTAssertEqual(SpokenSymbols.apply("Are you coming question mark?"), "Are you coming?")
+        XCTAssertEqual(SpokenSymbols.apply("Stop exclamation mark! Now"), "Stop! Now")
+        XCTAssertEqual(SpokenSymbols.apply("Go exclamation point!"), "Go!")
+    }
+
+    func testAClosingParenthesisKeepsThePunctuationAfterIt() {
+        XCTAssertEqual(SpokenSymbols.apply("see open paren the note close paren. Next point."), "see (the note). Next point.")
+        XCTAssertEqual(SpokenSymbols.apply("a open paren b close paren, c"), "a (b), c")
     }
 
     func testOtherWordsAreLeftAlone() {

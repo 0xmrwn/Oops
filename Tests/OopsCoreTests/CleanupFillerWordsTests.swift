@@ -4,6 +4,11 @@ import XCTest
 /// Hex's filler word tests (`src/dictation/filler_words.rs` at v3.4.0), each under its upstream name in the Swift
 /// style, and the same cases in French.
 final class CleanupFillerWordsTests: XCTestCase {
+    func testAhIsAnInterjectionNotAFiller() {
+        XCTAssertEqual(FillerWords.apply("Ah, I see"), "Ah, I see")
+        XCTAssertEqual(FillerWords.apply("um ah yes"), "ah yes")
+    }
+
     func testOnlyEnglishAndFrenchDictationsApplyTheFilter() {
         // Hex's filter applies to English alone; French joins it here.
         XCTAssertTrue(FillerWords.applies(to: "en"))
@@ -23,7 +28,7 @@ final class CleanupFillerWordsTests: XCTestCase {
 
     func testAFillerThatStartedASentenceHandsOnItsCapital() {
         XCTAssertEqual(FillerWords.apply("Um, so I think"), "So I think")
-        XCTAssertEqual(FillerWords.apply("Hello. Uh, we left. Ah. Then"), "Hello. We left. Then")
+        XCTAssertEqual(FillerWords.apply("Hello. Uh, we left. Er. Then"), "Hello. We left. Then")
         XCTAssertEqual(FillerWords.apply("Uh, um, okay"), "Okay")
     }
 
