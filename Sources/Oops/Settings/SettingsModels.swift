@@ -28,7 +28,6 @@ struct ModelCard: View {
                 Label(notice, systemImage: "info.circle").font(.caption).secondaryText()
                     .fixedSize(horizontal: false, vertical: true)
             }
-            SettingsDivider().padding(.top, 4)
             Button(action: customize) {
                 HStack(spacing: 14) {
                     Image(systemName: "wand.and.stars").font(.system(size: 17, weight: .medium)).frame(width: 24)
@@ -302,7 +301,6 @@ private struct ModelPopover: View {
                 return .handled
             }
             .onKeyPress(.leftArrow) { if Self.hasOptions(store.currentModel) { drill(false) }; return .handled }
-            SettingsDivider()
             Button(action: openProviders) {
                 HStack {
                     Text("Providers…")

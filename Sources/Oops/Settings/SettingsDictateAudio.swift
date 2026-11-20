@@ -22,18 +22,15 @@ struct DictateAudioCard: View {
                 let menu = SettingsMicrophones.menu(microphones.snapshot, avoidBluetooth: avoidBluetooth)
                 GlassMenu(title: "Microphone", choices: menu.choices, selection: $microphone, placeholder: menu.placeholder)
             }
-            SettingsDivider()
             SettingRow(symbol: "bolt", title: "Keep the microphone ready") {
                 HStack(spacing: 10) {
                     InfoTip("Ready, a dictation starts at once and macOS shows the microphone in use all the time. Off, the first moment of a dictation can be clipped.")
                     Toggle("Keep the microphone ready", isOn: $keepReady).settingsSwitch().labelsHidden()
                 }
             }
-            SettingsDivider()
             SettingRow(symbol: "airpods", title: "Avoid Bluetooth microphones") {
                 Toggle("Avoid Bluetooth microphones", isOn: $avoidBluetooth).settingsSwitch().labelsHidden()
             }
-            SettingsDivider()
             SettingRow(symbol: "speaker.wave.2", title: "While dictating") {
                 GlassMenu(title: "While dictating", choices: Self.whileChoices, selection: $whileDictating)
             }
@@ -42,7 +39,6 @@ struct DictateAudioCard: View {
                     .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
             }
             if whileDictating == .lowerAudio {
-                SettingsDivider()
                 SettingRow(symbol: "speaker.wave.1", title: "Level") {
                     HStack(spacing: 10) {
                         Slider(value: $lowerLevel, in: 0 ... 1).frame(width: 160).accessibilityLabel("Lower audio level")

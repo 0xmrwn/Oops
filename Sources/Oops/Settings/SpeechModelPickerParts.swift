@@ -310,7 +310,6 @@ extension View {
                     .disabled(model.license.url == nil)
             }
             if actions.state(model) == .installed, !actions.inUse(model) {
-                SettingsDivider()
                 Button("Delete", role: .destructive) { actions.delete(model) }
             }
         }

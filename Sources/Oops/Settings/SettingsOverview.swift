@@ -13,8 +13,7 @@ struct FeatureOverview: View {
     var body: some View {
         let features = tabs.filter { [.fix, .dictate, .actions].contains($0) }
         VStack(spacing: 0) {
-            ForEach(Array(features.enumerated()), id: \.element) { index, tab in
-                if index > 0 { SettingsDivider() }
+            ForEach(features, id: \.self) { tab in
                 row(tab)
             }
         }

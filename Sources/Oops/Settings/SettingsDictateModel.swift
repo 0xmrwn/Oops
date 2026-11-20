@@ -25,7 +25,6 @@ struct DictateModelCard: View {
                 .accessibilityLabel("Speech model").accessibilityValue(current?.name ?? "None")
             }
             if let current {
-                SettingsDivider()
                 SettingRow(symbol: "globe", title: "Language") {
                     if current.isSingleLanguage {
                         Text(Self.name(current.languages[0])).fontWeight(.medium).secondaryText()

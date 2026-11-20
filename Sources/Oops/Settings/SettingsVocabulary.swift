@@ -26,8 +26,7 @@ struct VocabularyPage: View {
             .settingsSurface()
             if !store.entries.isEmpty {
                 VStack(spacing: 0) {
-                    ForEach(Array(store.entries.enumerated()), id: \.element.term) { index, entry in
-                        if index > 0 { SettingsDivider() }
+                    ForEach(store.entries, id: \.term) { entry in
                         row(entry)
                     }
                 }

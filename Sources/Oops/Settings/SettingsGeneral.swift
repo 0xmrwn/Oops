@@ -93,7 +93,6 @@ struct GeneralPage: View {
             }
             VStack(spacing: 0) {
                 OpenAtLoginRow().padding(.vertical, 12).disabled(DebugFlags.brandReview)
-                SettingsDivider()
                 HStack(spacing: 14) {
                     Image(systemName: "speaker.wave.2").font(.system(size: 18, weight: .medium)).frame(width: 24)
                         .secondaryText().accessibilityHidden(true)
@@ -103,7 +102,6 @@ struct GeneralPage: View {
                         .onChange(of: sounds) { _, on in if on { Sounds.preview() } }
                 }
                 .padding(.vertical, 12)
-                SettingsDivider()
                 HStack(spacing: 14) {
                     Image(systemName: "timer").font(.system(size: 18, weight: .medium)).frame(width: 24)
                         .secondaryText().accessibilityHidden(true)

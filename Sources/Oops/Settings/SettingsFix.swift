@@ -138,8 +138,7 @@ private struct AppsList: View {
             Text("Apps you correct in appear here.").secondaryText().frame(maxWidth: .infinity, alignment: .leading).settingsSurface()
         } else {
             VStack(spacing: 0) {
-                ForEach(Array(scope.apps.enumerated()), id: \.element) { index, app in
-                    if index > 0 { SettingsDivider() }
+                ForEach(scope.apps, id: \.self) { app in
                     HStack(spacing: 14) {
                         Image(nsImage: AppScope.icon(app)).resizable().frame(width: 24, height: 24).accessibilityHidden(true)
                         Text(AppScope.name(app)).fontWeight(.semibold)

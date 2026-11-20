@@ -15,7 +15,6 @@ struct DictateKeyboardSwitch: View {
 
     var body: some View {
         if listed.count > 1, !local.installed.isEmpty || keyboards.settings.enabled {
-            SettingsDivider()
             SettingRow(symbol: "keyboard", title: "Switch with keyboard") {
                 HStack(spacing: 10) {
                     InfoTip("Pick a speech model and language for each keyboard. Dictate switches to them when you change keyboards.")
@@ -28,7 +27,6 @@ struct DictateKeyboardSwitch: View {
             if keyboards.settings.enabled {
                 VStack(spacing: 0) {
                     ForEach(listed) { source in
-                        SettingsDivider().padding(.leading, 38)
                         KeyboardMappingRow(source: source, local: local, keyboards: keyboards).padding(.leading, 38)
                     }
                 }

@@ -37,9 +37,7 @@ struct DictateShortcutCard: View {
                 }
                 .padding(.bottom, 10)
             }
-            SettingsDivider()
             SettingRow(symbol: "hand.tap", title: "Mode") { GlassMenu(title: "Mode", choices: DictationMode.choices, selection: $mode) }
-            SettingsDivider()
             SettingRow(symbol: ShortcutSettings.Action.pasteLast.symbol, title: ShortcutSettings.Action.pasteLast.title) {
                 ShortcutControl(title: ShortcutSettings.Action.pasteLast.title, action: .pasteLast, error: $pasteLastError)
             }
@@ -87,11 +85,9 @@ struct DictateDropCard: View {
             SettingRow(symbol: "alternatingcurrent", title: "Animation") {
                 GlassChoice(title: "Animation", choices: Self.visualizers, selection: $visualizer)
             }
-            SettingsDivider()
             SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
                 GlassChoice(title: "Position", choices: Self.positions, selection: $position)
             }
-            SettingsDivider()
             SettingRow(symbol: "text.bubble", title: "Live words") {
                 // A model that only transcribes once the recording ends has no words to show while speaking.
                 if store.dictateOption(local)?.streams == false {
