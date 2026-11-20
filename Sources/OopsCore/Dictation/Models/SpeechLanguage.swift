@@ -14,7 +14,7 @@ public enum SpeechLanguage {
         ("ru", "Russian"), ("uk", "Ukrainian"), ("nl", "Dutch"), ("pl", "Polish"), ("tr", "Turkish"),
         ("sv", "Swedish"), ("da", "Danish"), ("no", "Norwegian"), ("fi", "Finnish"), ("cs", "Czech"),
         ("el", "Greek"), ("ro", "Romanian"), ("hu", "Hungarian"), ("id", "Indonesian"), ("ms", "Malay"),
-        ("th", "Thai"), ("fa", "Persian"), ("he", "Hebrew"), ("bg", "Bulgarian"), ("hr", "Croatian"),
+        ("th", "Thai"), ("fa", "Persian"), ("bg", "Bulgarian"), ("hr", "Croatian"),
         ("et", "Estonian"), ("lv", "Latvian"), ("lt", "Lithuanian"), ("mt", "Maltese"), ("sk", "Slovak"),
         ("sl", "Slovenian"), ("mk", "Macedonian"), ("fil", "Filipino")
     ]
@@ -38,7 +38,7 @@ public enum SpeechLanguage {
     /// Whisper large-v3's language codes: the engine accepts these beyond the languages Settings lists.
     private static let whisper: [String] = [
         "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv", "it",
-        "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no", "th", "ur",
+        "id", "hi", "fi", "vi", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no", "th", "ur",
         "hr", "bg", "lt", "la", "mi", "ml", "cy", "sk", "te", "fa", "lv", "bn", "sr", "az", "sl", "kn",
         "et", "mk", "br", "eu", "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw", "gl", "mr", "pa", "si",
         "km", "sn", "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu", "am", "yi", "lo", "uz", "fo",

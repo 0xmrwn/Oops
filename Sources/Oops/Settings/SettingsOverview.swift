@@ -13,8 +13,7 @@ struct FeatureOverview: View {
     var body: some View {
         let features = tabs.filter { [.fix, .dictate, .actions].contains($0) }
         VStack(spacing: 0) {
-            ForEach(Array(features.enumerated()), id: \.element) { index, tab in
-                if index > 0 { Divider() }
+            ForEach(features, id: \.self) { tab in
                 row(tab)
             }
         }
@@ -34,7 +33,7 @@ struct FeatureOverview: View {
                     Spacer(minLength: 8)
                     if let shortcut {
                         if tab == .fix { model }
-                        HStack(spacing: 3) { ForEach(shortcut.keys, id: \.self, content: keycap) }
+                        HStack(spacing: 4) { ForEach(shortcut.keys, id: \.self, content: keycap) }
                             .accessibilityElement(children: .ignore).accessibilityLabel(shortcut.spoken)
                         Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).secondaryText()
                     }
@@ -68,9 +67,9 @@ struct FeatureOverview: View {
 
     private func keycap(_ key: String) -> some View {
         Group {
-            if key == Shortcut.hyperKey { HyperKeyLegend(size: 10.5, partSize: 7) } else { Text(key).font(.system(size: 12, weight: .medium)) }
+            if key == Shortcut.hyperKey { HyperKeyLegend(size: 12.5, partSize: 9).padding(.vertical, 3) } else { Text(key).font(.system(size: 14, weight: .medium)) }
         }
-        .frame(minWidth: 22, minHeight: 22).padding(.horizontal, key.count > 1 ? 4 : 0)
-        .background(.quaternary, in: .rect(cornerRadius: 5))
+        .frame(minWidth: 28, minHeight: 32).padding(.horizontal, key.count > 1 ? 8 : 0)
+        .keycapFill(cornerRadius: 6)
     }
 }

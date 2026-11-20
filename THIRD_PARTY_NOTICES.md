@@ -71,8 +71,8 @@ under its own terms.
   `Resources/Sounds/Onboarding/` are rendered from its sound bank (`design/onboarding/sound/`); the app's
   own cues follow its bubble recipe without using the package.
 - **lobehub/icons** (`@lobehub/icons-static-svg` 1.98.0), Copyright (c) 2023 LobeHub, MIT. The provider
-  marks in `Resources/Assets.xcassets`. The names and marks belong to their owners and identify the
-  providers Oops connects to; they are not an endorsement.
+  and speech model maker marks in `Resources/Assets.xcassets`. The names and marks belong to their owners and
+  identify the providers Oops connects to and who made a model; they are not an endorsement.
 - **ChatGPT marks**: OpenAI brand assets, used under [OpenAI's brand guidelines](https://openai.com/brand/)
   on the Continue with ChatGPT button only. Not covered by Oops's licence.
 

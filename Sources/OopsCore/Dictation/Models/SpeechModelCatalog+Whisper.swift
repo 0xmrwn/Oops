@@ -18,19 +18,6 @@ extension SpeechModelCatalog {
         license: .mit,
         wordErrorRate: 2.01, realtime: "~19x")
 
-    // ivrit.ai's Hebrew fine-tune: it lost language detection and translation, so it always runs with the Hebrew hint.
-    static let ivritWhisperLargeV3Turbo = SpeechModel(
-        id: "ivrit_whisper_large_v3_turbo", name: "ivrit.ai Whisper large-v3-turbo",
-        artifact: SpeechModelArtifact(
-            fileName: "ivrit-whisper-large-v3-turbo-Q8_0.gguf",
-            repository: "adolan/ivrit-whisper-large-v3-turbo-gguf",
-            revision: "a12befaff80add995ac6a8fe10cbb7f38438c7b5",
-            byteCount: 886_381_536,
-            sha256: "23756afa3d3c52cd3cb55e259c8373373eba6d19c3858a67531ba2772b7f272f"),
-        architecture: .whisper, variant: "ivrit-whisper-large-v3-turbo", languages: .one("he"),
-        acceptsLanguageHint: true, supportsLanguageDetection: false, license: .apache2,
-        wordErrorRate: 18.45, realtime: "~19x")
-
     // The National Library of Norway's Whisper medium fine-tune: NbAiLab's own whisper.cpp Q5_0 file, which
     // transcribe.cpp loads as Whisper. Measured only for Bokmal with the `no` hint, which it always gets.
     static let nbWhisperMedium = SpeechModel(

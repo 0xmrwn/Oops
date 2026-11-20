@@ -2,27 +2,29 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// Dictate's speech model, from the installed ones, and the language it hears.
+/// Dictate's speech model, chosen in the picker, the language it hears and whether it follows the keyboard.
 struct DictateModelCard: View {
     let store: ProviderStore
     let local: LocalModels
     let keyboards: KeyboardModelDriver
+    let sources: [KeyboardInputSource]?
 
     var body: some View {
-        let options = store.dictateOptions(local), current = store.dictateOption(local)
+        let current = store.dictateOption(local)
         VStack(spacing: 0) {
             SettingRow(symbol: "waveform", title: "Speech model") {
-                if options.isEmpty {
-                    // Models are downloaded on Providers, beside the rest of what Oops connects to.
-                    Button { store.wantsProvidersPage = true } label: { Label("Download a model", systemImage: "arrow.down.circle") }
-                        .buttonStyle(.settingsGlass).controlSize(.large)
-                } else {
-                    GlassMenu(title: "Speech model", choices: options.map { (Optional($0.reference), $0.name) },
-                              selection: Binding(get: { current?.reference }, set: { choose($0) }), placeholder: "Choose a model")
+                Button { pick(current) } label: {
+                    HStack(spacing: 7) {
+                        if let current { SpeechModelMark(maker: Self.maker(current.reference), size: 15) }
+                        Text(current?.name ?? "Choose a model").fontWeight(.medium)
+                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
                 }
+                .buttonStyle(.settingsGlass).controlSize(.large)
+                .accessibilityLabel("Speech model").accessibilityValue(current?.name ?? "None")
             }
             if let current {
-                Divider()
                 SettingRow(symbol: "globe", title: "Language") {
                     if current.isSingleLanguage {
                         Text(Self.name(current.languages[0])).fontWeight(.medium).secondaryText()
@@ -32,14 +34,27 @@ struct DictateModelCard: View {
                     }
                 }
             }
+            DictateKeyboardSwitch(local: local, keyboards: keyboards, sources: sources)
         }
         .padding(.vertical, -6)
         .settingsSurface()
         .task { await local.refresh() }
     }
 
-    private func choose(_ reference: VoiceModelReference?) {
-        guard let reference, reference != store.dictateSelection.model else { return }
+    /// The picks are for the language Dictate hears; with no model yet, the one first run would infer.
+    private func pick(_ current: DictateModelOption?) {
+        let language = current.map(store.dictateLanguage(for:))
+            ?? SpeechLanguage.firstRun(preferred: Locale.preferredLanguages, keyboards: KeyboardInputSources.shared.enabled().map(\.languages))
+        SpeechModelPicker.shared.target = SpeechModelPickerTarget(id: "dictate", language: language, current: { store.dictateModel(local) }, choose: choose)
+    }
+
+    static func maker(_ reference: VoiceModelReference) -> SpeechModelMaker? {
+        if case .local(let id) = reference { return SpeechModelCatalog.model(id: id)?.maker }
+        return .openAI
+    }
+
+    private func choose(_ reference: VoiceModelReference) {
+        guard reference != store.dictateSelection.model else { return }
         // Picked by hand: it stands until the keyboard changes again.
         keyboards.manualChoice()
         store.chooseDictateModel(reference)

@@ -156,7 +156,6 @@ private struct ChatGPTConnectionCard: View {
                 Spacer(minLength: 8)
                 StatusBadge("Connected", ok: true)
             }
-            Divider()
             HStack(spacing: 12) {
                 Text(planText).secondaryText()
                 Spacer()
@@ -169,7 +168,6 @@ private struct ChatGPTConnectionCard: View {
                 .buttonStyle(.settingsGlass)
                 .accessibilityLabel("Manage ChatGPT usage (opens in browser)")
             }
-            Divider()
             HStack(spacing: 12) {
                 // A glass button, not a link: blue text loses contrast on the clear glass.
                 Button { confirming = .switchAccount } label: { Label("Use a different account…", systemImage: "arrow.triangle.2.circlepath") }

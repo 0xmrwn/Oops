@@ -37,9 +37,7 @@ struct DictateShortcutCard: View {
                 }
                 .padding(.bottom, 10)
             }
-            Divider()
             SettingRow(symbol: "hand.tap", title: "Mode") { GlassMenu(title: "Mode", choices: DictationMode.choices, selection: $mode) }
-            Divider()
             SettingRow(symbol: ShortcutSettings.Action.pasteLast.symbol, title: ShortcutSettings.Action.pasteLast.title) {
                 ShortcutControl(title: ShortcutSettings.Action.pasteLast.title, action: .pasteLast, error: $pasteLastError)
             }
@@ -84,18 +82,17 @@ struct DictateDropCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingRow(symbol: "circle.grid.3x3", title: "Visualizer") {
-                GlassChoice(title: "Visualizer", choices: Self.visualizers, selection: $visualizer)
+            SettingRow(symbol: "alternatingcurrent", title: "Animation") {
+                GlassChoice(title: "Animation", choices: Self.visualizers, selection: $visualizer)
             }
-            Divider()
             SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
                 GlassChoice(title: "Position", choices: Self.positions, selection: $position)
             }
-            Divider()
             SettingRow(symbol: "text.bubble", title: "Live words") {
                 // A model that only transcribes once the recording ends has no words to show while speaking.
                 if store.dictateOption(local)?.streams == false {
-                    Text("Unavailable").fontWeight(.medium).secondaryText()
+                    Text("Not with this model").fontWeight(.medium).secondaryText()
+                        .help("This speech model writes the words once you stop speaking")
                 } else {
                     GlassChoice(title: "Live words", choices: Self.places, selection: $place)
                 }

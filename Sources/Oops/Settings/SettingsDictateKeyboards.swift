@@ -1,39 +1,53 @@
 import OopsCore
 import SwiftUI
 
-/// Dictate → Keyboards: selecting a keyboard can switch Dictate to a model and language. Shown once a model is
-/// installed, or while a mapping remains to be cleared.
-struct DictateKeyboardsCard: View {
+/// The Speech model card's keyboard switching: a switch, then, while it is on, a model and language for each
+/// keyboard. Shown only on a Mac with more than one keyboard, once a model is installed or while switching is on.
+struct DictateKeyboardSwitch: View {
     let local: LocalModels
     let keyboards: KeyboardModelDriver
     let sources: [KeyboardInputSource]?
-    /// Read as the card is made: a task on a card that shows nothing yet would never run.
+    /// Read as the view is made: a task on a view that shows nothing yet would never run.
     @State private var system = KeyboardInputSources.shared.enabled()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var listed: [KeyboardInputSource] { sources ?? system }
 
     var body: some View {
-        if !listed.isEmpty, !local.installed.isEmpty || !keyboards.settings.mappings.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label { Text("Keyboards").font(.headline) } icon: {
-                        Image(systemName: "keyboard").font(.system(size: 15, weight: .medium)).secondaryText()
-                    }
-                    .padding(.bottom, 6)
-                    ForEach(Array(listed.enumerated()), id: \.element.id) { index, source in
-                        if index > 0 { Divider() }
-                        KeyboardMappingRow(source: source, local: local, keyboards: keyboards)
+        if listed.count > 1, !local.installed.isEmpty || keyboards.settings.enabled {
+            SettingRow(symbol: "keyboard", title: "Switch with keyboard") {
+                HStack(spacing: 10) {
+                    InfoTip("Pick a speech model and language for each keyboard. Dictate switches to them when you change keyboards.")
+                    Toggle("Switch with keyboard", isOn: Binding(get: { keyboards.settings.enabled }, set: { on in
+                        withAnimation(SettingsMotion.swap(reduceMotion)) { keyboards.setEnabled(on) }
+                    }))
+                    .settingsSwitch().labelsHidden()
+                }
+            }
+            if keyboards.settings.enabled {
+                VStack(spacing: 0) {
+                    ForEach(listed) { source in
+                        KeyboardMappingRow(source: source, local: local, keyboards: keyboards).padding(.leading, 38)
                     }
                 }
-                .settingsSurface()
+                // The card opens to make room and the rows settle in from just above; closing, they fade first, so
+                // none shows past the card's shrinking edge.
+                .transition(.asymmetric(
+                    insertion: reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.975, anchor: .top))
+                        .combined(with: .offset(y: -6)),
+                    removal: .opacity.animation(.easeOut(duration: 0.12))))
             }
+        }
     }
 }
 
-/// One keyboard: Don't switch, or an installed model and, when it has a choice, the language.
+/// One keyboard: Don't switch, or an installed model and, when it has a choice, the language. More models opens
+/// the picker for the keyboard's language.
 private struct KeyboardMappingRow: View {
     let source: KeyboardInputSource
     let local: LocalModels
     let keyboards: KeyboardModelDriver
+    private static let more = "more"
 
     var body: some View {
         let choice = keyboards.mapping(source.id)
@@ -48,16 +62,29 @@ private struct KeyboardMappingRow: View {
                           }), placeholder: DictateModelCard.name(choice.language))
             }
             // A mapped model deleted since shows as Not installed until it is cleared or replaced.
-            GlassMenu(title: "\(source.name) model", choices: [("", "Don’t switch")] + local.installed.map { ($0.id, $0.name) },
+            GlassMenu(title: "\(source.name) model", choices: [("", "Don’t switch")] + local.installed.map { ($0.id, $0.name) } + [(Self.more, "More models…")],
                       selection: Binding(get: { choice?.modelID ?? "" }, set: map), placeholder: "Not installed")
         }
         .padding(.vertical, 6)
     }
 
     private func map(_ id: String) {
+        guard id != Self.more else { return pick() }
+        // Picked from the menu: it stands over a download still coming in for this keyboard.
+        SpeechModelPicker.shared.chose(for: source.id)
         guard let model = SpeechModelCatalog.model(id: id) else { return keyboards.setMapping(nil, for: source.id) }
         guard keyboards.mapping(source.id)?.modelID != id else { return }
         keyboards.setMapping(KeyboardModelChoice(modelID: id, language: source.language(for: model, fallback: model.automaticLanguage)),
                              for: source.id)
+    }
+
+    private func pick() {
+        let language = source.languages.lazy
+            .map { $0.split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init) ?? $0 }
+            .first(where: SpeechLanguage.isKnown) ?? "en"
+        SpeechModelPicker.shared.target = SpeechModelPickerTarget(
+            id: source.id, language: language, offersOpenAI: false,
+            current: { keyboards.mapping(source.id).map { .local($0.modelID) } },
+            choose: { if case .local(let id) = $0 { map(id) } })
     }
 }

@@ -7,8 +7,6 @@ import OopsCore
 struct ProvidersPage: View {
     let store: ProviderStore
     let preferences: Preferences
-    /// The models On this Mac lists; the app's own unless a snapshot passes another.
-    var local: LocalModels?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -28,16 +26,13 @@ struct ProvidersPage: View {
     private var list: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(spacing: 0) {
-                ForEach(Array(store.providers.enumerated()), id: \.element.id) { index, provider in
-                    if index > 0 { Divider() }
+                ForEach(store.providers) { provider in
                     ProviderRow(provider: provider, status: store.status(provider.id)) { store.openProvider = provider.id }
                 }
-                Divider()
                 addMenu
             }
             .padding(.vertical, -6)
             .settingsSurface()
-            if DebugFlags.dictation { LocalModelsCard(store: store, local: local ?? .shared) }
         }
     }
 
@@ -50,7 +45,6 @@ struct ProvidersPage: View {
             } else {
                 Toggle(isOn: .constant(true)) { Label { Text("Claude Code") } icon: { MenuIcon.image("ClaudeMark", template: true) } }.disabled(true)
             }
-            Divider()
             Button { store.startDraft() } label: { Label { Text("API provider…") } icon: { MenuIcon.symbol("server.rack") } }
         } label: {
             HStack(spacing: 12) {

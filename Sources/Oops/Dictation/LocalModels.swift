@@ -26,6 +26,8 @@ import OopsCore
     /// Cancelled, still winding down; and of those, pressed Download again meanwhile.
     @ObservationIgnored private var stopping: Set<String> = []
     @ObservationIgnored private var restarting: Set<String> = []
+    /// What a download was started for, run once the model is installed: the picker's download selects it.
+    @ObservationIgnored private var whenInstalled: [String: () -> Void] = [:]
 
     init(store: any ModelDownloading, models: [SpeechModel] = SpeechModelCatalog.models) {
         self.store = store
@@ -57,7 +59,8 @@ import OopsCore
 
     /// Starts or resumes the download; the store keeps a cancelled one's partial file. Pressed again while a
     /// cancelled download is still winding down, it starts once that one has ended.
-    func download(_ model: SpeechModel) {
+    func download(_ model: SpeechModel, whenInstalled action: (() -> Void)? = nil) {
+        if let action { whenInstalled[model.id] = action }
         guard !running.contains(model.id) else {
             guard stopping.contains(model.id) else { return }
             restarting.insert(model.id)
@@ -72,6 +75,8 @@ import OopsCore
             stopping.remove(model.id)
             if restarting.remove(model.id) != nil, ended == .notInstalled { return download(model) }
             states[model.id] = ended
+            let action = whenInstalled.removeValue(forKey: model.id)
+            if ended == .installed { action?() }
         }
     }
 
@@ -99,6 +104,7 @@ import OopsCore
         // The row shows Download at once; the download's end confirms it.
         stopping.insert(model.id)
         restarting.remove(model.id)
+        whenInstalled[model.id] = nil
         states[model.id] = .notInstalled
         Task { await store.cancel(fileName: model.artifact.fileName) }
     }

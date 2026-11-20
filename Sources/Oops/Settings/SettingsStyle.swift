@@ -67,6 +67,31 @@ private struct GlassEdge<S: InsettableShape>: ViewModifier {
     }
 }
 
+/// The separator between Settings' rows. The system's all but vanishes on the light glass, so light mode
+/// adds ink over it; dark keeps the system's.
+struct SettingsDivider: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Divider().overlay(colorScheme == .dark ? Color.clear : Color.primary.opacity(0.06))
+    }
+}
+
+extension View {
+    /// A shortcut's keycap tile, which the light glass would wash out at the system's quaternary fill.
+    func keycapFill(cornerRadius: CGFloat) -> some View { modifier(KeycapFill(cornerRadius: cornerRadius)) }
+}
+
+private struct KeycapFill: ViewModifier {
+    let cornerRadius: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let fill = colorScheme == .dark ? AnyShapeStyle(.quaternary) : AnyShapeStyle(Color.primary.opacity(0.2))
+        return content.background(fill, in: .rect(cornerRadius: cornerRadius))
+    }
+}
+
 /// Settings' glass buttons, with their light-mode edge: always a capsule (a circle when as wide as tall),
 /// which the edge's outline matches. macOS draws a glass button below the large size as a rounded
 /// rectangle, which showed both outlines at once.

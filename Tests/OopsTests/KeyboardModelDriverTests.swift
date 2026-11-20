@@ -24,6 +24,7 @@ import Testing
             driver.isInstalled = { [weak self] in self?.installed.contains($0) == true }
             driver.apply = { [weak self] in self?.applied.append($0) }
             for (source, choice) in mappings { driver.setMapping(choice, for: source) }
+            driver.setEnabled(true)
             driver.start()
         }
 
@@ -82,20 +83,25 @@ import Testing
         #expect(run.applied.isEmpty)
     }
 
-    @Test func `it listens only while a mapping exists, and keeps its mappings`() throws {
+    @Test func `it listens only while switched on with a mapping, and keeps its mappings`() throws {
         let name = "oops-keyboard-models-" + UUID().uuidString
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let driver = KeyboardModelDriver(defaults: defaults, sources: { AsyncStream { _ in } })
         driver.start()
-        #expect(!driver.isListening)
         driver.setMapping(Self.whisperRU, for: Self.russian)
+        #expect(!driver.isListening)
+        driver.setEnabled(true)
         #expect(driver.isListening)
         let reloaded = KeyboardModelDriver(defaults: defaults, sources: { AsyncStream { _ in } })
         #expect(reloaded.settings == KeyboardModelSwitchSettings(enabled: true, mappings: [Self.russian: Self.whisperRU]))
+        driver.setEnabled(false)
+        #expect(!driver.isListening)
+        #expect(driver.settings.mappings == [Self.russian: Self.whisperRU])
+        driver.setEnabled(true)
         driver.setMapping(nil, for: Self.russian)
         #expect(!driver.isListening)
-        #expect(!driver.settings.enabled)
+        #expect(driver.settings.enabled)
     }
 
     private func settle() async { for _ in 0..<20 { await Task.yield() } }

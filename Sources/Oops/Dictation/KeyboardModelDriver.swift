@@ -4,7 +4,8 @@ import OopsCore
 
 /// Keyboard model switching, live: hears the selected input source and, `KeyboardModelSwitcher.debounce` after the
 /// last change, hands Dictate the model and language mapped to it. The rules are the switcher's; this keeps its
-/// mappings, feeds it and keeps one timer. It listens only once `start` says dictation is on and a mapping exists.
+/// mappings, feeds it and keeps one timer. It listens only once `start` says dictation is on, switching is on and a
+/// mapping exists.
 @Observable @MainActor final class KeyboardModelDriver {
     /// Where the mappings are kept, as `KeyboardModelSwitchSettings` in JSON.
     static let key = "DictationKeyboardModels"
@@ -37,7 +38,7 @@ import OopsCore
 
     var isListening: Bool { listening != nil }
 
-    /// Dictation is on: listen whenever a mapping exists.
+    /// Dictation is on: listen whenever switching is on and a mapping exists.
     func start() {
         started = true
         updateListening()
@@ -48,7 +49,16 @@ import OopsCore
     /// Maps a source to a model and language, or nil for Don't switch.
     func setMapping(_ choice: KeyboardModelChoice?, for source: String) {
         settings.mappings[source] = choice
-        settings.enabled = !settings.mappings.isEmpty
+        save()
+    }
+
+    /// Settings' switch. Off keeps the mappings, so turning it back on restores them.
+    func setEnabled(_ enabled: Bool) {
+        settings.enabled = enabled
+        save()
+    }
+
+    private func save() {
         defaults?.set(try? JSONEncoder().encode(settings), forKey: Self.key)
         if switcher.configure(settings, now: now()) { schedule() }
         updateListening()
@@ -61,7 +71,7 @@ import OopsCore
     }
 
     private func updateListening() {
-        guard started, settings.enabled else {
+        guard started, settings.enabled, !settings.mappings.isEmpty else {
             listening?.cancel(); listening = nil; timer?.cancel()
             return
         }

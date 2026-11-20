@@ -38,10 +38,7 @@ import OopsCore
         SpeechModelCatalog.model(id: SpeechModelCatalog.recommendedSelection(for: language).modelID) ?? SpeechModelCatalog.models[0]
     }
     /// "731 MB", "2.41 GB": whole megabytes, as the catalog's own figures read.
-    var size: String {
-        let megabytes = Double(model.artifact.byteCount) / 1_000_000
-        return megabytes < 1000 ? "\(Int(megabytes.rounded())) MB" : "\((megabytes / 1000).formatted(.number.precision(.fractionLength(2)))) GB"
-    }
+    var size: String { model.downloadSize }
     /// The Language menu: Hex's list, Auto first.
     var languages: [(value: String, label: String)] { SpeechLanguage.listed.map { ($0.code, $0.code == SpeechLanguage.auto ? "Automatic" : $0.name) } }
 

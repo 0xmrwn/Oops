@@ -31,8 +31,6 @@ public extension SpeechModelCatalog {
         case "mt": [(parakeetV3, .recommended)]
         case "ar": [(whisperLargeV3Turbo, .recommended), (cohereTranscribe, .mostAccurate)]
         case "tr", "ms", "fil", "fa", "mk": [(whisperLargeV3Turbo, .recommended)]
-        // FLEURS Hebrew test: 18.45% WER against stock Whisper's 29.69%.
-        case "he": [(ivritWhisperLargeV3Turbo, .recommended), (whisperLargeV3Turbo, .vocabulary)]
         // FLEURS Russian test: 5.37% WER against Parakeet v3's 6.52%, and Whisper turbo's 5.36% at a fifth of its speed.
         case "ru": [(gigaAMV3, .recommended), (whisperLargeV3Turbo, .vocabulary)]
         // FLEURS Norwegian test: 6.68% WER against Whisper turbo's 8.94%, at 0.89 times its speed.

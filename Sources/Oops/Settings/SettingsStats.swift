@@ -10,9 +10,9 @@ struct StatsCard: View {
         Button(action: open) {
             HStack(spacing: 0) {
                 tile(stats.corrections, "Corrections", ShortcutSettings.Action.correct.symbol)
-                Divider().frame(height: 44)
+                SettingsDivider().frame(height: 44)
                 tile(stats.mistakesFixed, "Mistakes fixed", "checkmark.seal")
-                Divider().frame(height: 44)
+                SettingsDivider().frame(height: 44)
                 tile(stats.wordsChecked, "Words checked", "text.magnifyingglass")
             }
             .overlay(alignment: .trailing) {

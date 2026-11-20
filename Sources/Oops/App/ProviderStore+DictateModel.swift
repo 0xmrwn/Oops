@@ -20,9 +20,11 @@ struct DictateModelOption: Identifiable, Equatable {
         languages = model.languageChoices; automatic = model.automaticLanguage
     }
 
+    static let openAIName = "GPT-Live-Transcribe"
+
     /// OpenAI's transcription takes any language by its two-letter code, or detects it.
     init(openAI reference: VoiceModelReference) {
-        self.reference = reference; name = "GPT-Live-Transcribe"; streams = true
+        self.reference = reference; name = Self.openAIName; streams = true
         languages = [SpeechLanguage.auto] + SpeechLanguage.known.filter { $0.count == 2 }; automatic = SpeechLanguage.auto
     }
 }
