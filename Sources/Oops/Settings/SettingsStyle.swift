@@ -256,18 +256,27 @@ struct PageSwap: ViewModifier {
     var enabled = true
     let reduceMotion: Bool
     var distance: CGFloat = 28
+    /// How far the leaving page was scrolled: the scroll view is back at its top as the switch starts,
+    /// and the page stays where it was while it fades instead of jumping with it.
+    var lift: CGFloat = 0
 
     func body(content: Content) -> some View {
         let shown = position == 0
         content
             .disabled(!enabled)
+            // A hidden page keeps its own height and takes none: proposing zero squashed every row with
+            // a minimum height, so the leaving page shrank in its first frame.
+            .fixedSize(horizontal: false, vertical: true)
             .frame(height: shown ? nil : 0, alignment: .top)
+            .offset(y: -lift)
             .animation(nil, value: shown)
             // Not zero: SwiftUI drops a fully transparent view's layers, and rebuilding a page's
             // layers, glass and text on each switch stalled the click by tens of milliseconds.
             .opacity(shown ? 1 : 0.001)
             .blur(radius: shown || reduceMotion ? 0 : 6)
-            .offset(x: reduceMotion ? 0 : CGFloat(position) * distance)
+            // Drawn, not laid out: a layout offset moved with the page's height change, which never
+            // animates, so the leaving page jumped aside in one frame and the arriving one never slid.
+            .visualEffect { [dx = reduceMotion ? 0 : CGFloat(position) * distance] content, _ in content.offset(x: dx) }
             // The arriving page takes the page spring; the leaving one is gone within a few
             // frames, so two pages of glass never overlap and the new one resolves alone.
             .animation(shown ? SettingsMotion.page(reduceMotion) : .easeOut(duration: 0.08), value: shown)
