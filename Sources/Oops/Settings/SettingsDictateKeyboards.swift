@@ -1,31 +1,34 @@
 import OopsCore
 import SwiftUI
 
-/// Dictate → Keyboards: selecting a keyboard can switch Dictate to a model and language. Shown once a model is
-/// installed, or while a mapping remains to be cleared.
-struct DictateKeyboardsCard: View {
+/// The Speech model card's keyboard switching: a switch, then, while it is on, a model and language for each
+/// keyboard. Shown only on a Mac with more than one keyboard, once a model is installed or while switching is on.
+struct DictateKeyboardSwitch: View {
     let local: LocalModels
     let keyboards: KeyboardModelDriver
     let sources: [KeyboardInputSource]?
-    /// Read as the card is made: a task on a card that shows nothing yet would never run.
+    /// Read as the view is made: a task on a view that shows nothing yet would never run.
     @State private var system = KeyboardInputSources.shared.enabled()
 
     private var listed: [KeyboardInputSource] { sources ?? system }
 
     var body: some View {
-        if !listed.isEmpty, !local.installed.isEmpty || !keyboards.settings.mappings.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label { Text("Keyboards").font(.headline) } icon: {
-                        Image(systemName: "keyboard").font(.system(size: 15, weight: .medium)).secondaryText()
-                    }
-                    .padding(.bottom, 6)
-                    ForEach(Array(listed.enumerated()), id: \.element.id) { index, source in
-                        if index > 0 { SettingsDivider() }
-                        KeyboardMappingRow(source: source, local: local, keyboards: keyboards)
-                    }
+        if listed.count > 1, !local.installed.isEmpty || keyboards.settings.enabled {
+            SettingsDivider()
+            SettingRow(symbol: "keyboard", title: "Switch with keyboard") {
+                HStack(spacing: 10) {
+                    InfoTip("Pick a speech model and language for each keyboard. Dictate switches to them when you change keyboards.")
+                    Toggle("Switch with keyboard", isOn: Binding(get: { keyboards.settings.enabled }, set: keyboards.setEnabled))
+                        .settingsSwitch().labelsHidden()
                 }
-                .settingsSurface()
             }
+            if keyboards.settings.enabled {
+                ForEach(listed) { source in
+                    SettingsDivider().padding(.leading, 38)
+                    KeyboardMappingRow(source: source, local: local, keyboards: keyboards).padding(.leading, 38)
+                }
+            }
+        }
     }
 }
 

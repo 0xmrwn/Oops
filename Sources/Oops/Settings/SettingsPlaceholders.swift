@@ -35,8 +35,7 @@ struct DictatePage: View {
     private var dictate: some View {
         VStack(alignment: .leading, spacing: 20) {
             DictateShortcutCard()
-            DictateModelCard(store: store, local: local, keyboards: keyboards)
-            DictateKeyboardsCard(local: local, keyboards: keyboards, sources: sources)
+            DictateModelCard(store: store, local: local, keyboards: keyboards, sources: sources)
             DictateDropCard(store: store, local: local)
             DictateAudioCard()
             DictateCleanupCard(store: store)

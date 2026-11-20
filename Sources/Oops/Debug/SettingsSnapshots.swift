@@ -26,6 +26,7 @@ import SwiftUI
         local.seed("cohere_transcribe", .verifying)
         keyboards.setMapping(KeyboardModelChoice(modelID: "whisper_large_v3_turbo", language: "en"), for: sources[0].id)
         keyboards.setMapping(KeyboardModelChoice(modelID: "nemotron_3_5_asr", language: "fr"), for: sources[1].id)
+        keyboards.setEnabled(true)
 
         let claude = store.provider("claude-code")
         let target = SpeechModelPickerTarget(id: "snapshot", language: "en", current: { .local("whisper_large_v3_turbo") }, choose: { _ in })

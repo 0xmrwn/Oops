@@ -2,11 +2,12 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// Dictate's speech model, chosen in the picker, and the language it hears.
+/// Dictate's speech model, chosen in the picker, the language it hears and whether it follows the keyboard.
 struct DictateModelCard: View {
     let store: ProviderStore
     let local: LocalModels
     let keyboards: KeyboardModelDriver
+    let sources: [KeyboardInputSource]?
 
     var body: some View {
         let current = store.dictateOption(local)
@@ -34,6 +35,7 @@ struct DictateModelCard: View {
                     }
                 }
             }
+            DictateKeyboardSwitch(local: local, keyboards: keyboards, sources: sources)
         }
         .padding(.vertical, -6)
         .settingsSurface()
