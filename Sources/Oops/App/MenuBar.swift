@@ -3,8 +3,9 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// The menu bar eyes and their menu: a status line, Fix text (or Cancel), Restore last correction,
-/// the copy fallbacks, Paste last dictation while Dictate is on, Settings and Quit.
+/// The menu bar eyes and their menu: a status line, Fix's items (Fix text or Cancel, Restore last correction,
+/// the copy fallbacks), Dictate's while it is on (Paste last dictation), then the front app's switch, Settings
+/// and Quit. Each feature's items sit under its name once both are there.
 @MainActor final class MenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let preferences: Preferences
     private let session: CorrectionSession
@@ -15,6 +16,8 @@ import SwiftUI
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let statusLine = NSMenuItem()
     private let status = StatusLine()
+    /// Shown only while Dictate is on: its items, and the headers that tell the two features apart.
+    private var dictateOnly: [NSMenuItem] = []
     private var menuOpen = false
 
     init(preferences: Preferences, session: CorrectionSession, dictation: @escaping () -> DictationSession? = { nil },
@@ -28,15 +31,20 @@ import SwiftUI
         host.frame.size = host.fittingSize
         statusLine.view = host
         menu.addItem(statusLine)
+        dictateOnly = [.separator(), .sectionHeader(title: "Fix")]
+        dictateOnly.forEach(menu.addItem)
         menu.addItem(withTitle: "Fix text", action: #selector(fix), keyEquivalent: "").image = Self.symbol(ShortcutSettings.Action.correct.symbol)
         menu.addItem(withTitle: "Restore last correction", action: #selector(restore), keyEquivalent: "").image =
             Self.symbol("arrow.uturn.backward")
         menu.addItem(withTitle: "Copy pending correction", action: #selector(copyPending), keyEquivalent: "").image = Self.symbol("doc.on.doc")
         menu.addItem(withTitle: "Copy original draft", action: #selector(copyOriginal), keyEquivalent: "").image = Self.symbol("doc.on.doc")
-        menu.addItem(withTitle: "Turn off", action: #selector(toggleApp), keyEquivalent: "")
-        menu.addItem(withTitle: ShortcutSettings.Action.pasteLast.title, action: #selector(pasteLast), keyEquivalent: "").image =
-            Self.symbol(ShortcutSettings.Action.pasteLast.symbol)
+        let dictate: [NSMenuItem] = [.separator(), .sectionHeader(title: "Dictate"),
+                                     NSMenuItem(title: "Paste last dictation", action: #selector(pasteLast), keyEquivalent: "")]
+        dictate.last?.image = Self.symbol("doc.on.clipboard")
+        dictate.forEach(menu.addItem)
+        dictateOnly += dictate
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Turn off", action: #selector(toggleApp), keyEquivalent: "")
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").image = Self.symbol("gearshape")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Oops", action: #selector(quitApp), keyEquivalent: "q").image = Self.symbol("power")
@@ -83,6 +91,9 @@ import SwiftUI
     func menuNeedsUpdate(_ menu: NSMenu) {
         // Before layout, so the status line is sized for its text.
         updateStatusLine()
+        // Dictate's shortcut is its switch: without one, dictation is off and so is its part of the menu.
+        let dictating = dictation() != nil && ShortcutSettings.shared.shortcut(.dictate) != nil
+        for item in dictateOnly { item.isHidden = !dictating }
         for item in menu.items {
             switch item.action {
             case #selector(copyPending): item.isHidden = session.pendingCorrection == nil
@@ -98,10 +109,6 @@ import SwiftUI
             case #selector(fix):
                 item.title = session.isBusy ? "Cancel correction" : "Fix text"
                 showChord(.correct, on: item)
-            case #selector(pasteLast):
-                // Dictate's shortcut is its switch: without one, dictation is off and so is this.
-                item.isHidden = dictation() == nil || ShortcutSettings.shared.shortcut(.dictate) == nil
-                showChord(.pasteLast, on: item)
             default: break
             }
         }

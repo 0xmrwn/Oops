@@ -35,20 +35,10 @@ import XCTest
         XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: chord, dictation: false), .off)
     }
 
-    func testPasteLastDictationIsUnsetByDefaultAndRegistersOnlyOnceSet() {
-        XCTAssertNil(ShortcutSettings.defaultShortcut(.pasteLast, w: 13))
-        XCTAssertEqual(ShortcutSettings.registration(.pasteLast, shortcut: nil, dictation: true), .off, "unset: no hotkey")
-        XCTAssertEqual(ShortcutSettings.registration(.pasteLast, shortcut: chord, dictation: true), .chord(chord))
-        XCTAssertEqual(ShortcutSettings.registration(.pasteLast, shortcut: chord, dictation: false), .off)
-        let both: [ShortcutSettings.Action: Shortcut] = [.dictate: chord]
-        XCTAssertEqual(ShortcutSettings.clash(.pasteLast, chord, with: both, dictation: true), .dictate)
-    }
-
     func testOnlyAFeaturesOwnShortcutIsItsSwitch() {
         XCTAssertTrue(ShortcutSettings.Action.dictate.isSwitch)
-        XCTAssertFalse(ShortcutSettings.Action.pasteLast.isSwitch, "Turn on records Dictate's shortcut, not this one")
         XCTAssertFalse(ShortcutSettings.Action.dictateAndCleanUp.isSwitch, "Turn on records Dictate's shortcut, not this one")
-        XCTAssertEqual(ShortcutSettings.Action.pasteLast.tab, .dictate)
+        XCTAssertEqual(ShortcutSettings.Action.dictateAndCleanUp.tab, .dictate)
     }
 
     func testTwoActionsCannotShareAChord() {

@@ -12,12 +12,10 @@ extension DictationMode {
     ]
 }
 
-/// Dictate's shortcut, which is its switch (none, off), how its presses start and end a recording, and the
-/// optional shortcut that writes the last transcript again.
+/// Dictate's shortcut, which is its switch (none, off), and how its presses start and end a recording.
 struct DictateShortcutCard: View {
     @AppStorage(DictationMode.key) private var mode = DictationMode.holdOrTap
     @State private var shortcutError: String?
-    @State private var pasteLastError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -44,13 +42,6 @@ struct DictateShortcutCard: View {
                     }
                     GlassMenu(title: "Shortcut mode", choices: DictationMode.choices, selection: $mode)
                 }
-            }
-            SettingRow(symbol: ShortcutSettings.Action.pasteLast.symbol, title: ShortcutSettings.Action.pasteLast.title) {
-                ShortcutControl(title: ShortcutSettings.Action.pasteLast.title, action: .pasteLast, error: $pasteLastError)
-            }
-            if let pasteLastError {
-                Label(pasteLastError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                    .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
             }
         }
         .padding(.vertical, -6)
