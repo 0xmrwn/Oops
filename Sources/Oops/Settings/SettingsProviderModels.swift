@@ -18,7 +18,7 @@ struct ModelSwitchRow: View {
                 Text(summary).secondaryText().lineLimit(1).truncationMode(.tail).help(summary)
             }
             Spacer(minLength: 8)
-            if DebugFlags.dictation, shown { ModelKindTag(resolution: store.capabilities(.init(providerID: provider.id, modelID: model.id))) }
+            if shown { ModelKindTag(resolution: store.capabilities(.init(providerID: provider.id, modelID: model.id))) }
             Toggle(model.name, isOn: Binding(get: { shown },
                                              set: { store.setShown(provider.id, model: model.id, $0) }))
                 .settingsSwitch().labelsHidden().controlSize(.small)

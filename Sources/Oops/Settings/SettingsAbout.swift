@@ -2,14 +2,16 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// General → About: version and updates, what's new, the welcome, the debug tools and the source, closed by
-/// the maker's credit.
+/// General → About: version and updates, what's new, the welcome, the debug tools, the source and the
+/// third-party notices, closed by the maker's credit.
 struct AboutPage: View {
     /// Opens one of About's own pages (Changelog, Debug tools).
     let open: (GeneralDetail) -> Void
 
     /// Placeholder until the repository is public.
     private static let source = URL(string: "https://github.com/0xmrwn/oops")!
+    /// The page of THIRD_PARTY_NOTICES.md; the bundle carries the file and each licence text (Resources/Licenses).
+    private static let notices = URL(string: "https://github.com/0xmrwn/oops/blob/main/THIRD_PARTY_NOTICES.md")!
     static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—" }
 
     var body: some View {
@@ -33,6 +35,9 @@ struct AboutPage: View {
                 }
                 AboutRow(title: "Source code", trailing: "arrow.up.right") { NSWorkspace.shared.open(Self.source) } icon: {
                     Image(systemName: "chevron.left.forwardslash.chevron.right").font(.system(size: 15, weight: .semibold))
+                }
+                AboutRow(title: "Third-party notices", trailing: "arrow.up.right") { NSWorkspace.shared.open(Self.notices) } icon: {
+                    Image(systemName: "doc.text").font(.system(size: 16, weight: .medium))
                 }
             }
             .padding(.vertical, -6)

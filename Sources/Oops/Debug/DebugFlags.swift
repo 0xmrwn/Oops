@@ -18,36 +18,19 @@ enum DebugFlags {
 
     // MARK: Features still being built
 
-    /// Dictation, hidden until it ships: `-DebugDictation YES` for one launch, or `defaults write
-    /// dev.0xmrwn.oops DebugDictation -bool YES` to keep it on in development builds. Always on in a preview
-    /// build (OOPS_PREVIEW=1), Release included: building one is the opt-in.
-    #if OOPS_PREVIEW
-    static var dictation: Bool { true }
-    #else
-    static var dictation: Bool { bool("DebugDictation") }
-    #endif
-    /// The model file dictation loads: `-DebugDictationModel <path>`, in Debug and preview builds.
-    #if DEBUG || OOPS_PREVIEW
-    static var dictationModel: String? { UserDefaults.standard.string(forKey: "DebugDictationModel") }
-    #else
-    static var dictationModel: String? { nil }
-    #endif
+    /// Actions, hidden until it ships: `-DebugActions YES`.
+    static var actions: Bool { bool("DebugActions") }
+
+    // MARK: Dictation
+
+    /// The model file dictation loads: `-DebugDictationModel <path>`.
+    static var dictationModel: String? { string("DebugDictationModel") }
     /// `-DebugMicrophoneAccess denied|undetermined`: dictation sees that access whatever the system says, so
     /// each refusal can be seen in the app. Nothing changes in the real setting.
-    #if DEBUG || OOPS_PREVIEW
-    static var microphoneAccess: String? { UserDefaults.standard.string(forKey: "DebugMicrophoneAccess") }
-    #else
-    static var microphoneAccess: String? { nil }
-    #endif
+    static var microphoneAccess: String? { string("DebugMicrophoneAccess") }
     /// `-DebugDictationAudioFile <path.wav>`: dictation hears this file, played at real-time pace from its start at each
-    /// open of the source, instead of the microphone, which is never opened or asked for. Debug and preview builds.
-    #if DEBUG || OOPS_PREVIEW
-    static var dictationAudioFile: String? { UserDefaults.standard.string(forKey: "DebugDictationAudioFile") }
-    #else
-    static var dictationAudioFile: String? { nil }
-    #endif
-    /// Actions, the same way: `DebugActions`.
-    static var actions: Bool { bool("DebugActions") }
+    /// open of the source, instead of the microphone, which is never opened or asked for.
+    static var dictationAudioFile: String? { string("DebugDictationAudioFile") }
 
     // MARK: Labs, end-to-end runs and profiling
 

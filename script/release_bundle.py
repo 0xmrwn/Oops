@@ -29,8 +29,8 @@ UPDATE_SETTINGS = {
 }
 # Not needed by a non-sandboxed app at run time: the XPC services (sandboxed apps only) and build headers.
 FRAMEWORK_EXTRAS = ("XPCServices", "Headers", "PrivateHeaders", "Modules")
-# Only a preview build (OOPS_PREVIEW=1) carries the speech engine and asks for the microphone, and for the
-# Automation that Dictate's Pause media needs to tell Music, Spotify and VLC to pause.
+# What macOS shows when Oops asks for the microphone, and for the Automation that Dictate's Pause media needs to
+# tell Music, Spotify and VLC to pause.
 MICROPHONE_USAGE = "Oops listens while you dictate, and only then."
 AUTOMATION_USAGE = "Oops pauses this player while you dictate and resumes it after, when you choose Pause media."
 
@@ -51,6 +51,7 @@ def resources(root):
         "Sounds/Onboarding/*.caf": "Sounds/Onboarding",
         "Shaders/*.metal": "Shaders",
         "Gradient/*.bin": "Gradient",
+        "Licenses/*.txt": "Licenses",
     }
     for pattern, folder in groups.items():
         matches = sorted((root / "Resources").glob(pattern))
@@ -61,7 +62,8 @@ def resources(root):
     for name in ("OopsIcon.png", "OopsIcon-dark.png"):
         if name not in result:
             raise ValueError(f"missing required resource: {name}")
-    result["CHANGELOG.md"] = root / "CHANGELOG.md"
+    for name in ("CHANGELOG.md", "THIRD_PARTY_NOTICES.md"):
+        result[name] = root / name
     for source in result.values():
         if not source.is_file() or source.is_symlink():
             raise ValueError(f"expected a regular resource file: {source}")
@@ -91,9 +93,7 @@ def embed_sparkle(source, app, run):
 def embed_engine(source, app, run):
     """transcribe.cpp's framework, trimmed the same way: arm64 code, no headers or module map."""
     if not (source / "Versions/A/CTranscribe").is_file():
-        raise ValueError(
-            f"missing CTranscribe.framework next to the executable (built without OOPS_PREVIEW=1?): {source}"
-        )
+        raise ValueError(f"missing CTranscribe.framework next to the executable: {source}")
     embed(source, app / ENGINE, "A", run)
 
 
@@ -110,7 +110,7 @@ def embed(source, framework, version, run):
             run(["lipo", str(code), "-thin", ARCHITECTURES[0], "-output", str(code)])
 
 
-def assemble(root, app, binary, version, build_number, run, settings=None, preview=False):
+def assemble(root, app, binary, version, build_number, run, settings=None):
     """settings: Info.plist entries replacing the defaults (the update test's identifier, feed and key)."""
     macos = app / "Contents/MacOS"
     destination = app / "Contents/Resources"
@@ -118,8 +118,7 @@ def assemble(root, app, binary, version, build_number, run, settings=None, previ
     destination.mkdir()
     shutil.copy2(binary, macos / "oops")
     embed_sparkle(binary.parent / "Sparkle.framework", app, run)
-    if preview:
-        embed_engine(binary.parent / "CTranscribe.framework", app, run)
+    embed_engine(binary.parent / "CTranscribe.framework", app, run)
     for relative, source in resources(root).items():
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -157,32 +156,14 @@ def assemble(root, app, binary, version, build_number, run, settings=None, previ
         "LSUIElement": True,
         "NSPrincipalClass": "NSApplication",
         "NSAccessibilityUsageDescription": "Correct and revert text in the focused message composer when you press your Oops shortcuts.",
+        "NSMicrophoneUsageDescription": MICROPHONE_USAGE,
+        "NSAppleEventsUsageDescription": AUTOMATION_USAGE,
     }
-    if preview:
-        info["NSMicrophoneUsageDescription"] = MICROPHONE_USAGE
-        info["NSAppleEventsUsageDescription"] = AUTOMATION_USAGE
     info.update(UPDATE_SETTINGS)
     info.update(plistlib.loads(partial.read_bytes()))
     info.update(settings or {})
     (app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
     partial.unlink()
-
-
-def verify_preview(app, info, preview):
-    microphone = info.get("NSMicrophoneUsageDescription")
-    automation = info.get("NSAppleEventsUsageDescription")
-    if preview and microphone != MICROPHONE_USAGE:
-        raise ValueError(f"Info.plist NSMicrophoneUsageDescription: expected {MICROPHONE_USAGE!r}, got {microphone!r}")
-    if preview and automation != AUTOMATION_USAGE:
-        raise ValueError(f"Info.plist NSAppleEventsUsageDescription: expected {AUTOMATION_USAGE!r}, got {automation!r}")
-    if not preview:
-        if microphone is not None:
-            raise ValueError("Info.plist asks for the microphone, which only a preview build may")
-        if automation is not None:
-            raise ValueError("Info.plist asks for Automation, which only a preview build may")
-        engine = [path for path in sorted(app.rglob("*")) if path.name.startswith("CTranscribe")]
-        if engine:
-            raise ValueError(f"the speech engine is only for preview builds: {engine[0].relative_to(app)}")
 
 
 def hashes(app):
@@ -196,8 +177,7 @@ def hashes(app):
     return result
 
 
-def verify(root, app, version, build_number, run, signing_identity=None, preview=False):
-    """preview: the bundle must carry the engine and the microphone; without it, either is a failure."""
+def verify(root, app, version, build_number, run, signing_identity=None):
     info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     expected = {
         "CFBundleIdentifier": BUNDLE_ID,
@@ -209,11 +189,12 @@ def verify(root, app, version, build_number, run, signing_identity=None, preview
         "LSUIElement": True,
         "CFBundleIconName": "Oops",
         "CFBundleIconFile": "Oops",
+        "NSMicrophoneUsageDescription": MICROPHONE_USAGE,
+        "NSAppleEventsUsageDescription": AUTOMATION_USAGE,
     } | UPDATE_SETTINGS
     for key, value in expected.items():
         if info.get(key) != value:
             raise ValueError(f"Info.plist {key}: expected {value!r}, got {info.get(key)!r}")
-    verify_preview(app, info, preview)
     binary = app / "Contents/MacOS/oops"
     if not binary.stat().st_mode & 0o111:
         raise ValueError("app executable is not executable")
@@ -228,12 +209,12 @@ def verify(root, app, version, build_number, run, signing_identity=None, preview
             raise ValueError(f"{arch}: executable contains a local build rpath")
         if "path @executable_path/../Frameworks " not in commands:
             raise ValueError(f"{arch}: executable cannot find Contents/Frameworks (rpath)")
-        if ("CTranscribe" in commands) != preview:
-            raise ValueError(f"{arch}: executable {'must' if preview else 'must not'} link CTranscribe.framework")
+        if "CTranscribe" not in commands:
+            raise ValueError(f"{arch}: executable must link CTranscribe.framework")
         symbols = run(["nm", "-arch", arch, str(binary)], capture=True)
         if any(name in symbols for name in ("AppProbe", "BrandSnapshots", "SetupSnapshots", "FramePacer")):
             raise ValueError(f"{arch}: debug-only implementation found in Release executable")
-    frameworks = {FRAMEWORK: "Versions/B/Sparkle"} | ({ENGINE: "Versions/A/CTranscribe"} if preview else {})
+    frameworks = {FRAMEWORK: "Versions/B/Sparkle", ENGINE: "Versions/A/CTranscribe"}
     for relative, executable in frameworks.items():
         framework, name = app / relative, Path(relative).name
         if not (framework / executable).is_file():
@@ -251,7 +232,7 @@ def verify(root, app, version, build_number, run, signing_identity=None, preview
     for compiled in ("Assets.car", "Oops.icns"):
         if not (bundled / compiled).stat().st_size:
             raise ValueError(f"missing compiled icon asset: {compiled}")
-    signing = verify_signature(app, signing_identity, run, preview)
+    signing = verify_signature(app, signing_identity, run)
     return {
         "architectures": sorted(arches),
         "minimum_os": MINIMUM_OS,

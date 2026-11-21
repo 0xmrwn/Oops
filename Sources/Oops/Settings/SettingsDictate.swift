@@ -27,7 +27,7 @@ struct DictateShortcutCard: View {
                     .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
             }
             // Once refused, the system never asks again: this is the way back.
-            if ShortcutSettings.shared.shortcut(.dictate) != nil, DictationEngineProvider.engine() != nil, DictationMicrophoneAccess.current == .denied {
+            if ShortcutSettings.shared.shortcut(.dictate) != nil, DictationMicrophoneAccess.current == .denied {
                 HStack {
                     Label("Microphone access is off", systemImage: "mic.slash").font(.callout).secondaryText()
                     Spacer(minLength: 12)
@@ -57,10 +57,9 @@ struct DictateShortcutCard: View {
         }
     }
 
-    /// The one place Oops asks for the microphone: as Dictate first gets a shortcut, when this build can
-    /// dictate and the question was never asked. A build without the engine may not touch the microphone.
+    /// The one place Oops asks for the microphone: as Dictate first gets a shortcut, when the question was never asked.
     private static func askForMicrophone() {
-        guard DictationEngineProvider.engine() != nil, DictationMicrophoneAccess.current == .undetermined else { return }
+        guard DictationMicrophoneAccess.current == .undetermined else { return }
         Task { _ = await DictationMicrophoneAccess.requestAccess() }
     }
 }

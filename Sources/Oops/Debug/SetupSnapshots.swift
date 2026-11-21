@@ -78,7 +78,7 @@ import SwiftUI
         for (name, chosen) in choices {
             let step = FeaturesStep(saves: false)
             step.seed(chosen)
-            write(FeaturesStepView(step: step) {}, dot: 0, steps: OnboardingStep.setup(for: chosen, choice: true).count, eyes: (step.look, 0, 0),
+            write(FeaturesStepView(step: step) {}, dot: 0, steps: OnboardingStep.setup(for: chosen).count, eyes: (step.look, 0, 0),
                   wallpaper: wallpaper, size: size, to: directory.appendingPathComponent("features-\(name).png"))
         }
     }

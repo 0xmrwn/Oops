@@ -2,8 +2,8 @@ import OopsCore
 import SwiftUI
 
 extension SettingsTab {
-    /// The tabs this build shows: Dictate and Actions only while their debug switch is on.
-    static var shown: [Self] { visible(dictation: DebugFlags.dictation, actions: DebugFlags.actions) }
+    /// The tabs this build shows: Actions only while its debug switch is on.
+    static var shown: [Self] { visible(actions: DebugFlags.actions) }
 
     var symbol: String {
         switch self {

@@ -9,7 +9,7 @@ import SwiftUI
 @MainActor final class MenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let preferences: Preferences
     private let session: CorrectionSession
-    /// The dictation session, while dictation is switched on.
+    /// The dictation session, once the app has made it.
     private let dictation: () -> DictationSession?
     private let openSettings: () -> Void
     private let quit: () -> Void

@@ -2,24 +2,19 @@ import AppKit
 import OopsCore
 
 extension AppDelegate {
-    /// The dictation session, only while dictation is switched on. Its recorder exists only with the speech
-    /// engine: a build without it has no microphone usage text, and macOS ends a process that touches the
-    /// microphone without one. It writes through Fix's editor, whose clipboard bookkeeping is per instance.
-    func makeDictation() -> DictationSession? {
-        guard DebugFlags.dictation else { return nil }
+    /// The dictation session. It writes through Fix's editor, whose clipboard bookkeeping is per instance.
+    func makeDictation() -> DictationSession {
         let engine = DictationEngineProvider.engine()
         let forced: DictationMicrophoneAccess? = switch DebugFlags.microphoneAccess {
         case "denied": .denied
         case "undetermined": .undetermined
         default: nil
         }
-        let recorder = engine.map { _ in
-            // A WAV in place of the microphone, so a dictation can be checked with nobody speaking.
-            let source: any DictationAudioSource = DebugFlags.dictationAudioFile.map {
-                DictationAudioFile(url: URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath), pace: .realTime)
-            } ?? DictationMicrophone(access: { forced ?? .current })
-            return DictationRecorder(source: source, preRoll: { DictationAudioSettings.pressPreRoll() })
-        }
+        // A WAV in place of the microphone, so a dictation can be checked with nobody speaking.
+        let source: any DictationAudioSource = DebugFlags.dictationAudioFile.map {
+            DictationAudioFile(url: URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath), pace: .realTime)
+        } ?? DictationMicrophone(access: { forced ?? .current })
+        let recorder = DictationRecorder(source: source, preRoll: { DictationAudioSettings.pressPreRoll() })
         let editor = session.editor
         let loudness = DictationLoudnessFeed()
         let drop = DictationDropOwner(owner: drop, loudness: loudness) { try? await editor.focusedCaret() }
@@ -44,7 +39,7 @@ extension AppDelegate {
                                 status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup,
                                 escape: { [weak self] in self?.shortcuts.armCancel($0) },
                                 shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers },
-                                environment: recorder.map { _ in DictationRecordingEnvironment() }, history: history)
+                                environment: DictationRecordingEnvironment(), history: history)
     }
 
     /// The session's history, kept by `DictationHistoryModel`, whose first touch here opens the store and so expires
@@ -115,8 +110,7 @@ extension AppDelegate {
         keyboards.start()
     }
 
-    /// Warms the speech model after launch when dictation can run: it is on, the engine and the model are
-    /// here, and Dictate has a shortcut.
+    /// Warms the speech model after launch when dictation can run: the model is here and Dictate has a shortcut.
     func warmUpDictation() {
         guard let dictation, ShortcutSettings.shared.shortcut(.dictate) != nil else { return }
         dictation.warmUp()

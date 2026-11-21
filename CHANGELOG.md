@@ -4,12 +4,14 @@ Written by hand for people using Oops, not from commits: list what someone would
 
 ## 0.1.5 (unreleased)
 
-- Dictate keeps a history of what you dictated, on this Mac and never the audio, for 7 days unless you choose 1 day, 30 days or Off. Settings → Dictate → History lists it with search, and each dictation can be copied, inserted where you're typing or deleted. Recent dictations in the menu bar menu has the last five, and Paste last dictation now still works after Oops restarts.
+- **Dictate is new.** Hold a shortcut and talk, and Oops writes what you said where you're typing; a quick tap keeps it listening until you tap again, and Escape cancels. Turn it on from the card under the menu bar eyes after this update, or in Settings → Dictate. Setting Oops up for the first time now starts by choosing Fix, Dictate or both.
+- Dictation happens on your Mac, with a speech model you choose and download in Settings → Dictate, or online with your OpenAI API key. Oops asks for the microphone only once Dictate has a shortcut, and listens only while you dictate.
+- Your words can show as you speak, in the drop or greyed out where they'll be written. Clean up is Off, Basic or AI: Basic tidies what you said on your Mac, instantly; AI also has a model rewrite it, and the drop tells you when that didn't work. After a dictation, the drop's Clean up with AI button, or its shortcut, cleans what you just wrote while it's still where Oops wrote it.
+- Settings → Dictate also has a vocabulary for names and terms, a speech model per keyboard language, your choice of microphone, and what your Mac's sound does while you dictate: nothing, mute, pause media or lower.
+- Dictate keeps a history of what you dictated, on this Mac and never the audio, for 7 days unless you choose 1 day, 30 days or Off. Settings → Dictate → History lists it with search, and each dictation can be copied, inserted where you're typing or deleted. Recent dictations in the menu bar menu has the last five, with Paste last dictation.
 - In Settings → Providers, the filter above a long list of models now takes what you type; clicking it did nothing before, and Tab went to the page behind the list. It is a glass search field with a clear button, instead of a boxed one.
-- The menu bar menu is grouped by feature: Fix and Dictate each have their own section once both are on, and turning Oops off in the app in front sits with Settings. Paste last dictation is now in that menu only, and no longer has a shortcut to set.
-- In Settings, the ⓘ beside a setting opens a short explanation with examples when you hover over it, click it or reach it with Tab, instead of a plain tooltip. Dictate's Mode is now called Shortcut mode.
-- Long dictations now clean up instead of timing out, and a clean-up that comes back much shorter or longer than what you said is dropped in favour of your words as heard.
-- With the language on Automatic, dictation now removes filler words in English and French. Saying "question mark", "exclamation mark" or "open paren" and "close paren" writes the symbol, and "ah" is kept as a word.
+- The menu bar menu is grouped by feature: Fix and Dictate each have their own section once both are on, and turning Oops off in the app in front sits with Settings.
+- In Settings, the ⓘ beside a setting opens a short explanation with examples when you hover over it, click it or reach it with Tab, instead of a plain tooltip.
 - Settings has a new layout. General opens with your shortcut and model at a glance, Fix has a tab of its own, and what was in About is now at the bottom of General. A waiting update shows as a button in the top-right corner.
 - In Settings, switching tabs is smoother: the page you leave no longer jumps aside or shrinks before it fades, the new page slides in from its side, and every page opens at its top instead of slightly scrolled. The scroll bar no longer starts under the fade below the tabs.
 - In Settings, opening a page inside a tab, such as Customize, About or a provider, and going back is cleaner: the page you leave is gone at once instead of its title fading over the next one, and each of these pages opens at its top.
@@ -18,7 +20,6 @@ Written by hand for people using Oops, not from commits: list what someone would
 - The welcome window no longer flashes its desktop of app windows, or a black frame, as it opens.
 - In setup, the provider list no longer shows API provider alone while Oops looks for ChatGPT and Claude Code: it arrives last, under what was found.
 - In setup, the hint on the Accessibility step now moves the way you drag: Oops rises into the list from below.
-- Dictate's Clean up is now Off, Basic or AI. Basic tidies what you said on your Mac, instantly; AI also has a model rewrite it, and the drop tells you when that didn't work. After a dictation, the drop's Clean up with AI button, or its shortcut, cleans what you just wrote while it's still where Oops wrote it.
 
 ## 0.1.4
 
