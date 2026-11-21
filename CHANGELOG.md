@@ -2,7 +2,7 @@
 
 Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → General → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
 
-## 0.1.5 (unreleased)
+## 0.2.0
 
 - **Dictate is new.** Hold a shortcut and talk, and Oops writes what you said where you're typing; a quick tap keeps it listening until you tap again, and Escape cancels. Turn it on from the card under the menu bar eyes after this update, or in Settings → Dictate. Setting Oops up for the first time now starts by choosing Fix, Dictate or both.
 - Dictation happens on your Mac, with a speech model you choose and download in Settings → Dictate, or online with your OpenAI API key. Oops asks for the microphone only once Dictate has a shortcut, and listens only while you dictate.
