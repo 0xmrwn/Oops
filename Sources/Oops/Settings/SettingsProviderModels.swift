@@ -60,12 +60,8 @@ struct MoreModels: View {
         }
         .padding(14)
         .frame(width: 360)
-        // Opened by a click, the popover would put a ring on its first switch; a filter field
-        // keeps focus, since typing is the point.
-        .onAppear {
-            guard models.count <= 8 else { return }
-            DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) }
-        }
+        // Opened by a click, the popover would put a ring on its first switch.
+        .onAppear { DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) } }
     }
 }
 

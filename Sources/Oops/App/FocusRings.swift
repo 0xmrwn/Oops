@@ -116,11 +116,12 @@ final class FocusRingsWindow: NSWindow {
     /// moves focus through Accessibility, with no event of its own.
     private func chosen(_ responder: NSResponder) -> Bool {
         if NSWorkspace.shared.isVoiceOverEnabled { return true }
-        guard let event = NSApp.currentEvent, event.window === self else { return false }
+        // A popover's fields ask this window for focus, though a click in one arrives in the popover's own window.
+        guard let event = NSApp.currentEvent, let window = event.window, window === self || window.parent === self else { return false }
         switch event.type {
         case .keyDown: return event.keyCode == 48
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
-            guard let content = contentView, let field = (responder as? NSText).map({ $0.isFieldEditor ? $0.delegate as? NSView : $0 }) ?? responder as? NSView
+            guard let content = window.contentView, let field = (responder as? NSText).map({ $0.isFieldEditor ? $0.delegate as? NSView : $0 }) ?? responder as? NSView
             else { return false }
             let hit = content.hitTest(content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow)
             // Inside the field, or in the margin of the scroll view a text view sits in.
