@@ -60,7 +60,10 @@ extension DictationSession {
         // A cancelled insert leaves the last transcript alone, as Hex's cancelled jobs do.
         if outcome != .refused(.cancelled) {
             lastTranscript = polished
-            history.record(polished, language)
+            // Words refused at a password field or in an app kept from writing never reach the disk.
+            if ![.refused(.secureField), .refused(.appDenied), .refused(.appTurnedOff)].contains(outcome) {
+                history.record(polished, language, historyModel)
+            }
         }
         if outcome == .inserted {
             lastWritten = polished

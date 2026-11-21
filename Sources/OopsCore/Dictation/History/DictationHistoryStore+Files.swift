@@ -23,6 +23,8 @@ extension DictationHistoryStore {
     /// Reads the file. Missing is empty; malformed or an unsupported version is preserved and starts empty; any other
     /// read error starts empty and leaves the file.
     mutating func load() {
+        // A snapshot a crash left half written: one process, so no save is under way.
+        try? FileManager.default.removeItem(at: Self.sibling(of: file, suffix: ".tmp"))
         let data: Data
         do { data = try Data(contentsOf: file) } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             return
@@ -37,6 +39,12 @@ extension DictationHistoryStore {
         }
         guard saved.version == Self.version else {
             Self.log.warning("the dictation history has an unsupported version \(saved.version); keeping a copy and starting empty")
+            preserveCorrupt()
+            return
+        }
+        // An ID with no room after it would trap the next record's `+ 1`.
+        guard saved.nextID < Int.max, saved.entries.allSatisfy({ $0.id < Int.max - 1 }) else {
+            Self.log.warning("the dictation history has an ID out of range; keeping a copy and starting empty")
             preserveCorrupt()
             return
         }
@@ -65,10 +73,21 @@ extension DictationHistoryStore {
     }
 
     func preserveCorrupt() {
-        if rename(file.path, Self.sibling(of: file, suffix: ".corrupt").path) != 0 {
+        if rename(file.path, corrupt.path) != 0 {
             Self.log.warning("could not keep the malformed dictation history (\(Self.describe(Self.posixError()), privacy: .public))")
         }
     }
+
+    /// Removes the malformed copy if it was last written (a rename keeps that date) before `cutoff`, in milliseconds;
+    /// by default, whenever. It may hold dictated words, so the sweep keeps it no longer than the longest retention
+    /// and Clear All erases it.
+    func removeCorrupt(modifiedBefore cutoff: Int = .max) throws {
+        let modified = try? FileManager.default.attributesOfItem(atPath: corrupt.path)[.modificationDate] as? Date
+        guard let modified, Int(modified.timeIntervalSince1970 * 1_000) < cutoff else { return }
+        try FileManager.default.removeItem(at: corrupt)
+    }
+
+    var corrupt: URL { Self.sibling(of: file, suffix: ".corrupt") }
 
     static func sibling(of file: URL, suffix: String) -> URL { URL(fileURLWithPath: file.path + suffix) }
 

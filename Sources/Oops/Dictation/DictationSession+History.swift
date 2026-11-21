@@ -6,8 +6,10 @@ import OopsCore
 extension DictationSession {
     /// The history the session records into (`DictationHistoryModel` in the app); `.none` keeps nothing past the run.
     struct History {
-        /// A finished dictation's text and the language hint it ran with (nil: automatic).
-        var record: @MainActor (_ text: String, _ language: String?) -> Void = { _, _ in }
+        /// The speech model's name, read when a recording starts, as the language is.
+        var model: @MainActor () -> String? = { nil }
+        /// A finished dictation's text, and the language hint (nil: automatic) and model it ran with.
+        var record: @MainActor (_ text: String, _ language: String?, _ model: String?) -> Void = { _, _, _ in }
         /// "Clean up with AI" replaced the text the last recorded dictation wrote.
         var replaceLast: @MainActor (String) -> Void = { _ in }
         /// What Paste last dictation writes, given the transcript held in memory.

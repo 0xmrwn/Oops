@@ -138,6 +138,53 @@ struct DictationHistoryTests {
         }
     }
 
+    @Test(arguments: [#"{"version":1,"nextID":2,"entries":[{"id":9223372036854775807,"timestampMs":1000,"text":"a"}]}"#,
+                      #"{"version":1,"nextID":9223372036854775807,"entries":[]}"#])
+    func `an id with no room after it is preserved as corrupt`(saved: String) throws {
+        try DictationHistoryFixture.run { fixture in
+            try Data(saved.utf8).write(to: fixture.file)
+            var store = DictationHistoryStore(file: fixture.file, retention: .week, now: 1_000)
+
+            #expect(store.entries.isEmpty)
+            #expect(FileManager.default.fileExists(atPath: fixture.corrupt.path))
+            #expect(try store.record(draft("fresh"), now: 1_001) == 1)
+        }
+    }
+
+    @Test func `clear erases the malformed copy`() throws {
+        try DictationHistoryFixture.run { fixture in
+            try Data("{ not json".utf8).write(to: fixture.file)
+            var store = DictationHistoryStore(file: fixture.file, retention: .week, now: 1_000)
+            #expect(FileManager.default.fileExists(atPath: fixture.corrupt.path))
+
+            try store.clear()
+            #expect(!FileManager.default.fileExists(atPath: fixture.corrupt.path), "even with no entries to clear")
+        }
+    }
+
+    @Test func `the sweep drops a malformed copy last written a month ago`() throws {
+        try DictationHistoryFixture.run { fixture in
+            try Data("{ not json".utf8).write(to: fixture.file)
+            let now = DictationHistory.now()
+            var store = DictationHistoryStore(file: fixture.file, retention: .day, now: now)
+            let written = Date(timeIntervalSince1970: Double(now - monthMs + 60_000) / 1_000)
+            try FileManager.default.setAttributes([.modificationDate: written], ofItemAtPath: fixture.corrupt.path)
+
+            store.expire(now: now)
+            #expect(FileManager.default.fileExists(atPath: fixture.corrupt.path), "a minute short of a month stays")
+            store.expire(now: now + 120_000)
+            #expect(!FileManager.default.fileExists(atPath: fixture.corrupt.path))
+        }
+    }
+
+    @Test func `opening removes a snapshot a crash left behind`() throws {
+        try DictationHistoryFixture.run { fixture in
+            try Data("half written".utf8).write(to: fixture.temporary)
+            _ = DictationHistoryStore(file: fixture.file, retention: .week, now: 1_000)
+            #expect(!FileManager.default.fileExists(atPath: fixture.temporary.path))
+        }
+    }
+
     @Test func `the next id outlives the saved entries`() throws {
         try DictationHistoryFixture.run { fixture in
             try Data(#"{"version":1,"nextID":2,"entries":[{"id":7,"timestampMs":1000,"text":"b"},{"id":3,"timestampMs":900,"text":"a"}]}"#.utf8)
@@ -234,6 +281,7 @@ struct DictationHistoryFixture {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent("oops-dictation-history-\(UUID().uuidString)")
     var file: URL { directory.appendingPathComponent("history.json") }
     var temporary: URL { directory.appendingPathComponent("history.json.tmp") }
+    var corrupt: URL { directory.appendingPathComponent("history.json.corrupt") }
 
     static func run(_ body: (DictationHistoryFixture) throws -> Void) throws {
         let fixture = DictationHistoryFixture()

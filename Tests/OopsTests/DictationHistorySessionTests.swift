@@ -28,6 +28,29 @@ import XCTest
         XCTAssertEqual(history.recorded, ["Hello auto"])
     }
 
+    func testWordsRefusedByPolicyAreNotRecorded() async throws {
+        for refusal in [InsertRefusal.secureField, .appDenied, .appTurnedOff] {
+            let run = try DictationSessionRun(self, mode: .holdOnly, history: history.value)
+            run.inserts.outcome = .refused(refusal)
+            run.press(0)
+            run.release(1_200)
+            try await run.until { run.drop.states.count == 3 }
+            XCTAssertEqual(run.session.lastTranscript, "Hello", "\(refusal): kept in memory only")
+        }
+        XCTAssertEqual(history.recorded, [])
+    }
+
+    func testTheEntryNamesTheModelReadAtTheStart() async throws {
+        history.model = "Whisper"
+        let run = try DictationSessionRun(self, mode: .holdOnly, history: history.value)
+        run.press(0)
+        try await run.until { run.drop.states.last == .recording }
+        history.model = "Parakeet"
+        run.release(1_200)
+        try await run.until { run.drop.states.last == .left }
+        XCTAssertEqual(history.recorded, ["Hello auto Whisper"])
+    }
+
     func testACancelledInsertIsNotRecorded() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly, history: history.value)
         run.inserts.outcome = .refused(.cancelled)
@@ -97,15 +120,16 @@ import XCTest
     }
 }
 
-/// Records what the session hands its history, as "text language" ("auto" for none).
+/// Records what the session hands its history, as "text language" ("auto" for none), then the model if any.
 @MainActor private final class HistorySpy {
     private(set) var recorded: [String] = []
     private(set) var replaced: [String] = []
+    var model: String?
     var last: (String?) -> String? = { $0 }
 
     var value: DictationSession.History {
-        DictationSession.History(record: { self.recorded.append("\($0) \($1 ?? "auto")") }, replaceLast: { self.replaced.append($0) },
-                                 last: { self.last($0) })
+        DictationSession.History(model: { self.model }, record: { self.recorded.append(["\($0)", $1 ?? "auto", $2].compactMap(\.self).joined(separator: " ")) },
+                                 replaceLast: { self.replaced.append($0) }, last: { self.last($0) })
     }
 }
 

@@ -58,10 +58,13 @@ extension AppDelegate {
             }
         }
         return DictationSession.History(
-            record: { text, language in
-                let app = NSWorkspace.shared.frontmostApplication, bundleID = app?.bundleIdentifier
+            model: {
                 let override = DebugFlags.dictationModel.flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0).lastPathComponent }
-                model.record(text: text, language: language, model: override ?? providers.dictateOption(local)?.name,
+                return override ?? providers.dictateOption(local)?.name
+            },
+            record: { text, language, speechModel in
+                let app = NSWorkspace.shared.frontmostApplication, bundleID = app?.bundleIdentifier
+                model.record(text: text, language: language, model: speechModel,
                              application: app?.localizedName ?? bundleID.map(AppScope.name), bundleID: bundleID)
             },
             replaceLast: { model.replaceLast($0) },

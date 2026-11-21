@@ -88,6 +88,8 @@ import OSLog
     var loading: Task<Void, any Error>?
     /// The language hint read at the last start, for its transcription.
     var language: String?
+    /// The speech model's name read at the last start, for its history entry.
+    var historyModel: String?
     /// The most recent transcript, written or not, held in memory only: Paste last dictation writes it again,
     /// and the kept drop copies it.
     var lastTranscript: String?
@@ -265,7 +267,7 @@ import OSLog
                 loading = Task.detached(priority: .userInitiated) { try await engine.load(model: model) }
             }
         }
-        language = languageHint(); plan = planCleanup(forced: lastPressCleans)
+        language = languageHint(); historyModel = history.model(); plan = planCleanup(forced: lastPressCleans)
         do { try await recorder.start(at: pressed) } catch {
             if case .microphoneAccess(.undetermined) = error { return ask() }
             return refuse(Self.failure(error))

@@ -73,6 +73,34 @@ import XCTest
         XCTAssertEqual(history.lastText(inMemory: "In memory"), "Saved again")
     }
 
+    func testPasteLastWritesALongDictationWholeUntilARelaunch() {
+        let long = String(repeating: "word ", count: 5_000)
+        let history = model()
+        record(history, long)
+        XCTAssertEqual(history.lastText(inMemory: nil), long)
+        XCTAssertEqual(model().lastText(inMemory: nil)?.utf8.count, 16 * 1_024, "the entry keeps 16 KiB")
+    }
+
+    func testAnUnsavedDictationIsNotPastedOnceRemoved() throws {
+        let history = model()
+        record(history, "Saved")
+        let blocker = URL(fileURLWithPath: file.path + ".tmp")
+        try FileManager.default.createDirectory(at: blocker, withIntermediateDirectories: false)
+        record(history, "Unsaved")
+        let unsaved = try XCTUnwrap(history.recent().first).id
+        XCTAssertThrowsError(try history.delete(unsaved))
+        XCTAssertEqual(history.lastText(inMemory: nil), "Unsaved", "a failed delete keeps it")
+        try FileManager.default.removeItem(at: blocker)
+        try history.delete(unsaved)
+        XCTAssertEqual(history.lastText(inMemory: "Unsaved"), "Saved")
+        record(history, "Again")
+        try FileManager.default.createDirectory(at: blocker, withIntermediateDirectories: false)
+        record(history, "Unsaved again")
+        try FileManager.default.removeItem(at: blocker)
+        try history.clear()
+        XCTAssertNil(history.lastText(inMemory: "Unsaved again"))
+    }
+
     func testReplaceLastChangesTheNewestEntry() throws {
         let history = model()
         record(history, "um hello")

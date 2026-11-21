@@ -90,8 +90,9 @@ public struct DictationHistoryStore: Sendable {
         return true
     }
 
-    /// Deletes every entry. A failed save keeps them, so the clear can be retried.
+    /// Deletes every entry, and the copy of a malformed file. A failed save keeps them, so the clear can be retried.
     public mutating func clear() throws {
+        try removeCorrupt()
         if entries.isEmpty, !prunePending { return }
         let removed = entries
         entries = []
@@ -130,9 +131,12 @@ public struct DictationHistoryStore: Sendable {
         return Array(usable.prefix(count))
     }
 
-    /// The sweep's expiry: prune, and save if that left a change unsaved. A failed save is reported once and
-    /// retried on the next call.
+    /// The sweep's expiry: drop a month-old malformed copy, prune, and save if that left a change unsaved. A failed
+    /// save is reported once and retried on the next call.
     public mutating func expire(now: Int) {
+        do { try removeCorrupt(modifiedBefore: now - DictationHistoryRetention.month.maxAgeMs) } catch {
+            Self.log.warning("could not remove the malformed dictation history's copy (\(Self.describe(error), privacy: .public))")
+        }
         prune(now: now)
         guard prunePending else { return }
         do { try persist() } catch {
