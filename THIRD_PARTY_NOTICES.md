@@ -46,6 +46,9 @@ under its own terms.
   `Sources/Oops/Dictation/RecordingEnvironmentNative.swift`) and its tests
   (`Tests/OopsCoreTests/RecordingEnvironment*Tests.swift`) are ported from its `src/audio/recording_environment.rs`,
   `src/audio/recording_environment/ducking.rs` and `src/audio/output_ducking.rs` (v3.4.0).
+  The dictation history store (`Sources/OopsCore/Dictation/History/`) and its tests
+  (`Tests/OopsCoreTests/DictationHistoryHex*Tests.swift`) are ported from its `src/history.rs` (v3.4.0), and the
+  menu line of an entry (`menuTitle`) from `recent_title` in `src/macos_rune/status_item.rs`.
 - **Handy**, Copyright (c) 2025 CJ Pais, MIT. The dictation activation state machine
   (`Sources/OopsCore/Dictation/DictationCoordinator.swift`) and its tests are ported from its
   `src-tauri/src/transcription_coordinator.rs`; the vocabulary's fuzzy replacement

@@ -26,8 +26,9 @@ struct SettingsView: View {
     @State private var generalDetail = GeneralDetail.launchPreview
     /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
     @State private var fixDetail = FixDetail.launchPreview
-    /// Dictate's Vocabulary page; its speech model page is `SpeechModelPicker`'s target.
-    @State private var dictateVocabulary = false
+    /// Dictate's drilled-in page; its speech model page is `SpeechModelPicker`'s target. Launch-only aid:
+    /// `-SettingsPreviewTab history`.
+    @State private var dictateDetail = DictateDetail.launchPreview
     @State private var scroll = ScrollPosition(edge: .top)
     /// How far the page is scrolled; read only when a switch starts, so scrolling re-evaluates nothing.
     @State private var scrolled = ScrollOffset()
@@ -136,6 +137,15 @@ struct SettingsView: View {
             preferences.providers.wantsProvidersPage = false
             pageSelection.wrappedValue = .providers
         }
+        // The menu's Show all…, before or after this view exists. Only with Dictate shown, so the store isn't opened
+        // otherwise.
+        .onChange(of: tabs.contains(.dictate) && DictationHistoryModel.shared.wantsPage, initial: true) { _, wanted in
+            guard wanted else { return }
+            DictationHistoryModel.shared.wantsPage = false
+            SpeechModelPicker.shared.target = nil
+            dictateDetail = .history
+            if page != .dictate { pageSelection.wrappedValue = .dictate }
+        }
         // Debug-only (`SettingsPreviewCycle`, or the perf harness): steps through the tabs, for
         // recording and profiling the switch.
         .task {
@@ -167,7 +177,7 @@ struct SettingsView: View {
         switch page {
         case .general: generalDetail
         case .fix: fixDetail
-        case .dictate: SpeechModelPicker.shared.target?.id ?? (dictateVocabulary ? "vocabulary" : nil)
+        case .dictate: SpeechModelPicker.shared.target?.id ?? dictateDetail.map { "\($0)" }
         case .providers: preferences.providers.openProvider ?? preferences.providers.draft?.id
         case .actions: nil
         }
@@ -221,7 +231,7 @@ struct SettingsView: View {
     }
 
     private func closeDictateDetail() {
-        dictateVocabulary = false
+        dictateDetail = nil
         SpeechModelPicker.shared.target = nil
     }
 
@@ -288,7 +298,7 @@ struct SettingsView: View {
             GeneralPage(hasAccessibility: hasAccessibility, tabs: tabs, store: preferences.providers, preferences: preferences,
                         detail: $generalDetail, open: open, preview: preview, previewPlacement: previewPlacement)
         case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
-        case .dictate: DictatePage(store: preferences.providers, vocabulary: $dictateVocabulary)
+        case .dictate: DictatePage(store: preferences.providers, detail: $dictateDetail)
         case .actions: ActionsPage()
         case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
         }

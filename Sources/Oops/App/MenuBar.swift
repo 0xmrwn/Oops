@@ -4,7 +4,7 @@ import OopsCore
 import SwiftUI
 
 /// The menu bar eyes and their menu: a status line, Fix's items (Fix text or Cancel, Restore last correction,
-/// the copy fallbacks), Dictate's while it is on (Paste last dictation), then the front app's switch, Settings
+/// the copy fallbacks), Dictate's while it is on (Paste last dictation, Recent dictations), then the front app's switch, Settings
 /// and Quit. Each feature's items sit under its name once both are there.
 @MainActor final class MenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let preferences: Preferences
@@ -18,6 +18,8 @@ import SwiftUI
     private let status = StatusLine()
     /// Shown only while Dictate is on: its items, and the headers that tell the two features apart.
     private var dictateOnly: [NSMenuItem] = []
+    /// The newest dictations in history, rebuilt each time the menu opens; hidden while there are none.
+    private let recent = NSMenuItem(title: "Recent dictations", action: nil, keyEquivalent: "")
     private var menuOpen = false
 
     init(preferences: Preferences, session: CorrectionSession, dictation: @escaping () -> DictationSession? = { nil },
@@ -41,8 +43,11 @@ import SwiftUI
         let dictate: [NSMenuItem] = [.separator(), .sectionHeader(title: "Dictate"),
                                      NSMenuItem(title: "Paste last dictation", action: #selector(pasteLast), keyEquivalent: "")]
         dictate.last?.image = Self.symbol("doc.on.clipboard")
+        recent.image = Self.symbol("clock.arrow.circlepath")
+        recent.submenu = NSMenu()
         dictate.forEach(menu.addItem)
-        dictateOnly += dictate
+        menu.addItem(recent)
+        dictateOnly += dictate + [recent]
         menu.addItem(.separator())
         menu.addItem(withTitle: "Turn off", action: #selector(toggleApp), keyEquivalent: "")
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").image = Self.symbol("gearshape")
@@ -64,6 +69,15 @@ import SwiftUI
     @objc private func copyOriginal() { session.copyOriginal() }
     // Lets the menu close, and focus return to the field, before the paste.
     @objc private func pasteLast() { Task { await Task.yield(); dictation()?.pasteLast() } }
+    /// Read when chosen: an entry deleted or expired since the menu opened writes nothing.
+    @objc private func pasteEntry(_ item: NSMenuItem) {
+        guard let text = DictationHistoryModel.shared.text(of: item.tag) else { return }
+        Task { await Task.yield(); dictation()?.paste(text) }
+    }
+    @objc private func showHistory() {
+        DictationHistoryModel.shared.wantsPage = true
+        openSettings()
+    }
     @objc private func settings() { openSettings() }
     @objc private func toggleApp() {
         guard let app = targetApp else { return }
@@ -83,7 +97,7 @@ import SwiftUI
         case #selector(copyPending): session.pendingCorrection != nil
         case #selector(restore): session.canRestore
         case #selector(copyOriginal): session.originalForRecovery != nil
-        case #selector(pasteLast): dictation()?.lastTranscript != nil
+        case #selector(pasteLast): dictation()?.canPasteLast == true
         default: true
         }
     }
@@ -94,6 +108,7 @@ import SwiftUI
         // Dictate's shortcut is its switch: without one, dictation is off and so is its part of the menu.
         let dictating = dictation() != nil && ShortcutSettings.shared.shortcut(.dictate) != nil
         for item in dictateOnly { item.isHidden = !dictating }
+        updateRecent(dictating ? DictationHistoryModel.shared.recent() : [])
         for item in menu.items {
             switch item.action {
             case #selector(copyPending): item.isHidden = session.pendingCorrection == nil
@@ -112,6 +127,24 @@ import SwiftUI
             default: break
             }
         }
+    }
+
+    /// One item per entry, newest first, its text's start and how long ago, then Show all….
+    private func updateRecent(_ entries: [DictationHistoryEntry]) {
+        recent.isHidden = entries.isEmpty
+        guard let submenu = recent.submenu else { return }
+        submenu.removeAllItems()
+        guard !entries.isEmpty else { return }
+        let now = DictationHistory.now()
+        for entry in entries {
+            let item = NSMenuItem(title: entry.menuTitle, action: #selector(pasteEntry), keyEquivalent: "")
+            item.subtitle = entry.age(now: now)
+            item.tag = entry.id
+            item.target = self
+            submenu.addItem(item)
+        }
+        submenu.addItem(.separator())
+        submenu.addItem(withTitle: "Show all…", action: #selector(showHistory), keyEquivalent: "").target = self
     }
 
     /// The action's chord, if it has one, drawn on the right like Settings and Quit. The global hotkey

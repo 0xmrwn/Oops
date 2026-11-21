@@ -45,7 +45,7 @@ struct MoreModels: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if models.count > 8 {
-                TextField("Filter", text: $filter, prompt: Text("Filter")).textFieldStyle(.roundedBorder).labelsHidden()
+                GlassSearchField(title: "Filter", text: $filter)
             }
             // An explicit height: a scroll view sized by its content measured zero here and the
             // popover opened empty.
@@ -60,12 +60,8 @@ struct MoreModels: View {
         }
         .padding(14)
         .frame(width: 360)
-        // Opened by a click, the popover would put a ring on its first switch; a filter field
-        // keeps focus, since typing is the point.
-        .onAppear {
-            guard models.count <= 8 else { return }
-            DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) }
-        }
+        // Opened by a click, the popover would put a ring on its first switch.
+        .onAppear { DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) } }
     }
 }
 

@@ -108,6 +108,22 @@ final class FocusRingsWindow: NSWindow {
         return super.makeFirstResponder(responder)
     }
 
+    /// With a popover open and nothing focused, Tab starts in the popover, as it would had the popover taken focus
+    /// when it opened, instead of walking the page behind it. A popover with nothing to focus leaves Tab to the page.
+    override func selectNextKeyView(_ sender: Any?) {
+        if !tabIntoPopover({ $0.selectNextKeyView(sender) }) { super.selectNextKeyView(sender) }
+    }
+
+    override func selectPreviousKeyView(_ sender: Any?) {
+        if !tabIntoPopover({ $0.selectPreviousKeyView(sender) }) { super.selectPreviousKeyView(sender) }
+    }
+
+    private func tabIntoPopover(_ select: (NSWindow) -> Void) -> Bool {
+        guard firstResponder === self, let popover = childWindows?.last(where: \.isVisible) else { return false }
+        select(popover)
+        return firstResponder !== self
+    }
+
     private static func takesText(_ responder: NSResponder) -> Bool {
         responder is NSText || (responder as? NSTextField)?.isEditable == true
     }
@@ -116,11 +132,12 @@ final class FocusRingsWindow: NSWindow {
     /// moves focus through Accessibility, with no event of its own.
     private func chosen(_ responder: NSResponder) -> Bool {
         if NSWorkspace.shared.isVoiceOverEnabled { return true }
-        guard let event = NSApp.currentEvent, event.window === self else { return false }
+        // A popover's fields ask this window for focus, though a click in one arrives in the popover's own window.
+        guard let event = NSApp.currentEvent, let window = event.window, window === self || window.parent === self else { return false }
         switch event.type {
         case .keyDown: return event.keyCode == 48
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
-            guard let content = contentView, let field = (responder as? NSText).map({ $0.isFieldEditor ? $0.delegate as? NSView : $0 }) ?? responder as? NSView
+            guard let content = window.contentView, let field = (responder as? NSText).map({ $0.isFieldEditor ? $0.delegate as? NSView : $0 }) ?? responder as? NSView
             else { return false }
             let hit = content.hitTest(content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow)
             // Inside the field, or in the margin of the scroll view a text view sits in.

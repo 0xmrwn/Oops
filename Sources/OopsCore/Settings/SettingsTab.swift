@@ -21,7 +21,7 @@ public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
     public static func launch(_ name: String?, visible: [Self]) -> Self {
         let tab: Self = switch name?.lowercased() {
         case "fix", "try", "customize", "advanced", "apps": .fix
-        case "dictate", "dictation": .dictate
+        case "dictate", "dictation", "history": .dictate
         case "actions": .actions
         case "provider", "providers": .providers
         default: .general
