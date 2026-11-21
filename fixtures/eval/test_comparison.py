@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from evaluation.comparison import ROLES, VERSION, comparison, paired
+from evaluation.comparison import LEGACY_VERSION, ROLES, VERSION, comparison, paired
 from evaluation.judge_guards import context
 from evaluation.records import ROOT, canonical, digest, lines, read_json, write_json
 from evaluation.shortcut import measure
@@ -29,8 +29,8 @@ class BlindComparisonTests(unittest.TestCase):
             for lang in ("en", "fr", "mixed")
         ]
         self.cases.append(next(c for c in corpus if c["expected"] == c["input"] and len(c["input"].split()) < 30))
-        twin = dict(self.cases[2], id="fixture-twin", family=self.cases[2]["id"], instructions="Use standard French")
-        self.cases[2]["instructions"] = "Keep English terms"
+        twin = dict(self.cases[2], id="fixture-twin", family=self.cases[2]["id"], instructions="Use formal wording")
+        self.cases[2]["instructions"] = "Keep the casual tone"
         self.cases.append(twin)
         self.write_lines(self.run / "cases.jsonl", self.cases)
         roles = {r: f"results/{r}.jsonl" for r in ROLES}
@@ -92,6 +92,11 @@ class BlindComparisonTests(unittest.TestCase):
     def write_lines(path, rows):
         path.write_text("".join(json.dumps(r) + "\n" for r in rows))
 
+    def refreeze(self, *files):
+        for name in files:
+            self.exp["snapshots"][name] = hashlib.sha256((self.run / name).read_bytes()).hexdigest()
+        write_json(self.run / "experiment.json", self.exp)
+
     def test_fixture_matrix_and_shortcut(self):
         with patch("evaluation.shortcut.time.monotonic_ns", return_value=901_000_000):
             obs = measure(lambda: 1_000_000, lambda: True, "warm", lambda: 100, 200)
@@ -125,7 +130,75 @@ class BlindComparisonTests(unittest.TestCase):
         self.write_lines(self.run / "cases.jsonl", [only_english])
         self.exp["snapshots"]["cases.jsonl"] = hashlib.sha256((self.run / "cases.jsonl").read_bytes()).hexdigest()
         write_json(self.run / "experiment.json", self.exp)
+        with self.assertRaisesRegex(ValueError, "English and French"):
+            comparison(self.run, self.rubric)
+
+    def test_qualification_accepts_two_primary_languages_without_term_annotations(self):
+        cases = [dict(c, origin="real", family=c["id"], split="held") for c in self.cases[:2]]
+        self.write_lines(self.run / "cases.jsonl", cases)
+        config = read_json(self.run / "config.json")
+        plan = config["comparison"]
+        plan.update(
+            purpose="qualification",
+            models={role: role for role in ROLES},
+            shortcut_cases={cases[0]["id"]: "cold", cases[1]["id"]: "warm"},
+        )
+        write_json(self.run / "config.json", config)
+        write_json(
+            self.run / "manifest.json",
+            {"attempts": 1, "lanes": [{"file": file, "resolved": role} for role, file in plan["lanes"].items()]},
+        )
+        for file in (self.run / "results").glob("*.jsonl"):
+            self.write_lines(file, lines(file)[:2])
+        self.refreeze("cases.jsonl", "config.json")
+        result = comparison(self.run, self.rubric)
+        model = result["models"]["qwen-tuned"]
+        self.assertFalse(result["fixture_only"])
+        self.assertEqual(model["english_term_preservation"]["occurrences"], 0)
+        self.assertEqual(set(model["by_slice"]) & {"lang/en", "lang/fr", "lang/mixed"}, {"lang/en", "lang/fr"})
+
+        plan["protocol"] = LEGACY_VERSION
+        write_json(self.run / "config.json", config)
+        self.refreeze("config.json")
         with self.assertRaisesRegex(ValueError, "English, French and mixed"):
+            comparison(self.run, self.rubric)
+
+    def test_english_term_report_distinguishes_raw_applied_and_unavailable(self):
+        case = self.cases[1]
+        case.update(
+            input="Vérifie l’endpoint et le endpoint de test.",
+            expected="Vérifie l’endpoint et l’endpoint de test.",
+            tags={"english_terms": ["endpoint"]},
+        )
+        self.write_lines(self.run / "cases.jsonl", self.cases)
+        self.refreeze("cases.jsonl")
+        for role, raw, output in (
+            ("qwen-tuned", canonical({"text": "Vérifie l’endpoint et les endpoints."}), case["expected"]),
+            ("liquid-tuned", canonical({"text": case["input"]}), None),
+            ("proofread", None, "Vérifie les points de terminaison."),
+        ):
+            file = self.run / f"results/{role}.jsonl"
+            rows = lines(file)
+            rows[1].update(raw=raw, output=output)
+            self.write_lines(file, rows)
+        file = self.run / "results/luna.jsonl"
+        self.write_lines(file, [row for row in lines(file) if row["case"] != case["id"]])
+        models = comparison(self.run, self.rubric)["models"]
+        qwen = models["qwen-tuned"]["english_term_preservation"]
+        self.assertEqual(qwen["drafts"], 1)
+        self.assertEqual(qwen["occurrences"], 2)
+        self.assertEqual(qwen["raw"], {"preserved": 1, "changed": 1, "unavailable": 0})
+        self.assertEqual(qwen["applied"], {"preserved": 2, "changed": 0, "unavailable": 0})
+        self.assertEqual(models["liquid-tuned"]["english_term_preservation"]["raw"]["preserved"], 2)
+        self.assertEqual(models["liquid-tuned"]["english_term_preservation"]["applied"]["unavailable"], 2)
+        self.assertEqual(models["proofread"]["english_term_preservation"]["raw"]["unavailable"], 2)
+        self.assertEqual(models["proofread"]["english_term_preservation"]["applied"]["changed"], 2)
+        self.assertEqual(models["luna"]["english_term_preservation"]["applied"]["unavailable"], 2)
+
+        case["alternatives"] = ["Vérifie l’endpoint et le point de terminaison de test."]
+        self.write_lines(self.run / "cases.jsonl", self.cases)
+        self.refreeze("cases.jsonl")
+        with self.assertRaisesRegex(ValueError, "survive in its references"):
             comparison(self.run, self.rubric)
 
     def test_non_boolean_protection_result_cannot_pass(self):
@@ -148,9 +221,9 @@ class BlindComparisonTests(unittest.TestCase):
     def test_preference_reaches_judge_and_changes_identity(self):
         c = self.cases[2]
         a = task_for(c, c["input"], self.rubric)
-        b = task_for(dict(c, instructions="Use standard French"), c["input"], self.rubric)
+        b = task_for(dict(c, instructions="Use formal wording"), c["input"], self.rubric)
         self.assertNotEqual(a["reference_key"], b["reference_key"])
-        self.assertEqual(context(a, self.rubric)["active_editing_instructions"], "Keep English terms")
+        self.assertEqual(context(a, self.rubric)["active_editing_instructions"], "Keep the casual tone")
 
     def test_decisions_at_scale(self):
         for difference, expected in [(0, "pass"), (-1, "fail")]:

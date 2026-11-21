@@ -2,6 +2,17 @@ import XCTest
 @testable import OopsEval
 
 final class HarnessTests: XCTestCase {
+    func testCorpusSnapshotRetainsEnglishTermAnnotations() throws {
+        let source = #"{"id":"fr","input":"J’ai oublié mon laptop.","label":"clear","lang":"fr","tags":{"english_terms":["laptop"]}}"#
+        let item = try JSONDecoder().decode(EvalCase.self, from: Data(source.utf8))
+        let data = try Corpus.data([item])
+        let snapshot = try JSONDecoder().decode(EvalCase.self, from: data)
+        XCTAssertEqual(snapshot.lang, "fr")
+        XCTAssertEqual(snapshot.tags?.englishTerms, ["laptop"])
+        let tags = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["tags"]
+        XCTAssertEqual((tags as? [String: Any])?["english_terms"] as? [String], ["laptop"])
+    }
+
     func testComparisonProtectsNumbersAndLineBreakSequences() {
         let draft = "deploy -2.5 at 10:30\r\nuse v1.2.3"
         let item = EvalCase(id: "numbers", input: draft, label: .clear)

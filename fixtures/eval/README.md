@@ -31,10 +31,12 @@ them. Synthetic cases are written fresh: no quotes, names or client details from
 - `alternatives`: other answers that are also right, added by review and judging.
 - `origin`: `synthetic`, `injected` (known errors added to correct text), `derived` (synthetic, modelled on real
   usage), `real` (debug log, private only).
-- `lang`: `en`, `fr` or `mixed`. The set is 70% English, 30% French; a third of the French share mixes both.
+- `lang`: primary language, `en` or `fr` for new Fix qualification runs. Historical fixtures also use `mixed`.
 - `length`, in characters of `input`: `xs` under 80, `s` 80–300, `m` 300–1,200, `l` 1,200–4,000, `xl`
   4,000–16,000 (the app's limit). 200 cases: 40, 70, 55, 30 and 5.
 - `tags.errors`: types from the taxonomy (`fixtures/eval/taxonomy.md`); empty for clean text.
+- `tags.english_terms`: optional list of intentional English words or phrases copied from a French draft.
+  Add these during case review. For example, a French draft can have `"lang": "fr", "tags": {"english_terms": ["laptop"]}`.
 - `split`: `dev` (150, tuned on) or `held` (50, never tuned on). The baseline runs both; a future optimizer must not see held-back cases.
 - `version`: the set's version; any change to a case makes a new one.
 
