@@ -1,7 +1,8 @@
 # Third-party notices
 
 Oops's own code is under the [MIT License](LICENSE). It includes or is derived from the work below, each
-under its own terms.
+under its own terms. The app carries this file, and the licence texts of the code it embeds
+(`Resources/Licenses/`), in its bundle.
 
 ## Code
 
@@ -13,8 +14,8 @@ under its own terms.
 - **webgl-noise**, Copyright (C) 2011 Ashima Arts, Copyright (C) 2011-2016 Stefan Gustavson, MIT. The
   periodic classic Perlin noise in `ShaderGradient.metal`.
 - **Sparkle** 2, Copyright (c) 2006-2013 Andy Matuschak and the other authors in its licence, MIT with the
-  additional notices in that file. Linked as a Swift package for updates; its licence ships inside
-  `Sparkle.framework`.
+  additional notices in that file. Linked as a Swift package for updates and embedded as
+  `Sparkle.framework`; its licence is `Resources/Licenses/Sparkle.txt`.
 - **Hex**, Copyright (c) 2026 Christopher Langton, MIT. The clipboard rules of text written at the caret
   (`Sources/OopsCore/Editor/PasteClipboard.swift`, `Sources/Oops/Editor/InsertClipboard.swift`) and their
   tests are ported from its `src/paste.rs`. Dictation's capture timeline, release tail and silence gate
@@ -58,8 +59,8 @@ under its own terms.
   `src-tauri/src/actions.rs` (revision 73cc857).
 - **transcribe.cpp** 0.4.1, Copyright (c) 2026 The transcribe.cpp authors, MIT. Speech to text for dictation
   (`Sources/OopsEngine/`), linked as `CTranscribe.framework`, built from our fork
-  ([0xmrwn/transcribe.cpp](https://github.com/0xmrwn/transcribe.cpp), branch `oops`). Embedded only in preview
-  builds for now. Its release archive also carries, each MIT:
+  ([0xmrwn/transcribe.cpp](https://github.com/0xmrwn/transcribe.cpp), branch `oops`). Its release archive also
+  carries the three below, each MIT; the four licence texts are in `Resources/Licenses/`.
   - **ggml**, Copyright (c) 2023-2026 The ggml authors.
   - **miniz**, Copyright 2013-2014 RAD Game Tools and Valve Software, Copyright 2010-2014 Rich Geldreich and
     Tenacious Software LLC.

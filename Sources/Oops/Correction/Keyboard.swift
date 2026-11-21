@@ -150,10 +150,10 @@ struct Shortcut: Codable, Equatable {
     func registration(_ action: Action) -> Registration {
         // Clean up with AI goes off with Dictate, as Paste last dictation's menu item does: only a feature's
         // own shortcut stands without it.
-        let dictation = DebugFlags.dictation && (action.isSwitch || shortcut(.dictate) != nil)
+        let dictation = action.isSwitch || shortcut(.dictate) != nil
         return Self.registration(action, shortcut: shortcut(action), dictation: dictation, off: off.contains(action))
     }
-    /// Dictate's shortcuts only while dictation is switched on. An action with no shortcut is off, which is no
+    /// Clean up with AI only while Dictate has a shortcut (`dictation`). An action with no shortcut is off, which is no
     /// failure; only Fix, whose default is missing from this layout and which wasn't switched `off`, has something to report.
     static func registration(_ action: Action, shortcut: Shortcut?, dictation: Bool, off: Bool = false) -> Registration {
         if off || (action != .correct && !dictation) { return .off }
@@ -163,10 +163,10 @@ struct Shortcut: Codable, Equatable {
 
     /// The other action already bound to `shortcut`, among the ones that register: two actions on one
     /// chord would leave one of them dead, whatever the system says.
-    static func clash(_ action: Action, _ shortcut: Shortcut, with shortcuts: [Action: Shortcut], dictation: Bool) -> Action? {
+    static func clash(_ action: Action, _ shortcut: Shortcut, with shortcuts: [Action: Shortcut]) -> Action? {
         Action.allCases.first { other in
             other != action && shortcuts[other] == shortcut
-                && registration(other, shortcut: shortcuts[other], dictation: dictation) != .off
+                && registration(other, shortcut: shortcuts[other], dictation: true) != .off
         }
     }
 
@@ -175,7 +175,7 @@ struct Shortcut: Codable, Equatable {
     func set(_ action: Action, _ shortcut: Shortcut?) throws {
         if let chosen = shortcut ?? defaultShortcut(action) {
             let others = Dictionary(uniqueKeysWithValues: Action.allCases.compactMap { other in self.shortcut(other).map { (other, $0) } })
-            if let other = Self.clash(action, chosen, with: others, dictation: DebugFlags.dictation) {
+            if let other = Self.clash(action, chosen, with: others) {
                 throw CorrectionError.message("\(chosen.label) is already in use by \(other.title). Choose another shortcut.")
             }
         }

@@ -31,10 +31,6 @@ import XCTest
         XCTAssertEqual(ShortcutSettings.registration(.correct, shortcut: fixDefault, dictation: true, off: true), .off)
     }
 
-    func testDictateRegistersOnlyWhileDictationIsOn() {
-        XCTAssertEqual(ShortcutSettings.registration(.dictate, shortcut: chord, dictation: false), .off)
-    }
-
     func testOnlyAFeaturesOwnShortcutIsItsSwitch() {
         XCTAssertTrue(ShortcutSettings.Action.dictate.isSwitch)
         XCTAssertFalse(ShortcutSettings.Action.dictateAndCleanUp.isSwitch, "Turn on records Dictate's shortcut, not this one")
@@ -43,9 +39,8 @@ import XCTest
 
     func testTwoActionsCannotShareAChord() {
         let both: [ShortcutSettings.Action: Shortcut] = [.correct: fixDefault, .dictate: chord]
-        XCTAssertEqual(ShortcutSettings.clash(.dictate, fixDefault, with: both, dictation: true), .correct)
-        XCTAssertEqual(ShortcutSettings.clash(.correct, chord, with: both, dictation: true), .dictate)
-        XCTAssertNil(ShortcutSettings.clash(.dictate, chord, with: both, dictation: true), "its own chord again")
-        XCTAssertNil(ShortcutSettings.clash(.correct, chord, with: both, dictation: false), "Dictate isn't registered while off")
+        XCTAssertEqual(ShortcutSettings.clash(.dictate, fixDefault, with: both), .correct)
+        XCTAssertEqual(ShortcutSettings.clash(.correct, chord, with: both), .dictate)
+        XCTAssertNil(ShortcutSettings.clash(.dictate, chord, with: both), "its own chord again")
     }
 }

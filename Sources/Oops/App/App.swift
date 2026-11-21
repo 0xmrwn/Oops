@@ -13,7 +13,7 @@ import OopsCore
     private(set) lazy var settings = SettingsWindow(preferences: preferences, testEditor: testEditor, session: session)
     private(set) var menuBar: MenuBar?
     let shortcuts = HyperShortcuts()
-    /// Only while dictation is switched on (`DebugFlags.dictation`).
+    /// Made at launch.
     private(set) var dictation: DictationSession?
     /// Keeps the dictation's microphone open while Settings asks for it.
     private var dictationReadiness: DictationReadiness?

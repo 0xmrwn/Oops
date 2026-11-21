@@ -10,7 +10,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from release_bundle import FRAMEWORK, UPDATE_SETTINGS, assemble, hashes, resources, validate_version, verify
+from release_bundle import (
+    AUTOMATION_USAGE,
+    FRAMEWORK,
+    MICROPHONE_USAGE,
+    UPDATE_SETTINGS,
+    assemble,
+    hashes,
+    resources,
+    validate_version,
+    verify,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -94,6 +104,8 @@ class ReleaseTests(unittest.TestCase):
                 "LSUIElement": True,
                 "CFBundleIconName": "Oops",
                 "CFBundleIconFile": "Oops",
+                "NSMicrophoneUsageDescription": MICROPHONE_USAGE,
+                "NSAppleEventsUsageDescription": AUTOMATION_USAGE,
             } | UPDATE_SETTINGS
             (app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
             for architectures in ("x86_64", "arm64 x86_64"):
@@ -119,6 +131,10 @@ class ReleaseTests(unittest.TestCase):
                 (framework / "Versions/B" / name).write_bytes(b"\xca\xfe\xba\xbe universal")
                 (framework / "Versions/B" / name).chmod(0o755)
             (framework / "Versions/Current").symlink_to("B")
+            engine = stage / "CTranscribe.framework/Versions/A/CTranscribe"
+            engine.parent.mkdir(parents=True)
+            engine.write_bytes(b"\xca\xfe\xba\xbe universal")
+            engine.chmod(0o755)
             for name in ("Sparkle", "XPCServices", "Headers"):
                 (framework / name).symlink_to(f"Versions/Current/{name}")
             thinned = []
@@ -141,7 +157,7 @@ class ReleaseTests(unittest.TestCase):
             for key, value in UPDATE_SETTINGS.items():
                 self.assertEqual(info[key], value)
             embedded = app / FRAMEWORK
-            self.assertEqual(sorted(thinned), ["Autoupdate", "Sparkle"])
+            self.assertEqual(sorted(thinned), ["Autoupdate", "CTranscribe", "Sparkle"])
             for name in ("XPCServices", "Headers"):
                 self.assertFalse(os.path.lexists(embedded / name), name)
                 self.assertFalse(os.path.lexists(embedded / "Versions/B" / name), name)

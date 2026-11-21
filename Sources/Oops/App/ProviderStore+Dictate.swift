@@ -88,9 +88,9 @@ extension ProviderStore {
     }
 
     /// Revalidates models.dev's feed, at most once an hour; offline, the copy on disk stays in use. Only Dictate
-    /// reads it, so a build without dictation asks nothing.
+    /// reads it.
     func refreshModelsDev() {
-        guard !features.preview, DebugFlags.dictation else { return }
+        guard !features.preview else { return }
         if let fetched = features.fetchedAt, Date().timeIntervalSince(fetched) < 3600 { return }
         features.fetchedAt = Date()
         let client = features.client

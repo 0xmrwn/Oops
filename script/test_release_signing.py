@@ -4,9 +4,23 @@ import plistlib
 import unittest
 from pathlib import Path
 
-from release_signing import DISTRIBUTION_SIGNING, LIBRARY_VALIDATION, sign, validate_identity, verify_signature
+from release_fakes import Signer
+from release_signing import (
+    APPLE_EVENTS,
+    AUDIO_INPUT,
+    DISTRIBUTION_SIGNING,
+    LIBRARY_VALIDATION,
+    sign,
+    validate_identity,
+    verify_signature,
+)
 
 FINGERPRINT = "A" * 40
+# Written out, not taken from release_signing: a change to what distribution signing asks for must fail here.
+DISTRIBUTION_ENTITLEMENTS = {
+    "com.apple.security.device.audio-input": True,
+    "com.apple.security.automation.apple-events": True,
+}
 DETAILS = "flags=0x10000(runtime)\nAuthority=Developer ID Application: Example\nTeamIdentifier=ABCDEFGHIJ\nTimestamp=Nov 4, 2026\n"
 
 
@@ -34,36 +48,62 @@ class SigningTests(unittest.TestCase):
             validate_identity("Developer ID Application: name", unexpected)
 
     def test_distribution_signing_requests_timestamp_without_deep_signing(self):
-        commands = []
-        sign(Path("Oops.app"), FINGERPRINT, commands.append)
-        for command in commands:
+        signer = Signer()
+        sign(Path("Oops.app"), FINGERPRINT, signer)
+        for command, _ in signer.calls:
             self.assertIn("--timestamp", command)
             self.assertNotIn("--timestamp=none", command)
             self.assertNotIn("--deep", command)
             self.assertIn("runtime", command)
 
-    def test_sparkle_is_signed_inside_out_before_the_app(self):
-        commands = []
-        sign(Path("Oops.app"), None, commands.append)
-        signed = [command[-1] for command in commands]
-        self.assertEqual(
-            signed,
-            [
-                "Oops.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate",
-                "Oops.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
-                "Oops.app/Contents/Frameworks/Sparkle.framework",
-                "Oops.app",
-            ],
-        )
+    def test_nested_code_is_signed_inside_out_before_the_app_and_without_entitlements(self):
+        for fingerprint in (None, FINGERPRINT):
+            with self.subTest(fingerprint=fingerprint):
+                signer = Signer()
+                sign(Path("Oops.app"), fingerprint, signer)
+                self.assertEqual(
+                    signer.signed,
+                    [
+                        "Oops.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate",
+                        "Oops.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app",
+                        "Oops.app/Contents/Frameworks/Sparkle.framework",
+                        "Oops.app/Contents/Frameworks/CTranscribe.framework",
+                        "Oops.app",
+                    ],
+                )
+                self.assertEqual([entitlements is not None for _, entitlements in signer.calls], [False] * 4 + [True])
+
+    def test_distribution_signing_asks_for_the_microphone_and_automation_and_nothing_else(self):
+        signer = Signer()
+        sign(Path("Oops.app"), FINGERPRINT, signer)
+        self.assertEqual(signer.app_entitlements, DISTRIBUTION_ENTITLEMENTS)
+        self.assertEqual({AUDIO_INPUT: True, APPLE_EVENTS: True}, DISTRIBUTION_ENTITLEMENTS)
 
     def test_only_local_builds_may_load_ad_hoc_frameworks(self):
-        local, distribution = [], []
-        sign(Path("Oops.app"), None, local.append)
-        sign(Path("Oops.app"), FINGERPRINT, distribution.append)
-        self.assertEqual([("--entitlements" in command) for command in local], [False, False, False, True])
-        self.assertFalse(any("--entitlements" in command for command in distribution))
+        signer = Signer()
+        sign(Path("Oops.app"), None, signer)
+        self.assertEqual(signer.app_entitlements, DISTRIBUTION_ENTITLEMENTS | {LIBRARY_VALIDATION: True})
         entitlements = plistlib.dumps({LIBRARY_VALIDATION: True}).decode()
         with self.assertRaisesRegex(ValueError, "keep library validation"):
+            verify_signature(Path("Oops.app"), FINGERPRINT, self.inspect(entitlements=entitlements))
+
+    def test_verification_refuses_an_app_with_an_entitlement_missing_or_added(self):
+        for entitlements in (
+            {},
+            {APPLE_EVENTS: True},
+            {AUDIO_INPUT: True},
+            DISTRIBUTION_ENTITLEMENTS | {"com.apple.security.cs.allow-jit": True},
+            DISTRIBUTION_ENTITLEMENTS | {AUDIO_INPUT: False},
+        ):
+            with (
+                self.subTest(entitlements=entitlements),
+                self.assertRaisesRegex(ValueError, "the app must be signed with exactly"),
+            ):
+                verify_signature(Path("Oops.app"), FINGERPRINT, self.inspect(app=entitlements))
+
+    def test_verification_refuses_nested_code_with_an_entitlement(self):
+        entitlements = plistlib.dumps({AUDIO_INPUT: True}).decode()
+        with self.assertRaisesRegex(ValueError, "Autoupdate must be signed with exactly \\[\\]"):
             verify_signature(Path("Oops.app"), FINGERPRINT, self.inspect(entitlements=entitlements))
 
     def test_nested_code_without_hardened_runtime_is_refused(self):
@@ -73,10 +113,14 @@ class SigningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "hardened runtime: .*Autoupdate"):
             verify_signature(Path("Oops.app"), FINGERPRINT, self.inspect(details))
 
-    def inspect(self, details=DETAILS, entitlements=""):
+    def inspect(self, details=DETAILS, entitlements=None, app=DISTRIBUTION_ENTITLEMENTS):
+        """entitlements: what every piece of code answers with; otherwise the app alone carries `app`."""
+
         def run(command, **kwargs):
             if "--entitlements" in command:
-                return entitlements
+                if entitlements is not None:
+                    return entitlements
+                return plistlib.dumps(app).decode() if command[-1] == "Oops.app" else ""
             if "-dvvv" in command:
                 return details(command[-1]) if callable(details) else details
             self.assertIn(FINGERPRINT, " ".join(command))

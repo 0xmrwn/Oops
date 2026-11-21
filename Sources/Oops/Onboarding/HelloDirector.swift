@@ -97,7 +97,7 @@ import SwiftUI
         try await pause(0.28)
         try await correct(typed)
         try await pause(0.8)
-        if DebugFlags.dictation { try await speak() }
+        try await speak()
         try await pullBack()
         try await wave()
         try await pause(1.7)

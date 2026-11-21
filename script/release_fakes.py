@@ -1,13 +1,11 @@
-"""Fake bundles and tools for the preview build's packaging tests; nothing is compiled, signed or launched."""
+"""Fake bundles and tools for the packaging tests; nothing is compiled, signed or launched."""
 
 import plistlib
 import shutil
 from pathlib import Path
 
-from release_signing import APPLE_EVENTS, AUDIO_INPUT, LIBRARY_VALIDATION
+from release_signing import app_entitlements
 
-FINGERPRINT = "A" * 40
-DEVELOPER_ID = "flags=0x10000(runtime)\nAuthority=Developer ID Application: Example\nTeamIdentifier=ABCDEFGHIJ\nTimestamp=Nov 4, 2026\n"
 AD_HOC = "flags=0x10002(adhoc,runtime)\nSignature=adhoc\n"
 
 
@@ -57,9 +55,9 @@ class Builder:
 class Inspector:
     """Answers verification's lipo, otool, nm and codesign as a correctly built bundle would, or with one fault."""
 
-    def __init__(self, app, linked=False, entitlements=None, details=AD_HOC):
+    def __init__(self, app, linked=True, entitlements=None, details=AD_HOC):
         self.app, self.linked, self.details = str(app), linked, details
-        self.entitlements = {LIBRARY_VALIDATION: True} if entitlements is None else entitlements
+        self.entitlements = app_entitlements(None) if entitlements is None else entitlements
 
     def __call__(self, command, *, capture=False, stderr=False):
         if command[0] == "lipo":
@@ -72,10 +70,6 @@ class Inspector:
         if "--entitlements" in command:
             return plistlib.dumps(self.entitlements).decode() if command[-1] == self.app else ""
         return ""
-
-
-def preview_entitlements(fingerprint=None):
-    return ({} if fingerprint else {LIBRARY_VALIDATION: True}) | {AUDIO_INPUT: True, APPLE_EVENTS: True}
 
 
 class Signer:

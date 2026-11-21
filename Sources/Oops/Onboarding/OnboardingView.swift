@@ -54,7 +54,7 @@ struct OnboardingView: View {
     }
 
     /// The steps after Hello, which the dots count: the ones the chosen features need.
-    private var setup: [Step] { turningOn == nil ? Step.setup(for: features.chosen, choice: DebugFlags.dictation) : [.shortcut, .tryIt] }
+    private var setup: [Step] { turningOn == nil ? Step.setup(for: features.chosen) : [.shortcut, .tryIt] }
 
     /// Whether the steps cover `feature`: all of today's flow is Fix's, and the choice decides once it is asked.
     private func asksFor(_ feature: OnboardingFeature) -> Bool {

@@ -8,7 +8,7 @@ import SwiftUI
 @MainActor enum NewFeatures {
     static let key = "announcedFeatures"
     /// The features this build offers at first run.
-    static var offered: [OnboardingFeature] { DebugFlags.dictation ? [.fix, .dictate] : [.fix] }
+    static var offered: [OnboardingFeature] { [.fix, .dictate] }
     static var announced: Set<OnboardingFeature> {
         Set((UserDefaults.standard.stringArray(forKey: key) ?? []).compactMap(OnboardingFeature.init(rawValue:)))
     }

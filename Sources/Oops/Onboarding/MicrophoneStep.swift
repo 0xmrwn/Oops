@@ -10,10 +10,10 @@ import AppKit
     init(saves: Bool) { self.saves = saves }
 
     /// Asks once. A run that saves nothing never shows the system's prompt: it plays the answer
-    /// `-DebugMicrophoneAccess` names. A build without the speech engine has nothing to ask for.
+    /// `-DebugMicrophoneAccess` names.
     func ask() {
         guard state == .unasked else { return }
-        guard saves, DictationEngineProvider.engine() != nil else {
+        guard saves else {
             state = DebugFlags.microphoneAccess == "denied" ? .refused : .granted
             return
         }

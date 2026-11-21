@@ -1,19 +1,13 @@
 import Foundation
 
-/// Settings' tabs, in tab-bar order. Dictate and Actions show only while their feature is switched on.
+/// Settings' tabs, in tab-bar order. Actions shows only while its debug switch is on.
 public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
     case general = "General", fix = "Fix", dictate = "Dictate", actions = "Actions", providers = "Providers"
     public var id: Self { self }
 
     /// The tabs the bar shows; ⌘1…n select them in this order.
-    public static func visible(dictation: Bool, actions: Bool) -> [Self] {
-        allCases.filter { tab in
-            switch tab {
-            case .dictate: dictation
-            case .actions: actions
-            default: true
-            }
-        }
+    public static func visible(actions: Bool) -> [Self] {
+        allCases.filter { $0 != .actions || actions }
     }
 
     /// The tab a `-SettingsPreviewTab` name opens on: a tab's own name, or a page inside one. A hidden

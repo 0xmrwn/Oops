@@ -5,6 +5,9 @@ or leave the cursor in a draft, and press **⌃⌘W**. Oops asks your chosen mod
 small corrections, checks the result, and applies the edits in place. It never
 sends the message.
 
+It also takes dictation: hold the Dictate shortcut, talk, and Oops writes what
+you said where you're typing. Dictate is off until you give it a shortcut.
+
 Apple silicon, macOS 26 or later. Written in Swift, with SwiftUI and AppKit.
 
 ## How correction works
@@ -35,6 +38,20 @@ Apps can also be disabled individually. Some editors hide active input-method
 composition from Accessibility; finish composing before invoking Oops. See
 [editor compatibility](docs/compatibility.md) for tested editors and known limitations.
 
+## How dictation works
+
+Dictate records while its shortcut is held, or between two taps; Escape cancels.
+Speech is turned into text on the Mac by
+[transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), with a speech
+model you choose and download in Settings → Dictate. No model ships with the app,
+and each keeps its own license. With an OpenAI API key, transcription can go
+through OpenAI instead.
+
+The text is written at the caret through the same editor access as corrections.
+Local rules can remove filler words and turn spoken formatting and symbols into
+text. Clean up with AI sends the transcript, never the audio, to your chosen
+provider.
+
 ## Providers
 
 | Connection | Request path |
@@ -59,6 +76,14 @@ watch idle typing. A correction sends the captured selection or draft and the
 correction instructions to the chosen provider. Requests go directly to that
 provider, without an Oops server in between. The provider's own data policies
 still apply.
+
+Dictate needs the microphone. macOS asks for it only once Dictate has a
+shortcut, so using Oops for corrections alone never shows the prompt. Oops
+listens only while you dictate and does not keep the audio. With an OpenAI
+model, the audio is sent to OpenAI for transcription. The dictation history
+stores transcripts on the Mac, for 7 days by default, and can be turned off.
+Choosing Pause media makes macOS ask whether Oops may control Music, Spotify or
+VLC, which it pauses while you dictate.
 
 Clipboard-based capture and replacement temporarily use the system clipboard.
 Oops saves its contents first and restores them only while it still owns the
@@ -111,6 +136,7 @@ installation. The development app has no update feed.
   Settings and onboarding.
 - `Sources/OopsCore/`: provider adapters, correction rules, text transactions and
   placement policies.
+- `Sources/OopsEngine/`: the speech engine, over transcribe.cpp's framework.
 - `Sources/OopsEval/`: the `oops-eval` command-line tool.
 - `Tests/`: unit tests. `fixtures/`: editor labs, e2e scenarios and evaluation
   fixtures.

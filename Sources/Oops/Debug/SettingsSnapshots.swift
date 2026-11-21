@@ -3,7 +3,7 @@ import AppKit
 import OopsCore
 import SwiftUI
 
-/// Debug builds only: `-SettingsSnapshots <dir> -DebugDictation YES -SettingsPreviewProviders YES` renders the
+/// Debug builds only: `-SettingsSnapshots <dir> -SettingsPreviewProviders YES` renders the
 /// speech-model parts of Settings to PNGs offscreen, light and dark, and exits, like `HelloSnapshots`. A model
 /// store that never fetches drives every state; nothing is downloaded or saved. Glass renders flat here.
 @MainActor enum SettingsSnapshots {

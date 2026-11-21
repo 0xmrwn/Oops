@@ -7,11 +7,10 @@ public enum OnboardingFeature: String, CaseIterable, Sendable {
 public enum OnboardingStep: String, Sendable {
     case hello, features, provider, shortcut, accessibility, tryIt, home
 
-    /// The steps after Hello, which the dots count. With no `choice` (a build without dictation) the flow is
-    /// Fix's own; with it, first run opens by asking what Oops is for and keeps the steps `features` need.
-    public static func setup(for features: Set<OnboardingFeature>, choice: Bool) -> [OnboardingStep] {
-        guard choice else { return [.provider, .shortcut, .accessibility, .tryIt, .home] }
+    /// The steps after Hello, which the dots count: first run opens by asking what Oops is for and keeps the
+    /// steps `features` need.
+    public static func setup(for features: Set<OnboardingFeature>) -> [OnboardingStep] {
         // Only Fix needs a text provider: dictation's model is Oops's own download.
-        return [.features] + (features.contains(.fix) ? [.provider] : []) + [.shortcut, .accessibility, .tryIt, .home]
+        [.features] + (features.contains(.fix) ? [.provider] : []) + [.shortcut, .accessibility, .tryIt, .home]
     }
 }
