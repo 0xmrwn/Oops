@@ -195,7 +195,8 @@ struct Harness {
     /// or 5, 10, 20, 40 s) and on a transient failure (twice). A spent daily quota defers it.
     private func call(_ job: Job, lane: any Lane, resolved: ResolvedLane, pacer: Pacer, prices: PriceTable?) async -> Outcome {
         let input = job.item.input
-        let estimate = (CorrectionPolicy.instructions.utf8.count + 2 * input.utf8.count) / 4 + 64
+        let instructions = job.item.instructions ?? CorrectionPolicy.instructions
+        let estimate = (instructions.utf8.count + 2 * input.utf8.count) / 4 + 64
         var retries = 0, limited = 0, queued: Duration = .zero
         let began = ContinuousClock.now
         let reset = { Pacer.nextReset(after: Date(), zone: resolved.provider.pace.dailyReset) }
@@ -203,7 +204,7 @@ struct Harness {
             guard let waited = await pacer.enter(tokens: estimate) else { return .deferred(until: reset()) }
             queued += waited
             let started = Date()
-            let answer = await lane.send(input)
+            let answer = await lane.send(input, instructions: instructions)
             await pacer.leave()
             if let pause = answer.pause, pause > 0 { await pacer.pause(min(pause, 120), limited: false) }
             // A refused setting the lane stepped down from: resent through the pacer like any retry.
@@ -238,7 +239,7 @@ struct Harness {
                 output = text; verdict = Checks.verdict(text, for: item); failure = nil
             } catch { verdict = "invalid"; failure = error.localizedDescription }
         }
-        var result = CallRecord(run: options.run, dataset: item.version, prompt: CorrectionPolicy.promptVersion, lane: resolved.provider.lane.rawValue,
+        var result = CallRecord(run: options.run, dataset: item.version, prompt: item.instructions.map { String(Experiment.digest(Data($0.utf8)).prefix(12)) } ?? CorrectionPolicy.promptVersion, lane: resolved.provider.lane.rawValue,
                           provider: resolved.provider.name, model: resolved.model, modelReported: answer.modelReported, effort: answer.effort,
                           surface: answer.surface, case: item.id, attempt: job.attempt, started: CallRecord.timestamp(started),
                           queuedMs: Int((queued / .milliseconds(1)).rounded()), ttftMs: answer.ttft, ttfcMs: answer.ttfc,

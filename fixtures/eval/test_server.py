@@ -40,7 +40,7 @@ class ServerTests(unittest.TestCase):
         state = self.get("/api/state")
         case = self.get("/api/case?run=offline-test&id=c")
         task = case["answers"][0]["task"]
-        payload = {"key": task["key"], "judgment": judgment(task)}
+        payload = {"key": task["key"], "judgment": judgment(task), "blind_send_as_is": True}
         request = urllib.request.Request(
             self.url + "/api/labels?run=offline-test",
             json.dumps(payload).encode(),
@@ -49,7 +49,7 @@ class ServerTests(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=5) as response:
             self.assertTrue(json.load(response)["saved"])
         self.assertEqual(self.get("/api/state")["lanes"][0]["metrics"]["correct"], 2)
-        self.assertEqual(len(lines(self.run / "labels.jsonl")), 1)
+        self.assertIs(lines(self.run / "labels.jsonl")[0]["blind_send_as_is"], True)
         with self.assertRaises(urllib.error.HTTPError) as raised:
             urllib.request.urlopen(self.url + "/api/judge", timeout=5)
         self.assertEqual(raised.exception.code, 404)

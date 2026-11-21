@@ -27,7 +27,7 @@ struct Answer: Sendable {
 }
 
 protocol Lane: Sendable {
-    func send(_ text: String) async -> Answer
+    func send(_ text: String, instructions: String) async -> Answer
     /// How the lane settled on its request, for the manifest.
     func notes() async -> [String]
 }
@@ -63,9 +63,9 @@ actor APILane: Lane {
     /// One request. A refused setting steps the lane down and asks to be sent again (through the pacer);
     /// only the request that ran with the current settings moves them, so concurrent refusals of the
     /// same setting step down once.
-    func send(_ text: String) async -> Answer {
+    func send(_ text: String, instructions: String) async -> Answer {
         let effortUsed = effortIndex, modeUsed = mode
-        var (answer, refusal) = await once(text)
+        var (answer, refusal) = await once(text, instructions: instructions)
         guard let refusal else { return answer }
         if effortIndex != effortUsed || mode != modeUsed { answer.resend = true; return answer }
         switch refusal {
@@ -82,11 +82,11 @@ actor APILane: Lane {
         return answer
     }
 
-    private func once(_ text: String) async -> (Answer, Refusal?) {
+    private func once(_ text: String, instructions: String) async -> (Answer, Refusal?) {
         let effort = efforts[effortIndex], surface = Self.modes[mode] ?? "chat-completions"
         var request: URLRequest
         let configuration = APIConfiguration(baseURL: baseURL, model: model, apiKey: key, reasoningEffort: effort)
-        do { request = try configuration.request(for: text, instructions: CorrectionPolicy.instructions) }
+        do { request = try configuration.request(for: text, instructions: instructions) }
         catch { return (Answer(error: "request: \(error.localizedDescription)", surface: surface, effort: effort), nil) }
         if mode != .off, let body = request.httpBody, var object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
             object["stream"] = true

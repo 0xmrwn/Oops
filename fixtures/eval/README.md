@@ -139,3 +139,5 @@ contains provider pace/next-slot activity. `judge_progress.json` separates judgi
 Judgments, labels and generated reports live with private run files outside Git. Detailed commands,
 and execution: [../../docs/eval.md](../../docs/eval.md). Metric denominators and provisional-state rules:
 [How answers are scored](../../docs/eval.md#how-answers-are-scored).
+
+For the paired local Fix protocol, see [Blind local Fix comparison](blind-comparison.md).

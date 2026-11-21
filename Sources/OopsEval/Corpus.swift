@@ -33,12 +33,14 @@ struct EvalCase: Codable, Sendable {
     var version: String?
     /// A real draft and all synthetic descendants share a split and a sampling unit.
     var family: String?
+    var instructions: String?
 
     struct Tags: Codable, Sendable {
         var errors: [String]?
         var register: String?
         var protected: [String]?
         var clean: Bool?
+        var layout: String?
     }
 
     /// Nothing to fix: tagged clean, labelled clear, or expected to come back as it is.
@@ -96,7 +98,7 @@ enum Corpus {
         return try cases.compactMap { item in
             guard let expected = item.expected, item.label == .accepted || item.label == .clear else { return nil }
             let answer = String(decoding: try encoder.encode(["text": expected]), as: UTF8.self)
-            return try encoder.encode(["messages": [["role": "system", "content": instructions],
+            return try encoder.encode(["messages": [["role": "system", "content": item.instructions ?? instructions],
                                                     ["role": "user", "content": item.input],
                                                     ["role": "assistant", "content": answer]]])
         }

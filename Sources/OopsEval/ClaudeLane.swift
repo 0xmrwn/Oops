@@ -13,11 +13,11 @@ struct ClaudeLane: Lane {
 
     func notes() async -> [String] { [] }
 
-    func send(_ text: String) async -> Answer {
+    func send(_ text: String, instructions: String) async -> Answer {
         let surface = "claude-print-stream-json"
         let started = ContinuousClock.now
         let process: CLIProcess
-        let arguments = ClaudeCode.correctionArguments(model: model, effort: effort, instructions: CorrectionPolicy.instructions)
+        let arguments = ClaudeCode.correctionArguments(model: model, effort: effort, instructions: instructions)
         do { process = try CLIProcess(runtime, arguments: arguments + ["--include-partial-messages"]) }
         catch { return Answer(error: "claude: couldn't start", surface: surface, effort: effort) }
         process.finishInput(text)
