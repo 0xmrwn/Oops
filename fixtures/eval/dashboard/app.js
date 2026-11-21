@@ -41,7 +41,7 @@ async function refresh() {
     $("connection").classList.remove("error");
     const identity = JSON.stringify(next);
     if (identity !== renderedReport) { renderedReport = identity; render(); normalRunStatus = $("runStatus").textContent; }
-    else { $("runStatus").textContent = normalRunStatus; $("runStatus").classList.remove("error"); if (state.run) Live.render(state, esc, modelCell); }
+    else { $("runStatus").textContent = normalRunStatus; $("runStatus").classList.remove("error"); if (state.run && !state.comparison_blind) Live.render(state, esc, modelCell); }
     await refreshCaseEvidence();
   } catch (error) {
     $("connection").textContent = "Connection interrupted";
@@ -53,6 +53,17 @@ async function refresh() {
 
 function render() {
   $("runStatus").classList.remove("error");
+  $("blind").disabled = Boolean(state.comparison_blind);
+  if (state.comparison_blind) {
+    $("blind").checked = true;
+    $("title").textContent = "Blind draft review";
+    $("intro").textContent = "Grade each distinct answer against the draft and its editing instructions.";
+    $("runStatus").textContent = `${state.run} · ${state.case_index.length} drafts`;
+    for (const id of ["liveOverview","results","banner","empty"]) $(id).hidden = true;
+    for (const id of ["versions","liveRows","resultRows","breakdowns","policyLabels"]) $(id).textContent = "";
+    $("policyText").textContent = "Apply the active editing instructions and preserve the author's meaning.";
+    renderCases(); return;
+  }
   if (!state.run) {
     $("title").innerHTML = "Ready for the first run.";
     $("intro").textContent = "The reviewed corpus is ready. The correction prompt is unchanged. No baseline has been launched.";

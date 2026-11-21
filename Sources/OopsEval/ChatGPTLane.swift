@@ -21,14 +21,14 @@ struct ChatGPTLane: Lane {
 
     func notes() async -> [String] { [] }
 
-    func send(_ text: String) async -> Answer {
+    func send(_ text: String, instructions: String = CorrectionPolicy.instructions) async -> Answer {
         let surface = "responses-stream", started = ContinuousClock.now
         var answer: Answer
         do {
             answer = try await withDeadline(.seconds(40), orThrow: URLError(.timedOut)) { [self] in
-                if let auth { return try await auth.withAccessToken { token in try await stream(text, token: token) } }
+                if let auth { return try await auth.withAccessToken { token in try await stream(text, instructions: instructions, token: token) } }
                 guard let apiKey else { throw ChatGPTError("auth_missing", "No credential.") }
-                return try await stream(text, token: apiKey)
+                return try await stream(text, instructions: instructions, token: apiKey)
             }
         } catch let error as URLError where error.code == .timedOut {
             answer = Answer(total: milliseconds(since: started), error: "deadline: no complete answer in 40 s", surface: "")
@@ -42,8 +42,8 @@ struct ChatGPTLane: Lane {
         return answer
     }
 
-    private func stream(_ text: String, token: String) async throws -> Answer {
-        let request = try ChatGPTBackend.request(model: model, effort: effort, serviceTier: nil, instructions: CorrectionPolicy.instructions,
+    private func stream(_ text: String, instructions: String, token: String) async throws -> Answer {
+        let request = try ChatGPTBackend.request(model: model, effort: effort, serviceTier: nil, instructions: instructions,
                                                  text: text, token: token)
         let started = ContinuousClock.now
         let (bytes, response) = try await session.bytes(for: request, delegate: NoRedirect.shared)

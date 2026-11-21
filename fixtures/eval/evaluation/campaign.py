@@ -130,7 +130,7 @@ def calibration_split(case):
     return "validation" if int(digest(family)[:8], 16) % 3 == 0 else "development"
 
 
-def save_label(directory, key, judgment, rubric, author="human"):
+def save_label(directory, key, judgment, rubric, author="human", blind_send=None):
     if author not in {"human", "agent"}:
         raise ValueError("Labels must identify a human or agent author.")
     experiment, _, cases, records = load_run(directory)
@@ -156,6 +156,10 @@ def save_label(directory, key, judgment, rubric, author="human"):
         "judge_split": split,
         "judgment": judgment,
     }
+    if blind_send is not None:
+        if author != "human" or type(blind_send) is not bool:
+            raise ValueError("A blind send decision requires an explicit human yes or no.")
+        label["blind_send_as_is"] = blind_send
     if author == "agent":
         label["annotator"] = {"kind": "agent", "name": "Codex assistant, current chat", "blind_to_model_identity": True}
     append(directory / "labels.jsonl", label)

@@ -76,7 +76,7 @@ function choice(label, name, choices, value = "uncertain") {
   return `<label>${esc(label)}<select name="${esc(name)}">${choices.map(([v, text]) => `<option value="${v}"${v === value ? " selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
 }
 
-function humanForm(task, human, title = "Grade this answer") {
+function humanForm(task, human, title = "Grade this answer", savedSend = null) {
   const committed = Boolean(human), draft = reviewDrafts[task.key];
   human = draft || human;
   const e = task.evidence;
@@ -85,6 +85,7 @@ function humanForm(task, human, title = "Grade this answer") {
     return `<div class="edit-label"><code>${esc(item.before || "(insertion)")} → ${esc(item.after || "(deletion)")}</code>${choice(type === "edits" ? "This change is…" : "This reference correction is…", `${type}:${item.id}`, choices, saved?.verdict)}</div>`;
   }).join("");
   return `<details${committed && !draft ? "" : " open"}><summary>${draft ? "Continue your draft" : committed ? "Your saved judgment — edit" : title}</summary><form class="review-form" aria-label="${esc(title)}" data-key="${task.key}">
+    ${state.comparison_blind ? choice("Would I send this draft as-is?", "send", [["","Choose"],["yes","Yes"],["no","No"]], draft?.send ?? (savedSend == null ? "" : savedSend ? "yes" : "no")) : ""}
     ${choice("Is this a fully correct answer?", "fully_correct", [["uncertain","Not sure"],["yes","Yes, fully acceptable"],["no","No, a problem remains"]], human?.fully_correct)}
     ${choice("Does it preserve meaning, register and language?", "faithful", [["uncertain","Not sure"],["yes","Yes"],["no","No"]], human?.faithful)}
     ${field(e.edits, "edits", [["uncertain","Not sure"],["needed","Needed and correct"],["optional","Acceptable, unnecessary"],["harmful","Wrong or violates policy"]])}
@@ -102,14 +103,14 @@ function renderDetail() {
     grouped.get(key).calls.push(answer.record);
   }
   const groups = [...grouped.values()].sort((a,b) => (a.answer.task?.key || a.answer.record.file).localeCompare(b.answer.task?.key || b.answer.record.file));
-  $("detail").innerHTML = `<h3>${esc(c.id)}</h3><p class="muted"><a href="#review-policy">Read the correction policy and grading labels</a></p><p id="caseStatus" class="muted" role="status" hidden></p><p class="muted">${esc(c.lang || "")} · ${esc(c.length || "")} · ${esc(c.origin || "")} · ${esc(c.split || "")}</p><details><summary>Original draft</summary><p class="draft">${esc(c.input)}</p></details>${c.expected != null ? `<details><summary>Approved reference and alternatives</summary><div class="diff">${Diff.render(c.input,c.expected).html}</div>${(c.alternatives || []).map((a) => `<div class="diff">${Diff.render(c.input,a).html}</div>`).join("")}</details>` : '<p class="muted">No reviewed reference for this historical draft. Evaluate the answer against the correction policy.</p>'}` +
+  $("detail").innerHTML = `<h3>${esc(c.id)}</h3><p class="muted"><a href="#review-policy">Read the correction policy and grading labels</a></p><p id="caseStatus" class="muted" role="status" hidden></p><p class="muted">${esc(c.lang || "")} · ${esc(c.length || "")} · ${esc(c.origin || "")} · ${esc(c.split || "")}</p>${c.instructions ? `<p>Editing instructions: ${esc(c.instructions)}</p>` : ""}<details><summary>Original draft</summary><p class="draft">${esc(c.input)}</p></details>${c.expected != null ? `<details><summary>Approved reference and alternatives</summary><div class="diff">${Diff.render(c.input,c.expected).html}</div>${(c.alternatives || []).map((a) => `<div class="diff">${Diff.render(c.input,a).html}</div>`).join("")}</details>` : '<p class="muted">No reviewed reference for this historical draft. Evaluate the answer against the correction policy.</p>'}` +
     (groups.length ? groups.map(({answer:a,calls}, index) => {
       const r = a.record;
       const name = blind ? `Answer ${index + 1}` : [...new Set(calls.map((x) => `${x.model} / ${x.provider}`))].join(", ");
       const judges = judgeEvidence(a.judges);
-      const rawReview = a.raw_task ? `<details><summary>Raw model answer — before reconciliation</summary><div class="diff">${Diff.render(c.input,a.raw_task.evidence.corrected).html}</div>${state.experiment ? humanForm(a.raw_task,a.raw_judges.human?.judgment,"Grade raw model answer") : ""}<details><summary>Raw answer judge evidence</summary>${judgeEvidence(a.raw_judges)}</details></details>` : "";
-      return `<article class="answer" data-answer-key="${esc((a.task?.key || r.file + r.attempt) + ":" + (a.raw_task?.key || "same"))}"><div class="answer-head"><h3>${esc(name)}</h3><small>${calls.length} call${calls.length === 1 ? "" : "s"}${blind ? "" : ` · ${esc(a.source)}`}</small></div>${r.output != null ? `<div class="diff">${Diff.render(c.input,r.output).html}</div>` : `<p class="error">${esc(r.error || r.verdict)}</p>`}
-        ${a.task && state.experiment ? humanForm(a.task,a.judges.human?.judgment) : ""}${rawReview}<details><summary>Judge evidence</summary>${judges || '<p class="muted">No model judgments saved. Code-scored answers use the approved answer key.</p>'}</details><details><summary>Raw response and timing</summary><pre>${esc(JSON.stringify({raw:r.raw, dropped_edits:r.dropped_edits, raw_judgment:a.raw_judgment, checks:r.checks, completion_ms:r.total_ms, full_wait_ms:r.elapsed_ms, first_token_ms:r.ttft_ms, first_content_ms:r.ttfc_ms, retries:r.retries},null,2))}</pre></details></article>`;
+      const rawReview = a.raw_task ? `<details><summary>Raw model answer — before reconciliation</summary><div class="diff">${Diff.render(c.input,a.raw_task.evidence.corrected).html}</div>${state.experiment ? humanForm(a.raw_task,a.raw_judges.human?.judgment,"Grade raw model answer",a.raw_judges.human?.blind_send_as_is) : ""}${blind ? "" : `<details><summary>Raw answer judge evidence</summary>${judgeEvidence(a.raw_judges)}</details>`}</details>` : "";
+      return `<article class="answer" data-answer-key="${esc((a.task?.key || r.file + r.attempt) + ":" + (a.raw_task?.key || "same"))}"><div class="answer-head"><h3>${esc(name)}</h3><small>${calls.length} call${calls.length === 1 ? "" : "s"}${blind ? "" : ` · ${esc(a.source)}`}</small></div>${r.output != null ? `<div class="diff">${Diff.render(c.input,r.output).html}</div>` : `<p class="error">${esc(blind ? "No usable answer" : r.error || r.verdict)}</p>`}
+        ${a.task && state.experiment ? humanForm(a.task,a.judges.human?.judgment,"Grade this answer",a.judges.human?.blind_send_as_is) : ""}${rawReview}${blind ? "" : `<details><summary>Judge evidence</summary>${judges || '<p class="muted">No model judgments saved. Code-scored answers use the approved answer key.</p>'}</details><details><summary>Raw response and timing</summary><pre>${esc(JSON.stringify({raw:r.raw, dropped_edits:r.dropped_edits, raw_judgment:a.raw_judgment, checks:r.checks, completion_ms:r.total_ms, full_wait_ms:r.elapsed_ms, first_token_ms:r.ttft_ms, first_content_ms:r.ttfc_ms, retries:r.retries},null,2))}</pre></details>`}</article>`;
     }).join("") : '<p class="empty">This case has no generated answers yet.</p>');
 }
 
@@ -131,7 +132,7 @@ $("detail").addEventListener("input", (event) => {
   const form = event.target.closest(".review-form");
   if (!form) return;
   const {task} = reviewTarget(form.dataset.key);
-  reviewDrafts[task.key] = readReview(form, task);
+  reviewDrafts[task.key] = {...readReview(form, task),send:form.elements.namedItem("send")?.value};
   form.querySelector(".save-state").textContent = persistDrafts() ? "Draft kept in this browser. Save judgment to finish." : "Draft not saved locally. Keep this tab open until you save.";
 });
 $("detail").addEventListener("submit", async (event) => {
@@ -139,10 +140,12 @@ $("detail").addEventListener("submit", async (event) => {
   const form = event.target, key = form.dataset.key;
   const {task,judges} = reviewTarget(key);
   const judgment = readReview(form, task);
+  const send = form.elements.namedItem("send");
+  if (send && !send.value) { send.focus(); return; }
   const button = form.querySelector("button"), status = form.querySelector(".save-state");
   button.disabled = true; status.textContent = "Saving…";
   try {
-    await request(`/api/labels?${runQuery()}`, {method:"POST",headers:{"Content-Type":"application/json","X-Oops-Token":state.token},body:JSON.stringify({key,judgment})});
+    await request(`/api/labels?${runQuery()}`, {method:"POST",headers:{"Content-Type":"application/json","X-Oops-Token":state.token},body:JSON.stringify({key,judgment,blind_send_as_is:send ? send.value === "yes" : null})});
     judges.human = {judgment}; delete reviewDrafts[key]; persistDrafts(); status.textContent = "Saved on this Mac"; refresh();
   } catch(error) { status.textContent = `Not saved: ${error.message}`; }
   finally { button.disabled = false; }

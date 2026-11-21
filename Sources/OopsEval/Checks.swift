@@ -17,12 +17,14 @@ enum Checks {
     /// itself returned. `output` is what the app would paste.
     static func make(_ item: EvalCase, answer: String?, output: String?) -> CallRecord.Checks {
         var checks = CallRecord.Checks(valid: output != nil)
-        if let answer {
-            checks.protectedKept = CorrectionPolicy.protectedSpans(answer).elementsEqual(CorrectionPolicy.protectedSpans(item.input), by: sameText)
+        func preserves(_ answer: String) -> Bool {
+            CorrectionPolicy.protectedSpans(answer).elementsEqual(CorrectionPolicy.protectedSpans(item.input), by: sameText)
                 && CorrectionPolicy.breaks(answer).count == CorrectionPolicy.breaks(item.input).count
                 && CorrectionPolicy.edges(answer) == CorrectionPolicy.edges(item.input)
         }
+        checks.protectedKept = answer.map(preserves)
         if let output {
+            checks.appliedProtectedKept = preserves(output)
             if item.isClean { checks.cleanUnchanged = sameText(output, item.input) }
             checks.langKept = Language.kept(item.input, output)
         }

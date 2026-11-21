@@ -8,6 +8,8 @@ from pathlib import Path
 
 from evaluation.calibration import prepare_calibration
 from evaluation.campaign import calibrate, judge, prepare
+from evaluation.comparison import comparison
+from evaluation.comparison_import import import_lane
 from evaluation.records import DEFAULT_RUNS, ROOT, read_json, run_directory, write_json
 from evaluation.scoring import report
 from evaluation.server import serve
@@ -72,7 +74,11 @@ def main():
         "calibrate",
         help="Compare judges with source-attributed reference labels; never approves a judge automatically.",
     )
-    for command in (grading, scoring, calibration):
+    compare = commands.add_parser("compare", help="Score the frozen blind Fix comparison using human votes.")
+    imported = commands.add_parser("compare-import", help="Attach a completed isolated editor lane to the frozen run.")
+    imported.add_argument("--role", required=True)
+    imported.add_argument("--observations", required=True, type=Path)
+    for command in (grading, scoring, calibration, compare, imported):
         command.add_argument("--runs", type=Path, default=DEFAULT_RUNS)
         command.add_argument("--run", required=True)
         command.add_argument("--rubric", type=Path, default=ROOT / "rubric.json")
@@ -114,6 +120,10 @@ def main():
                     args.codex_workers,
                     args.decisions_workers,
                 )
+            elif args.command == "compare-import":
+                result = import_lane(directory, args.role, args.observations)
+            elif args.command == "compare":
+                result = comparison(directory, rubric)
             elif args.command == "calibrate":
                 result = calibrate(directory, rubric)
             else:

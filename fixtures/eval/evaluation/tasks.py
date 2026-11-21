@@ -30,6 +30,8 @@ def task_for(case, output, rubric):
         "edits": edits(case["input"], output),
         "reference_edits": edits(case["input"], reference, "r") if reference is not None else [],
     }
+    if case.get("instructions"):
+        evidence["instructions"] = case["instructions"]
     return {
         "key": digest({"evidence": evidence, "rubric": rubric, "alignment": VERSION, "protocol": protocol_hash()}),
         "reference_key": digest(

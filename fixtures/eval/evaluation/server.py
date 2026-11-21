@@ -7,8 +7,39 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .campaign import save_label
-from .records import ROOT, read_json, run_directory
+from .records import ROOT, load_run, read_json, run_directory
 from .scoring import case_detail, generating, report
+
+
+def comparison_run(directory):
+    config = directory / "config.json"
+    return config.is_file() and bool(read_json(config).get("comparison"))
+
+
+def blind_case(detail):
+    candidates = {}
+    for answer in detail["answers"]:
+        for prefix in ("", "raw_"):
+            task = answer.get(prefix + "task")
+            if task is None:
+                continue
+            human = answer[prefix + "judges"].get("human", {})
+            candidates[task["key"]] = {
+                "task": task,
+                "record": {"output": task["evidence"]["corrected"]},
+                "judges": {"human": {k: human[k] for k in ("judgment", "blind_send_as_is") if k in human}}
+                if human
+                else {},
+            }
+    case = detail["case"]
+    return {
+        "case": {
+            k: case[k]
+            for k in ("id", "input", "expected", "alternatives", "instructions", "lang", "split")
+            if k in case
+        },
+        "answers": [candidates[key] for key in sorted(candidates)],
+    }
 
 
 def serve(runs, port=8766):
@@ -59,6 +90,16 @@ def serve(runs, port=8766):
             if not names:
                 return {"runs": [], "run": None, "dataset": read_json(ROOT / "dataset.json"), "token": token}
             directory = run_directory(runs, name or names[0])
+            if comparison_run(directory):
+                experiment, _, cases, _ = load_run(directory)
+                return {
+                    "comparison_blind": True,
+                    "run": directory.name,
+                    "runs": names,
+                    "token": token,
+                    "experiment": bool(experiment),
+                    "case_index": [{key: c.get(key) for key in ("id", "lang", "split")} for c in cases.values()],
+                }
             stamp = tuple(
                 (str(p.relative_to(directory)), p.stat().st_mtime_ns, p.stat().st_size)
                 for p in sorted(directory.rglob("*"))
@@ -90,7 +131,9 @@ def serve(runs, port=8766):
                 if path == "/api/state":
                     return self.send(self.state(query.get("run")))
                 if path == "/api/case":
-                    return self.send(case_detail(run_directory(runs, query.get("run")), query.get("id")))
+                    directory = run_directory(runs, query.get("run"))
+                    detail = case_detail(directory, query.get("id"))
+                    return self.send(blind_case(detail) if comparison_run(directory) else detail)
                 self.send({"error": "Not found."}, 404)
             except (ValueError, OSError, KeyError) as error:
                 self.send(
@@ -117,7 +160,13 @@ def serve(runs, port=8766):
                 payload = json.loads(self.rfile.read(length))
                 directory = run_directory(runs, query.get("run"))
                 return self.send(
-                    save_label(directory, payload["key"], payload["judgment"], read_json(ROOT / "rubric.json"))
+                    save_label(
+                        directory,
+                        payload["key"],
+                        payload["judgment"],
+                        read_json(ROOT / "rubric.json"),
+                        blind_send=payload.get("blind_send_as_is"),
+                    )
                 )
             except (ValueError, OSError, KeyError, TypeError) as error:
                 return self.send(
