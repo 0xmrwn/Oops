@@ -70,10 +70,16 @@ struct OnboardingView: View {
         withAnimation(.easeInOut(duration: 0.45)) { speaking = true }
     }
 
+    /// Try it's beats as things stand: Dictate's needs its shortcut saved, which a run that saves nothing only plays.
+    private var tries: [OnboardingFeature] {
+        Step.tries(for: Set(OnboardingFeature.allCases.filter(asksFor)),
+                   dictateShortcut: !dictateShortcut.saves || ShortcutSettings.shared.shortcut(.dictate) != nil)
+    }
+
     private func advance() {
         // The short run a new-feature card opens ends with its last step.
-        guard let index = setup.firstIndex(of: step), index + 1 < setup.count else { return turningOn == nil ? () : close() }
-        withAnimation(.easeInOut(duration: 0.45)) { step = setup[index + 1] }
+        guard let next = step.next(in: setup, tries: tries) else { return turningOn == nil ? () : close() }
+        withAnimation(.easeInOut(duration: 0.45)) { step = next }
     }
 
     var body: some View {
@@ -105,7 +111,7 @@ struct OnboardingView: View {
                 if speaking || !asksFor(.fix) {
                     DictateTryView(step: dictateTry, fix: tryIt, next: advance).transition(.opacity)
                 } else {
-                    TryItStepView(step: tryIt, next: asksFor(.dictate) ? speak : advance).transition(.opacity)
+                    TryItStepView(step: tryIt, next: { tries.contains(.dictate) ? speak() : advance() }).transition(.opacity)
                 }
             case .home:
                 HomeStepView(step: home).transition(.opacity)
@@ -162,7 +168,8 @@ struct OnboardingView: View {
             if DebugFlags.brandReview { director.settle(); return }
             #endif
             if let resume {
-                director.settle(); step = resume; dropAtStep = true
+                // A Try it left with nothing to try (Dictate alone, its shortcut gone since) reopens past it.
+                director.settle(); step = resume == .tryIt && tries.isEmpty ? resume.next(in: setup, tries: []) ?? resume : resume; dropAtStep = true
                 // A relaunch mid-way picks the download up where it stopped.
                 if resume != .features, setup.contains(.features), features.chosen.contains(.dictate) { speech.start() }
                 return
