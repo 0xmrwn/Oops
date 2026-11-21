@@ -108,6 +108,22 @@ final class FocusRingsWindow: NSWindow {
         return super.makeFirstResponder(responder)
     }
 
+    /// With a popover open and nothing focused, Tab starts in the popover, as it would had the popover taken focus
+    /// when it opened, instead of walking the page behind it. A popover with nothing to focus leaves Tab to the page.
+    override func selectNextKeyView(_ sender: Any?) {
+        if !tabIntoPopover({ $0.selectNextKeyView(sender) }) { super.selectNextKeyView(sender) }
+    }
+
+    override func selectPreviousKeyView(_ sender: Any?) {
+        if !tabIntoPopover({ $0.selectPreviousKeyView(sender) }) { super.selectPreviousKeyView(sender) }
+    }
+
+    private func tabIntoPopover(_ select: (NSWindow) -> Void) -> Bool {
+        guard firstResponder === self, let popover = childWindows?.last(where: \.isVisible) else { return false }
+        select(popover)
+        return firstResponder !== self
+    }
+
     private static func takesText(_ responder: NSResponder) -> Bool {
         responder is NSText || (responder as? NSTextField)?.isEditable == true
     }
