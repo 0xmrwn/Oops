@@ -4,7 +4,7 @@ Protocol `blind-fix-v1` uses one first attempt on the same frozen cases for stoc
 
 ## Freeze before generation
 
-Reuse the [OopsEval run snapshot](README.md#experiment-snapshot). Prepare reviewed cases with the full active system prompt in `instructions` when it differs from the app default. Supply language, family and split. Keep preference variants and revisions together before dividing families between training and evaluation. Use held-out real messages for qualification and the existing development fixtures for rehearsal. Keep the natural language and length mix in the real test. Treat missing layout tags as unknown.
+Reuse the [OopsEval run snapshot](README.md#experiment-snapshot). Prepare reviewed cases with the full active system prompt in `instructions` when it differs from the app default. Supply language, family and split. Keep preference variants and revisions together before dividing families between training and evaluation. Include English, French and mixed drafts in the qualification corpus. Use held-out real messages for qualification and the existing development fixtures for rehearsal. Keep the natural language and length mix in the real test. Treat missing layout tags as unknown.
 
 Add a `comparison` object to the lane config before the first call. Pin exact model/checkpoint identifiers and quantizations in the lane config; assign distinct model aliases to stock and tuned endpoints. Use the same frozen sampling settings and production correction contract. Record the OS build and settings of the native comparators. The example names below illustrate result filenames; use the actual filenames for each configured lane.
 

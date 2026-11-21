@@ -11,15 +11,20 @@ enum Checks {
         return sameText(output, item.input) ? "unchanged" : "changed"
     }
 
+    /// Retain signs and internal separators in amounts, dates, times and versions.
+    private static func numbers(_ text: String) -> [Substring] {
+        text.matches(of: /[+−-]?\d+(?:[.,:\/−-]\d+)*/).map(\.output)
+    }
+
     /// `answer` is the model's text after the app's cosmetic repair (its edge whitespace and line-break
     /// sequences put back, `CorrectionPolicy.restoredAnswer`) and before unsafe changes are dropped:
-    /// the app's output keeps every protected span by construction, so the check is on what the model
-    /// itself returned. `output` is what the app would paste.
+    /// measure its preservation separately from `output`, the text the app would paste.
     static func make(_ item: EvalCase, answer: String?, output: String?) -> CallRecord.Checks {
         var checks = CallRecord.Checks(valid: output != nil)
         func preserves(_ answer: String) -> Bool {
             CorrectionPolicy.protectedSpans(answer).elementsEqual(CorrectionPolicy.protectedSpans(item.input), by: sameText)
-                && CorrectionPolicy.breaks(answer).count == CorrectionPolicy.breaks(item.input).count
+                && numbers(answer) == numbers(item.input)
+                && CorrectionPolicy.breaks(answer) == CorrectionPolicy.breaks(item.input)
                 && CorrectionPolicy.edges(answer) == CorrectionPolicy.edges(item.input)
         }
         checks.protectedKept = answer.map(preserves)

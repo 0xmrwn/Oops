@@ -43,6 +43,10 @@ def import_lane(directory, role, path):
         if len(models) != 1:
             raise ValueError("A lane must identify one build or model.")
         model = models.pop()
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("Every observation needs a nonempty model or build identifier.")
+        if plan.get("purpose") == "qualification" and model != plan.get("models", {}).get(role):
+            raise ValueError("Observed model differs from the registered build.")
         entry = {
             "file": file,
             "model": model,

@@ -99,6 +99,8 @@ def comparison(directory, rubric):
         )
     ):
         raise ValueError("Qualification requires held-out real cases with family and language.")
+    if not fixture and {c["lang"] for c in cases.values()} != {"en", "fr", "mixed"}:
+        raise ValueError("Qualification needs English, French and mixed drafts.")
     if plan.get("rubric_sha256") != digest(rubric):
         raise ValueError("The rubric differs from the comparison freeze.")
     timing = {}
@@ -159,7 +161,7 @@ def comparison(directory, rubric):
                 checks = row.get("checks", {})
                 counters["raw_protection_failed"] = int(checks.get("protected_kept") is False)
                 counters["applied_protection_failed"] = int(checks.get("applied_protected_kept") is False)
-                counters["applied_protection_unmeasured"] = int(checks.get("applied_protected_kept") is None)
+                counters["applied_protection_unmeasured"] = int(type(checks.get("applied_protected_kept")) is not bool)
                 counters["raw_differs_from_applied"] = int(raw_text(row) is not None and raw_text(row) != output)
                 samples.append((case, timing.get((role, key))))
                 raw = raw_text(row)

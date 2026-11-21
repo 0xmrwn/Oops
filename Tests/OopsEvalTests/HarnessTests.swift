@@ -2,6 +2,19 @@ import XCTest
 @testable import OopsEval
 
 final class HarnessTests: XCTestCase {
+    func testComparisonProtectsNumbersAndLineBreakSequences() {
+        let draft = "deploy -2.5 at 10:30\r\nuse v1.2.3"
+        let item = EvalCase(id: "numbers", input: draft, label: .clear)
+        for changed in [draft.replacingOccurrences(of: "-2.5", with: "2.5"),
+                        draft.replacingOccurrences(of: "10:30", with: "10:03"),
+                        draft.replacingOccurrences(of: "\r\n", with: "\n")] {
+            let checks = Checks.make(item, answer: changed, output: draft)
+            XCTAssertEqual(checks.protectedKept, false)
+            XCTAssertEqual(checks.appliedProtectedKept, true)
+            XCTAssertEqual(Checks.make(item, answer: changed, output: changed).appliedProtectedKept, false)
+        }
+    }
+
     func testDurationsReadEveryProviderFormat() {
         XCTAssertEqual(LimitSignal.duration("7.66s")!, 7.66, accuracy: 0.001)
         XCTAssertEqual(LimitSignal.duration("2m59.56s")!, 179.56, accuracy: 0.001)

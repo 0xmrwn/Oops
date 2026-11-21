@@ -119,6 +119,22 @@ class BlindComparisonTests(unittest.TestCase):
         write_json(self.run / "experiment.json", self.exp)
         with self.assertRaisesRegex(ValueError, "held-out real"):
             comparison(self.run, self.rubric)
+        only_english = dict(self.cases[0], origin="real", family="f", lang="en", split="held")
+        for file in (self.run / "results").glob("*.jsonl"):
+            self.write_lines(file, lines(file)[:1])
+        self.write_lines(self.run / "cases.jsonl", [only_english])
+        self.exp["snapshots"]["cases.jsonl"] = hashlib.sha256((self.run / "cases.jsonl").read_bytes()).hexdigest()
+        write_json(self.run / "experiment.json", self.exp)
+        with self.assertRaisesRegex(ValueError, "English, French and mixed"):
+            comparison(self.run, self.rubric)
+
+    def test_non_boolean_protection_result_cannot_pass(self):
+        path = self.run / "results/qwen-tuned.jsonl"
+        rows = lines(path)
+        rows[0]["checks"]["applied_protected_kept"] = "false"
+        self.write_lines(path, rows)
+        model = comparison(self.run, self.rubric)["models"]["qwen-tuned"]
+        self.assertEqual(model["gates"]["protected_spans"], "inconclusive")
 
     def test_missing_votes_cannot_qualify(self):
         rows = lines(self.run / "labels.jsonl")
@@ -164,6 +180,23 @@ class BlindComparisonTests(unittest.TestCase):
             }
             for c in self.cases
         ]
+        config = read_json(self.run / "config.json")
+        config["comparison"].update(purpose="qualification", models={role: "hidden-source"})
+        write_json(self.run / "config.json", config)
+        self.exp["snapshots"]["config.json"] = hashlib.sha256((self.run / "config.json").read_bytes()).hexdigest()
+        write_json(self.run / "experiment.json", self.exp)
+        for r in rows:
+            r.update(model="wrong-build", experiment=digest(self.exp))
+        self.write_lines(path, rows)
+        with self.assertRaisesRegex(ValueError, "registered build"):
+            import_lane(self.run, role, path)
+        self.assertFalse((self.run / file).exists())
+        config["comparison"]["purpose"] = "fixture"
+        write_json(self.run / "config.json", config)
+        self.exp["snapshots"]["config.json"] = hashlib.sha256((self.run / "config.json").read_bytes()).hexdigest()
+        write_json(self.run / "experiment.json", self.exp)
+        for r in rows:
+            r.update(model="hidden-source", experiment=digest(self.exp))
         self.write_lines(path, rows)
         self.assertEqual(import_lane(self.run, role, path), import_lane(self.run, role, path))
         detail = blind_case(case_detail(self.run, self.cases[0]["id"], self.rubric))
