@@ -45,7 +45,7 @@ struct MoreModels: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if models.count > 8 {
-                TextField("Filter", text: $filter, prompt: Text("Filter")).textFieldStyle(.roundedBorder).labelsHidden()
+                GlassSearchField(title: "Filter", text: $filter)
             }
             // An explicit height: a scroll view sized by its content measured zero here and the
             // popover opened empty.
