@@ -66,6 +66,15 @@ extension ProviderStore {
         return provider("claude-code") == nil ? "Not set up" : problem("claude-code")
     }
 
+    /// Whether Claude Code has been checked and works, and is where the app found it: what the person's skills are asked
+    /// of. Observed, so a check that finishes later is seen.
+    var agentReady: Bool {
+        #if DEBUG
+        if DebugFlags.claudeCodeState != nil { return false }
+        #endif
+        return provider("claude-code") != nil && health["claude-code"] == .ready && claudeRuntime != nil
+    }
+
     /// Claude Code's own models, as its live `initialize` lists them, for an agent.
     var agentModels: [CatalogModel] { catalogs["claude-code"] ?? [] }
 

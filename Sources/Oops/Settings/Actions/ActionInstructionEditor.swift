@@ -51,6 +51,8 @@ struct InstructionEditor: View {
     let navigation: ActionsNavigation
     let id: UUID
     let controller: InstructionController
+    /// The skills the instruction may name, empty while it may not.
+    var skills: [String] = []
     @State private var height: CGFloat = 0
     @State private var hidden = Hidden()
     @Environment(\.colorScheme) private var colorScheme
@@ -65,7 +67,7 @@ struct InstructionEditor: View {
         let shape = RoundedRectangle(cornerRadius: 16)
         let lines = min(max(height, 3 * PillMetrics.line), 8 * PillMetrics.line)
         InstructionText(library: library, navigation: navigation, id: id, controller: controller, style: style,
-                        label: choiceName, height: $height, hidden: $hidden)
+                        label: choiceName, skills: skills, height: $height, hidden: $hidden)
             .frame(height: lines + 2 * Self.inset.height)
             // Past eight lines the text scrolls inside: the edge with more beyond it fades out.
             .mask {

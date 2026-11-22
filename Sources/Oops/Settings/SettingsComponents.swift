@@ -133,6 +133,8 @@ struct ProviderMark: View {
 extension Notification.Name {
     /// Popovers on a page close when it hides: pages stay alive, and so would their popovers.
     static let settingsPageWillChange = Notification.Name("oops.settingsPageWillChange")
+    /// The page scrolled: what points at a place on it (the choice panel, the skills list) lets go.
+    static let settingsPageDidScroll = Notification.Name("oops.settingsPageDidScroll")
     /// General's Turn on: the tab named by the object starts recording its feature's shortcut.
     static let settingsRecordShortcut = Notification.Name("oops.settingsRecordShortcut")
 }

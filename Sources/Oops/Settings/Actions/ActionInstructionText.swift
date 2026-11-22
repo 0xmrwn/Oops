@@ -11,6 +11,8 @@ struct InstructionText: NSViewRepresentable {
     let style: SettingsStyle
     /// The choice's name, which is what the pill says.
     let label: String
+    /// The skills the instruction may name, empty while it may not.
+    let skills: [String]
     @Binding var height: CGFloat
     @Binding var hidden: Hidden
 
@@ -46,6 +48,8 @@ struct InstructionText: NSViewRepresentable {
         text.typingAttributes = Coordinator.base
         text.setAccessibilityLabel("Instruction")
         text.delegate = context.coordinator
+        text.textLayoutManager?.delegate = context.coordinator.tokenLayout
+        context.coordinator.skills = skills
         text.placePill = { [weak coordinator = context.coordinator] in coordinator?.laidOut() }
         scroll.documentView = text
         scroll.contentView.postsBoundsChangedNotifications = true
@@ -64,14 +68,24 @@ struct InstructionText: NSViewRepresentable {
         controller.coordinator = coordinator
         let instruction = action?.instruction ?? ""
         if coordinator.text?.string != instruction { coordinator.load(instruction) }
+        if coordinator.skills != skills {
+            coordinator.skills = skills
+            coordinator.markSkills()
+        }
         if coordinator.label != label {
             coordinator.label = label
             coordinator.relayoutPill()
         }
     }
 
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) { coordinator.suggestions.hide() }
+
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: InstructionText
+        var skills: [String] = []
+        let suggestions = SkillSuggestions()
+        /// Held here: the layout manager's delegate is weak.
+        let tokenLayout = SkillTokenLayout()
         weak var scroll: NSScrollView?
         weak var text: InstructionTextView?
         var pill: NSView?
@@ -87,7 +101,7 @@ struct InstructionText: NSViewRepresentable {
         /// inserts there.
         private var caret: Int?
         private var ended: Date?
-        private lazy var attachment = ChoiceAttachment(coordinator: self)
+        private lazy var attachment = ChoiceAttachment(label: label)
 
         nonisolated static var paragraph: NSParagraphStyle {
             let style = NSMutableParagraphStyle()
@@ -117,14 +131,27 @@ struct InstructionText: NSViewRepresentable {
             loading = true
             storage.setAttributedString(piece(instruction))
             text.typingAttributes = Self.base
+            SkillTokens.apply(to: storage, names: skills)
             loading = false
             measure()
+        }
+
+        /// Draws the skills the instruction names as tokens, or draws none once it may not name any.
+        func markSkills() {
+            guard let text, let storage = text.textStorage else { return }
+            loading = true
+            SkillTokens.apply(to: storage, names: skills)
+            loading = false
+            suggestions.update(in: text, names: skills)
         }
 
         func textDidChange(_ notification: Notification) {
             guard !loading, let text else { return }
             normalize()
             text.typingAttributes = Self.base
+            if let storage = text.textStorage { SkillTokens.apply(to: storage, names: skills) }
+            // An edit can leave the caret where it was, so the list is read again.
+            suggestions.update(in: text, names: skills)
             let string = text.string
             // Text and choice in one update, so the action never holds a mark without its choice or a choice without
             // its mark.
@@ -135,9 +162,17 @@ struct InstructionText: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let text, text.window?.firstResponder === text else { return }
             caret = text.selectedRange().location
+            // Typing next to a token would carry its look into the new letters.
+            text.typingAttributes = Self.base
+            suggestions.update(in: text, names: skills)
         }
 
-        func textDidEndEditing(_ notification: Notification) { ended = .now }
+        func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool { suggestions.handle(selector) }
+
+        func textDidEndEditing(_ notification: Notification) {
+            ended = .now
+            suggestions.hide()
+        }
 
         /// One pill at most, and every U+FFFC is the pill (text set through Accessibility arrives without its
         /// attachment); a second one pasted in is dropped.
@@ -173,6 +208,7 @@ struct InstructionText: NSViewRepresentable {
             let clip = scroll.contentView.bounds
             if abs(clip.minY - offset) > 0.5 {
                 offset = clip.minY
+                suggestions.reposition()
                 if !opening, parent.navigation.choice != nil { parent.navigation.choice = nil }
             }
             let now = Hidden(above: clip.minY > 1, below: text.frame.height - clip.maxY > 1)
@@ -201,6 +237,7 @@ struct InstructionText: NSViewRepresentable {
 
         func relayoutPill() {
             guard let text, let layout = text.textLayoutManager else { return }
+            attachment.resize(to: label, in: text)
             layout.invalidateLayout(for: layout.documentRange)
             layout.textViewportLayoutController.layoutViewport()
             text.needsDisplay = true
@@ -310,31 +347,5 @@ final class InstructionTextView: NSTextView {
     override func accessibilityChildren() -> [Any]? {
         let pills = subviews.compactMap { $0 as? NSHostingView<AnyView> }.flatMap { $0.accessibilityChildren() ?? [] }
         return (super.accessibilityChildren() ?? []) + pills
-    }
-}
-
-/// The pill's room in the text: it draws nothing, and the coordinator lays the pill's live view over it. (NSTextView
-/// made a view provider for it but never loaded or placed its view.)
-final class ChoiceAttachment: NSTextAttachment {
-    private nonisolated(unsafe) weak var coordinator: InstructionText.Coordinator?
-
-    @MainActor init(coordinator: InstructionText.Coordinator) {
-        self.coordinator = coordinator
-        super.init(data: nil, ofType: nil)
-        allowsTextAttachmentView = false
-        image = NSImage(size: NSSize(width: 1, height: 1))
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
-
-    override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation,
-                                   textContainer: NSTextContainer?, proposedLineFragment: CGRect, position: CGPoint) -> CGRect {
-        let coordinator = self.coordinator
-        let label = MainActor.assumeIsolated { coordinator?.label ?? "" }
-        // Room in the font's own line box only: a pill reaching below the font's descent made its line 2 pt taller
-        // than the others. The pill's view, laid over this room, is drawn its full height.
-        let font = PillMetrics.font
-        return CGRect(x: 0, y: font.descender, width: PillMetrics.width(label) + 2 * PillMetrics.margin, height: font.ascender - font.descender)
     }
 }

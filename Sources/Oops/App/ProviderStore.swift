@@ -40,6 +40,8 @@ import OopsCore
     @ObservationIgnored private var savedCorrectionIdentity: ProviderCorrection.Identity?
     @ObservationIgnored private var correctionKeyRevisions: [String: Int] = [:]
     @ObservationIgnored var claudeRuntime: ClaudeCodeRuntime?
+    /// The person's Claude Code skills, asked of Claude Code once per Settings session.
+    @ObservationIgnored let skillCatalog = SkillCatalog()
     @ObservationIgnored private var claudeCheckedAt: Date?
     @ObservationIgnored private var loading: Set<String> = []
     @ObservationIgnored private var apiCheckedAt: [String: Date] = [:]
