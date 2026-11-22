@@ -4,6 +4,7 @@ import Foundation
 import OopsCore
 import Synchronization
 import Testing
+import XCTest
 
 @MainActor struct ChatGPTStatusTests {
     @Test func `startup and the main actor stay responsive while account status waits`() async throws {
@@ -15,7 +16,7 @@ import Testing
         try #require(fixture.store.reads == 0)
 
         preferences.refreshChatGPT()
-        try await waitUntil { fixture.store.reads == 1 }
+        try await wait(for: fixture.store.readStarted)
         for _ in 0..<10 { preferences.refreshChatGPT(loadCatalog: true) }
         MainActor.preconditionIsolated()
         #expect(fixture.store.heldReadOnMainThread == false)
@@ -23,8 +24,11 @@ import Testing
         #expect(preferences.chatGPTStatus == nil)
         #expect(!preferences.modelsLoading)
 
+        let loaded = XCTestExpectation(description: "Catalog published")
+        let observer = preferences.$models.first { $0.first?.slug == "synthetic-chat" }.sink { _ in loaded.fulfill() }
+        defer { observer.cancel() }
         fixture.store.releaseRead()
-        try await waitUntil { preferences.models.first?.slug == "synthetic-chat" }
+        try await wait(for: loaded)
         #expect(preferences.chatGPTStatus == .signedIn(fixture.store.identity))
         #expect(preferences.providers.selection.choice == fixture.choice)
         #expect(fixture.store.reads == 2, "One status read and one catalog token read")
@@ -38,13 +42,16 @@ import Testing
         let observer = preferences.$chatGPTStatus.compactMap(\.self).sink { published.append($0) }
         defer { observer.cancel() }
         preferences.refreshChatGPT()
-        try await waitUntil { fixture.store.reads == 1 }
+        try await wait(for: fixture.store.readStarted)
+        let disconnected = XCTestExpectation(description: "Sign out completed")
+        let disconnectObserver = preferences.$disconnecting.dropFirst().first { !$0 }.sink { _ in disconnected.fulfill() }
+        defer { disconnectObserver.cancel() }
         preferences.signOut()
-        try await waitUntil { !preferences.disconnecting }
+        try await wait(for: disconnected)
         #expect(fixture.store.reads == 2)
         #expect(preferences.chatGPTStatus == .signedOut)
         fixture.store.releaseRead()
-        try await waitUntil { fixture.store.profileReads == 3 }
+        try await wait(for: fixture.store.thirdProfileRead)
         #expect(published == [.signedOut])
         #expect(fixture.store.reads == 2)
         #expect(preferences.providers.selection.choice == fixture.choice)
@@ -55,16 +62,20 @@ import Testing
         defer { fixture.cleanUp() }
         let preferences = fixture.preferences()
         var published: [ChatGPTStatus] = [], signIns = 0
-        let statusObserver = preferences.$chatGPTStatus.compactMap(\.self).sink { published.append($0) }
+        let signedOut = XCTestExpectation(description: "Current account published")
+        let statusObserver = preferences.$chatGPTStatus.compactMap(\.self).sink {
+            published.append($0)
+            if $0 == .signedOut { signedOut.fulfill() }
+        }
         let signInObserver = preferences.chatGPTSignInCompleted.sink { signIns += 1 }
         defer { statusObserver.cancel(); signInObserver.cancel() }
         preferences.refreshChatGPT()
-        try await waitUntil { fixture.store.reads == 1 }
+        try await wait(for: fixture.store.readStarted)
         preferences.signInWithChatGPT()
         try fixture.store.writeProfile(ChatGPTProfile(hostID: "fixture"))
         preferences.cancelSignIn()
         fixture.store.releaseRead()
-        try await waitUntil { preferences.chatGPTStatus == .signedOut }
+        try await wait(for: signedOut)
         #expect(published == [.signedOut])
         #expect(signIns == 0)
         #expect(!preferences.signingIn)
@@ -76,12 +87,20 @@ import Testing
         defer { fixture.cleanUp() }
         let preferences = fixture.preferences()
         preferences.refreshChatGPT(loadCatalog: true)
-        try await waitUntil { fixture.store.reads == 2 }
+        try await wait(for: fixture.store.readStarted)
         #expect(preferences.modelsLoading)
+        let catalog = try #require(preferences.modelsTask)
+        let signedOut = XCTestExpectation(description: "Signed out after catalog cancellation")
+        let observer = preferences.$chatGPTStatus.first { $0 == .signedOut }.sink { _ in signedOut.fulfill() }
+        defer { observer.cancel() }
         preferences.signOut()
         #expect(!preferences.modelsLoading)
         fixture.store.releaseRead()
-        try await waitUntil { !preferences.disconnecting && preferences.chatGPTStatus == .signedOut }
+        let catalogFinished = XCTestExpectation(description: "Cancelled catalog finished")
+        Task { await catalog.value; catalogFinished.fulfill() }
+        try await wait(for: catalogFinished)
+        try await wait(for: signedOut)
+        #expect(!preferences.disconnecting)
         #expect(preferences.models.isEmpty)
         #expect(preferences.modelsError == nil)
     }
@@ -92,40 +111,42 @@ import Testing
         var preferences: Preferences? = fixture.preferences()
         weak let owner = preferences
         preferences?.refreshChatGPT()
-        try await waitUntil { fixture.store.reads == 1 }
+        try await wait(for: fixture.store.readStarted)
         preferences = nil
         #expect(owner == nil)
         #expect(!fixture.store.heldReadFinished)
+        fixture.store.releaseRead()
+        try await wait(for: fixture.store.readFinished)
     }
 
     @Test func `onboarding discovers an existing account without a sign in event`() async throws {
         let fixture = try Fixture()
         defer { fixture.cleanUp() }
         let preferences = fixture.preferences()
+        let detected = XCTestExpectation(description: "Existing account detected")
         var detections = 0
         let step = ProviderStep(preferences: preferences, detection: {
             detections += 1
+            detected.fulfill()
             #expect(preferences.chatGPTStatus == .signedIn(fixture.store.identity))
             return ProviderFindings()
         })
         defer { step.stop() }
         step.start()
-        try await waitUntil { fixture.store.reads == 1 }
+        try await wait(for: fixture.store.readStarted)
         #expect(detections == 0)
         fixture.store.releaseRead()
-        try await waitUntil { detections == 1 }
+        try await wait(for: detected)
+        #expect(detections == 1)
         #expect(step.selected == nil)
         #expect(step.proof == .idle)
         preferences.chatGPTSignInCompleted.send(())
         #expect(step.selected == .chatGPT)
     }
 
-    /// Returns as soon as the step happens; the deadline only bounds a real failure, so it allows for a
-    /// busy machine running the suites in parallel.
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(10)
-        while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(2)) }
-        try #require(condition(), "The expected account lifecycle step did not occur")
+    private func wait(for event: XCTestExpectation) async throws {
+        let result = await XCTWaiter.fulfillment(of: [event], timeout: 30)
+        try #require(result == .completed, "Timed out waiting for \(event.expectationDescription)")
     }
 
     @MainActor private struct Fixture {
@@ -172,6 +193,9 @@ private final class BlockingStore: ChatGPTStore, Sendable {
     let identity = ChatGPTIdentity(name: "Synthetic Account")
     private let holdCredentialRead: Int
     private let state: Mutex<State>
+    let readStarted = XCTestExpectation(description: "Credential read entered")
+    let readFinished = XCTestExpectation(description: "Credential read finished")
+    let thirdProfileRead = XCTestExpectation(description: "Account rechecked after sign out")
     private let release = DispatchSemaphore(value: 0)
 
     init(holdCredentialRead: Int) {
@@ -183,11 +207,16 @@ private final class BlockingStore: ChatGPTStore, Sendable {
     }
 
     var reads: Int { state.withLock { $0.reads } }
-    var profileReads: Int { state.withLock { $0.profileReads } }
     var heldReadOnMainThread: Bool? { state.withLock { $0.heldReadOnMainThread } }
     var heldReadFinished: Bool { state.withLock { $0.heldReadFinished } }
     func releaseRead() { release.signal() }
-    func readProfile() throws -> ChatGPTProfile? { state.withLock { $0.profileReads += 1; return $0.profile } }
+    func readProfile() throws -> ChatGPTProfile? {
+        state.withLock {
+            $0.profileReads += 1
+            if $0.profileReads == 3 { thirdProfileRead.fulfill() }
+            return $0.profile
+        }
+    }
     func writeProfile(_ profile: ChatGPTProfile) throws { state.withLock { $0.profile = profile } }
     func writeCredentials(_ credentials: ChatGPTCredentials) throws { state.withLock { $0.credentials = credentials } }
     func deleteCredentials() throws { state.withLock { $0.credentials = nil } }
@@ -200,8 +229,14 @@ private final class BlockingStore: ChatGPTStore, Sendable {
             return (held, $0.credentials)
         }
         if held {
-            _ = release.wait(timeout: .now() + 3)
+            readStarted.fulfill()
+            if Thread.isMainThread {
+                Issue.record("Credential read would block the main thread")
+            } else {
+                release.wait()
+            }
             state.withLock { $0.heldReadFinished = true }
+            readFinished.fulfill()
         }
         return snapshot
     }
