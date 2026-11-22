@@ -13,7 +13,6 @@ import Testing
         fixture.capture = { await gate.wait(); throw CancellationError() }
         let first = try #require(fixture.session.run(.typed("x")))
         #expect(fixture.session.run(.typed("x")) == nil)
-        #expect(fixture.session.pressed() == nil)
         #expect(fixture.drop.claims == 1)
         await gate.release()
         #expect(await first.value == .cancelled)
@@ -26,39 +25,12 @@ import Testing
         #expect(fixture.forgotten == 1)
     }
 
-    @Test func `the shortcut runs the action at the top with its first value`() async throws {
-        let fixture = try Fixture()
-        fixture.capture = { throw EmptyDraft(geometry: .init(element: nil)) }
-        let outcome = await fixture.session.pressed()?.value
-        let top = try #require(ActionLibrary.starters.action(at: .up))
-        #expect(fixture.session.last == .saved(top, value: top.choice?.ordered.first))
-        guard case .failed(let failure)? = outcome else { Issue.record("expected a failure, got \(String(describing: outcome))"); return }
-        #expect(failure.reason == .empty)
-        #expect(fixture.drop.states.last == .failed(failure))
-    }
-
-    @Test func `an edit in Settings is what the next run reads`() async throws {
-        let fixture = try Fixture()
-        fixture.capture = { throw EmptyDraft(geometry: .init(element: nil)) }
-        let top = try #require(ActionLibrary.starters.action(at: .up))
-        fixture.library.update(top.id) { $0.instruction = "Say it twice." }
-        _ = await fixture.session.pressed()?.value
-        guard case .saved(let action, _)? = fixture.session.last else { Issue.record("expected a saved action"); return }
-        #expect(action.instruction == "Say it twice.")
-    }
-
-    @Test func `nothing at the top runs nothing`() throws {
-        let fixture = try Fixture()
-        fixture.library.remove(try #require(ActionLibrary.starters.action(at: .up)).id)
-        #expect(fixture.session.pressed() == nil)
-        #expect(fixture.drop.claims == 0)
-    }
-
     @Test func `an agent run fails before reading the draft`() async throws {
         let fixture = try Fixture()
         let top = try #require(ActionLibrary.starters.action(at: .up))
         fixture.library.update(top.id) { $0.runsWith = .init(kind: .agent) }
-        let outcome = await fixture.session.pressed()?.value
+        let agent = try #require(fixture.library.library.action(at: .up))
+        let outcome = await fixture.session.run(.saved(agent, value: nil))?.value
         #expect(outcome == .failed(.agentRun))
         #expect(!fixture.captured)
     }

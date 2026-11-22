@@ -20,6 +20,8 @@ enum DebugFlags {
 
     /// Actions, hidden until it ships: `-DebugActions YES`.
     static var actions: Bool { bool("DebugActions") }
+    /// `-DebugWheelSlow YES`: the Actions wheel's motion at a quarter speed, for frame-by-frame captures.
+    static var wheelSlow: Bool { bool("DebugWheelSlow") }
 
     // MARK: Dictation
 

@@ -53,4 +53,14 @@ struct DropFeature: Hashable, Sendable {
         claimed = (feature, busy, passive, released)
         return true
     }
+
+    /// Holds the drop for `feature` while `busy`, with nothing in the shared panel: a feature drawing in its own
+    /// window still waits its turn and makes the others wait theirs. A passive drop showing goes, as it would when a
+    /// feature claims the panel, and what it offered ends with it.
+    func hold(_ feature: DropFeature, busy: @escaping () -> Bool) -> Bool {
+        guard holder == nil else { return false }
+        if panel.isShown { panel.hide() }
+        claimed = (feature, busy, { false }, {})
+        return true
+    }
 }

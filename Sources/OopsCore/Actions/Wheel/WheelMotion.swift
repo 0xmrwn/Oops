@@ -183,6 +183,12 @@ public struct WheelMotion: Equatable, Sendable {
         bloomed && root.filter { !$0.leaving }.allSatisfy { abs($0.out.x - 1) < 0.02 && abs($0.out.v) < 0.8 && abs($0.grow.x - 1) < 0.04 }
     }
 
+    /// Nothing moves and nothing is scheduled: another step would draw the same frame.
+    public var resting: Bool {
+        cues.isEmpty && [present, width, recoilX, recoilY, dip, iconMix, check, dim].allSatisfy(\.resting)
+            && (root + choice).allSatisfy { [$0.out, $0.grow, $0.highlight, $0.name, $0.fade].allSatisfy(\.resting) }
+    }
+
     /// Nothing left to draw: the window can go.
     public var gone: Bool { present.target == 0 && present.x < 0.03 && root.isEmpty && choice.isEmpty }
 

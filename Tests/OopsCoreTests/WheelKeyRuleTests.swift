@@ -6,7 +6,7 @@ struct WheelKeyRuleTests {
     private let chord = WheelChord(keyCode: 13, flags: [.maskControl, .maskCommand])
 
     private func key(_ code: Int64, _ flags: CGEventFlags = [], _ characters: String = "") -> WheelKey {
-        WheelKey.classify(keyCode: code, flags: flags, characters: characters, chord: chord)
+        WheelKey.classify(keyCode: code, flags: flags, characters: characters, chords: [chord])
     }
 
     @Test func `arrows count with any modifiers`() {
@@ -45,13 +45,13 @@ struct WheelKeyRuleTests {
     }
 
     @Test func `with no chord a shortcut key is just a key`() {
-        #expect(WheelKey.classify(keyCode: 13, flags: [.maskCommand, .maskControl], characters: "w", chord: nil) == .leave)
+        #expect(WheelKey.classify(keyCode: 13, flags: [.maskCommand, .maskControl], characters: "w", chords: []) == .leave)
     }
 
     @Test func `a shortcut that is a modified arrow passes, other arrows still count`() {
         let arrowChord = WheelChord(keyCode: 126, flags: [.maskControl, .maskCommand])
         func arrow(_ code: Int64, _ flags: CGEventFlags) -> WheelKey {
-            WheelKey.classify(keyCode: code, flags: flags, characters: "", chord: arrowChord)
+            WheelKey.classify(keyCode: code, flags: flags, characters: "", chords: [arrowChord])
         }
         #expect(arrow(126, [.maskControl, .maskCommand]) == .pass)
         #expect(arrow(126, []) == .arrow(.up))
@@ -65,6 +65,20 @@ struct WheelKeyRuleTests {
         #expect(key(0, [], "\u{F8FF}") == .swallow)
         #expect(key(126, [], "\u{F700}") == .arrow(.up))
         #expect(key(122, [], "\u{F704}") == .swallow)
+    }
+
+    @Test func `every Oops shortcut goes on, even one that types or points`() {
+        let dictate = WheelChord(keyCode: 2, flags: [.maskAlternate])
+        let fix = WheelChord(keyCode: 125, flags: [.maskCommand])
+        let chords = [chord, dictate, fix]
+        func key(_ code: Int64, _ flags: CGEventFlags, _ characters: String = "") -> WheelKey {
+            WheelKey.classify(keyCode: code, flags: flags, characters: characters, chords: chords)
+        }
+        #expect(key(2, [.maskAlternate], "∂") == .pass)
+        #expect(key(2, [], "d") == .text)
+        #expect(key(125, [.maskCommand]) == .pass)
+        #expect(key(125, [.maskCommand, .maskShift]) == .arrow(.down))
+        #expect(key(13, [.maskControl, .maskCommand], "w") == .pass)
     }
 
     @Test func `keypad clear is swallowed`() {
