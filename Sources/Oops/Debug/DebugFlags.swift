@@ -144,6 +144,10 @@ enum DebugFlags {
     static var update: String? { string("SettingsPreviewUpdate") }
     /// Fake provider states: ChatGPT `signedIn`, `signedOut` or `reauth`; a provider page to open.
     static var providers: Bool { bool("SettingsPreviewProviders") || brandReview }
+    /// Actions starts from the starters in memory and saves nothing, so a capture never reads or writes a person's library.
+    static var actionsPreview: Bool { bool("SettingsPreviewActions") }
+    /// Opens an Actions page: an action's name (a prefix), `new` for a new one, or `typed` for how a typed instruction runs.
+    static var settingsAction: String? { string("SettingsPreviewAction") }
     static var chatGPT: String? { string("SettingsPreviewChatGPT") }
     static var provider: String? { string("SettingsPreviewProvider") }
     /// A pointer position (`x,y`) for hover states in captures.

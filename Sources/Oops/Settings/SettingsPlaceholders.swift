@@ -1,8 +1,7 @@
 import OopsCore
 import SwiftUI
 
-// Actions as it is planned, drawn with the controls it will use and every one not yet wired disabled; it comes
-// with the action library. Dictate's settings are all live.
+// Dictate's page and the row parts Settings pages share.
 
 /// Dictate's settings: the shortcut and the mode, the speech model and its vocabulary, the microphone and audio,
 /// cleanup, the drop, and the history.
@@ -54,29 +53,6 @@ struct DictatePage: View {
             DictateCleanupCard(store: store)
             DictateDropCard(store: store, local: local)
             DictateHistoryCard { detail = .history }
-        }
-    }
-}
-
-/// Actions' planned settings: its shortcut (none, so off) and the action library.
-struct ActionsPage: View {
-    @State private var shortcutError: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 0) {
-                SettingRow(symbol: SettingsTab.actions.symbol, title: "Run an action") {
-                    ShortcutControl(title: "Run an action", action: .actions, error: $shortcutError)
-                }
-                if let shortcutError {
-                    Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                        .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
-                }
-            }
-            .settingsSurface()
-            SettingRow(symbol: "square.stack", title: "Library") { Chevron() }
-                .settingsSurface()
-                .disabled(true)
         }
     }
 }

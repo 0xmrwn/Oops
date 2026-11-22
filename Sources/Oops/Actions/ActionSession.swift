@@ -11,7 +11,7 @@ import OopsCore
     let editor: EditorAccess
     let providers: ProviderStore
     let drop: any ActionDrop
-    let store: ActionStore
+    let library: ActionLibraryModel
     /// Reads the focused draft; where the focused field is, without reading its text. The editor's own, or a test's.
     private let capture: @MainActor () async throws -> EditorSnapshot
     let locate: @MainActor () async -> CapsulePlacement.Geometry?
@@ -37,10 +37,10 @@ import OopsCore
     var isBusy: Bool { task != nil }
     var canRestore: Bool { !isBusy && written != nil }
 
-    init(editor: EditorAccess, providers: ProviderStore, drop: any ActionDrop, store: ActionStore = ActionStore(),
+    init(editor: EditorAccess, providers: ProviderStore, drop: any ActionDrop, library: ActionLibraryModel = .shared,
          capture: (@MainActor () async throws -> EditorSnapshot)? = nil,
          locate: (@MainActor () async -> CapsulePlacement.Geometry?)? = nil) {
-        self.editor = editor; self.providers = providers; self.drop = drop; self.store = store
+        self.editor = editor; self.providers = providers; self.drop = drop; self.library = library
         self.capture = capture ?? {
             do { return try await editor.capture() } catch let opaque as OpaqueEditor {
                 try Task.checkCancellation()
@@ -73,7 +73,7 @@ import OopsCore
 
     /// The Actions shortcut. Until the wheel exists it runs the action at the top place, with its choice's first value.
     @discardableResult func pressed() -> Task<ActionOutcome, Never>? {
-        guard !isBusy, let action = store.load().action(at: .up) else { return nil }
+        guard !isBusy, let action = library.library.action(at: .up) else { return nil }
         return run(.saved(action, value: action.choice?.ordered.first))
     }
 
@@ -82,7 +82,7 @@ import OopsCore
         forgetFix(); remember(nil); pending = nil; failure = nil; last = invocation
         let runsWith = switch invocation {
         case .saved(let action, _): action.runsWith
-        case .typed: store.load().typed
+        case .typed: library.library.typed
         }
         let id = UUID(); generation = id
         let run = Task { [weak self] () -> ActionOutcome in

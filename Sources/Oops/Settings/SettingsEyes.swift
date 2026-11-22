@@ -67,7 +67,7 @@ struct SpareSpace: View {
 }
 
 /// The onboarding drop follows the pointer and blinks without changing its glass body.
-private struct WatchingEyes: View {
+struct WatchingEyes: View {
     let model: SpareSpaceModel
     let height: CGFloat
     let visible: Bool
