@@ -20,6 +20,10 @@ public enum WheelEffect: Equatable, Sendable {
     case showNames
     /// The chosen petal flows into the centre, which shows its symbol.
     case select(ActionPlace, symbol: String)
+    /// The centre becomes a field for an instruction, or a value at a ring, with `placeholder` in it.
+    case beginTyping(placeholder: String)
+    /// The words under the centre that say it takes typing, after the same linger as the names.
+    case showHint
     case bloomChoices([ActionPlace])
     case run(ActionInvocation)
     case restore
@@ -29,15 +33,22 @@ public enum WheelEffect: Equatable, Sendable {
 /// The wheel's state machine: which ring is open, what is pointed at and when it commits. Time is injected as seconds
 /// on one clock, so every wait is testable without waiting.
 public struct Wheel: Equatable, Sendable {
-    public enum Level: Equatable, Sendable { case closed, root, choices(Action) }
+    public enum Level: Equatable, Sendable { case closed, root, choices(Action), typing(from: Typing) }
+    /// Where the typing started: an instruction at the first ring, or a value at an action's ring.
+    public enum Typing: Equatable, Sendable { case root, choices(Action) }
 
-    public private(set) var level = Level.closed
+    public internal(set) var level = Level.closed
     public private(set) var library = ActionLibrary()
     public private(set) var restorable: UUID?
-    public private(set) var gesture = WheelGesture()
-    public private(set) var bloomed = false, named = false
-    private var enteredAt = 0.0, lingerAt = 0.0, choicesAt = 0.0
-    private var flicking = false, placedOnScreen = false
+    public internal(set) var gesture = WheelGesture()
+    public internal(set) var bloomed = false, named = false
+    /// The centre takes typing here: the app in front keeps its field through it.
+    public private(set) var canType = false
+    /// The hint has shown at this ring.
+    public internal(set) var hinted = false
+    var enteredAt = 0.0, lingerAt = 0.0, choicesAt = 0.0
+    var flicking = false
+    private var placedOnScreen = false
 
     public init() {}
 
@@ -48,16 +59,19 @@ public struct Wheel: Equatable, Sendable {
         switch level {
         case .closed: []
         case .root: Set(library.actions.map(\.place))
+        case .typing: []
         case let .choices(action):
             Set((action.choice?.values ?? [:]).filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map(\.key))
         }
     }
 
-    /// Opens the first ring. The window work is the caller's, so nothing is asked of it yet.
-    public mutating func open(_ library: ActionLibrary, restorable: UUID?, at now: TimeInterval) -> [WheelEffect] {
+    /// Opens the first ring. The window work is the caller's, so nothing is asked of it yet. `typing` says whether the
+    /// centre may take typing in the app in front.
+    public mutating func open(_ library: ActionLibrary, restorable: UUID?, typing: Bool = false, at now: TimeInterval) -> [WheelEffect] {
         self = Wheel()
         self.library = library
         self.restorable = restorable
+        canType = typing
         level = .root
         enteredAt = now
         lingerAt = now + WheelTiming.linger
@@ -76,7 +90,7 @@ public struct Wheel: Equatable, Sendable {
     public mutating func press(_ arrow: WheelArrow, at now: TimeInterval) -> [WheelEffect] {
         // A release whose grace has run out is honoured before this press; only a press inside the grace cancels it.
         var effects = expired(at: now).effects
-        guard isOpen else { return effects }
+        guard isOpen, !isTyping else { return effects }
         // The second ring already out has nothing to hold back: only one that has not bloomed yet is flicked.
         if !flicking, now - enteredAt < WheelTiming.flick, level == .root || !bloomed {
             flicking = true
@@ -96,7 +110,7 @@ public struct Wheel: Equatable, Sendable {
 
     public mutating func hover(_ place: ActionPlace?, at now: TimeInterval) -> [WheelEffect] {
         var effects = expired(at: now).effects
-        guard isOpen else { return effects }
+        guard isOpen, !isTyping else { return effects }
         let before = gesture.pointed
         gesture.point(place.flatMap { filled.contains($0) ? $0 : nil })
         effects += repointed(from: before, at: now)
@@ -120,21 +134,41 @@ public struct Wheel: Equatable, Sendable {
             // Before the window is up there is nothing to bloom: `placed` does it.
             if level != .root || placedOnScreen {
                 bloomed = true
+                lingerAt = now + WheelTiming.linger
                 effects.append(level == .root ? .bloom(WheelLayout.ordered(filled)) : .bloomChoices(WheelLayout.ordered(filled)))
                 if let pointed = gesture.pointed { effects.append(.point(pointed)) }
             }
         }
         if case .choices = level, !bloomed, !flicking, Self.due(now, choicesAt) {
             bloomed = true
+            lingerAt = now + WheelTiming.linger
             effects.append(.bloomChoices(WheelLayout.ordered(filled)))
         }
-        if level == .root, bloomed, !named, !flicking, gesture.pointed == nil, gesture.held.isEmpty, gesture.commitAt == nil,
-           Self.due(now, lingerAt) {
-            named = true
-            effects.append(.showNames)
+        if lingering, Self.due(now, lingerAt) {
+            if level == .root {
+                named = true
+                effects.append(.showNames)
+            }
+            if canType, !hinted {
+                hinted = true
+                effects.append(.showHint)
+            }
         }
         return effects
     }
+
+    /// Nothing is pointed at a ring that is out: the names (first ring) and the hint (either ring) are waited for.
+    private var lingering: Bool {
+        guard bloomed, !flicking, gesture.pointed == nil, gesture.held.isEmpty, gesture.commitAt == nil else { return false }
+        switch level {
+        case .root: return !named || canType && !hinted
+        case .choices: return canType && !hinted
+        case .closed, .typing: return false
+        }
+    }
+
+    /// The centre is a field.
+    public var isTyping: Bool { if case .typing = level { true } else { false } }
 
     /// When `advance` next has something to do, or nil while nothing waits on time: until then the window can stop
     /// drawing frames once its motion is at rest.
@@ -144,9 +178,7 @@ public struct Wheel: Equatable, Sendable {
         if let commitAt = gesture.commitAt { due.append(commitAt) }
         if flicking { due.append(enteredAt + WheelTiming.flick) }
         if case .choices = level, !bloomed, !flicking { due.append(choicesAt) }
-        if level == .root, bloomed, !named, !flicking, gesture.pointed == nil, gesture.held.isEmpty, gesture.commitAt == nil {
-            due.append(lingerAt)
-        }
+        if lingering { due.append(lingerAt) }
         return due.min()
     }
 
@@ -173,7 +205,7 @@ public struct Wheel: Equatable, Sendable {
     private mutating func choose(_ place: ActionPlace, at now: TimeInterval) -> [WheelEffect] {
         gesture.reset()
         switch level {
-        case .closed:
+        case .closed, .typing:
             return []
         case .root:
             switch WheelDecision.root(place, in: library, restorable: restorable) {
@@ -188,6 +220,7 @@ public struct Wheel: Equatable, Sendable {
                 enteredAt = now
                 bloomed = false
                 named = false
+                hinted = false
                 flicking = false
                 choicesAt = now + WheelTiming.choicesDelay
                 return [.select(place, symbol: action.symbol)]
@@ -206,7 +239,7 @@ public struct Wheel: Equatable, Sendable {
     private mutating func repointed(from before: ActionPlace?, at now: TimeInterval) -> [WheelEffect] {
         let after = gesture.pointed
         guard after != before else { return [] }
-        if before != nil, after == nil, !named, level == .root { lingerAt = now + WheelTiming.linger }
+        if before != nil, after == nil, lingering { lingerAt = now + WheelTiming.linger }
         return [.point(after)]
     }
 

@@ -8,7 +8,7 @@ import SwiftUI
 struct WheelView: View {
     let frame: WheelFrame
 
-    private static let darkInk = Color(red: 0.06, green: 0.06, blue: 0.09)
+    static let darkInk = Color(red: 0.06, green: 0.06, blue: 0.09)
     private static let label = Font(NSFont.systemFont(ofSize: WheelLayout.labelSize, weight: .medium))
 
     var body: some View {
@@ -63,7 +63,7 @@ struct WheelView: View {
             }
             ForEach(pieces.filter(\.carriesWords)) { piece in
                 face(piece).frame(width: piece.size.width, height: piece.size.height).clipShape(Capsule())
-                    .modifier(Ink(ink: ink))
+                    .modifier(WheelInkStyle(ink: ink))
                     .opacity(piece.fade).position(piece.centre)
             }
             centreFace(motion, ink)
@@ -86,20 +86,6 @@ struct WheelView: View {
         var fades = Dictionary((motion.root + motion.choice).map { ($0.id, $0.fade.x) }) { a, _ in a }
         fades["centre"] = min(1, motion.present.x)
         return fades
-    }
-
-    /// One ink for every glyph: near-black or white with a halo of the other tone, or under Increase Contrast and
-    /// Reduce Transparency the appearance's own, with no halo.
-    private struct Ink: ViewModifier {
-        let ink: WheelInk
-        func body(content: Content) -> some View {
-            if ink.plain {
-                content.foregroundStyle(.primary)
-            } else {
-                content.foregroundStyle(ink.dark ? WheelView.darkInk : .white)
-                    .modifier(TunedHalo(color: ink.dark ? .white : .black, strength: WheelLayout.halo))
-            }
-        }
     }
 
     /// A petal's icon and name, or a choice's word.
@@ -152,12 +138,27 @@ struct WheelView: View {
                 .animation(.spring(duration: 0.3, bounce: 0.1), value: motion.live)
             if let symbol = motion.symbol {
                 Image(systemName: symbol).font(.system(size: 17 * scale, weight: .semibold))
-                    .modifier(Ink(ink: ink))
+                    .modifier(WheelInkStyle(ink: ink))
                     .opacity(motion.iconMix.x * shown)
                     .scaleEffect(0.7 + 0.3 * motion.iconMix.x)
                     .position(face)
             }
+            if frame.canType { typingCue(motion, ink, shown: shown) }
         }
+    }
+
+    /// Where the centre takes typing: a still text cursor inside the drop's trailing edge, never blinking, since a
+    /// blinking caret would claim a focus the person never gave; and, with the names, words saying what to type.
+    @ViewBuilder private func typingCue(_ motion: WheelMotion, _ ink: WheelInk, shown: Double) -> some View {
+        let point = motion.centrePoint, scale = motion.centreScale
+        IBeam().fill(.foreground).frame(width: 5 * scale, height: 13 * scale)
+            .modifier(WheelInkStyle(ink: ink, strength: 0.7))
+            .opacity(shown * max(0, 1 - motion.fieldOpen * 4) * max(0, 1 - motion.iconMix.x))
+            .position(x: point.x + 14 * scale, y: point.y)
+        Text(frame.hintText).font(.system(size: 12, weight: .medium)).lineLimit(1).fixedSize()
+            .modifier(WheelInkStyle(ink: ink, strength: 0.8))
+            .opacity(min(1, max(0, motion.hint.x)))
+            .position(x: WheelLayout.hub.x, y: WheelLayout.hub.y + WheelLayout.drop / 2 + 12)
     }
 
     /// Where the eyes look: at what is pointed at, otherwise toward the text above.
@@ -189,5 +190,17 @@ private extension WheelPiece {
         case .petal, .pill: true
         case .centre, .neck: false
         }
+    }
+}
+
+/// A text cursor's I-beam, drawn rather than taken from a symbol so it reads as a cursor and nothing else.
+private struct IBeam: Shape {
+    func path(in rect: CGRect) -> Path {
+        let stem = max(1.2, rect.width * 0.28), serif = max(1, rect.height * 0.09)
+        var path = Path()
+        path.addRect(CGRect(x: rect.midX - stem / 2, y: rect.minY, width: stem, height: rect.height))
+        path.addRect(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: serif))
+        path.addRect(CGRect(x: rect.minX, y: rect.maxY - serif, width: rect.width, height: serif))
+        return path
     }
 }

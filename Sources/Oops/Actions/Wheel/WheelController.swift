@@ -9,9 +9,9 @@ import QuartzCore
 @MainActor final class WheelController: NSObject {
     typealias MakeKeys = @MainActor (_ chords: [WheelChord], _ deliver: @escaping @MainActor (WheelInput) -> Bool) throws -> WheelKeys?
 
-    private let actions: ActionSession
+    let actions: ActionSession
     private let drop: DropOwner
-    private let editor: EditorAccess
+    let editor: EditorAccess
     /// The saved actions, read at each opening.
     var library: @MainActor () -> ActionLibrary
     /// Every shortcut Oops has registered, the Actions one included: their keys go on to their handlers.
@@ -20,15 +20,17 @@ import QuartzCore
     /// Says in the status line why the wheel didn't open.
     var refused: (_ message: String) -> Void = { _ in }
 
-    private(set) var wheel = Wheel()
-    private(set) var motion = WheelMotion()
+    var wheel = Wheel()
+    var motion = WheelMotion()
+    /// The centre's field and the draft read for it.
+    let field = WheelFieldState()
     let frame = WheelFrame()
     private(set) lazy var panel = WheelPanel(frame: frame)
     /// The last opening's tap, kept while it drains.
     private(set) var keys: WheelKeys?
-    private var link: CADisplayLink?
+    var link: CADisplayLink?
     /// Wakes the paused display link for the wheel's next wait (names after the linger, a ring's bloom).
-    private var dozing: Timer?
+    var dozing: Timer?
     /// Drives the wheel's waits until the display link does: an arrow pressed at once still commits.
     private var waiting: Timer?
     private var locating: Task<Void, Never>?
@@ -46,10 +48,12 @@ import QuartzCore
     private(set) var restoring: ActionPlace?
     /// What the restore petal puts back: opening hides the result drop, which ends the record it kept.
     private var kept: ActionSession.Written?
-    private var lastTick = 0.0, openedAt = 0.0, placedAt = 0.0, closedAt = 0.0, settledTold = false
+    var lastTick = 0.0, openedAt = 0.0, placedAt = 0.0, closedAt = 0.0, settledTold = false
     /// Frames since the window came up and the longest gap between two, for the settled line.
     private var frames = 0, longest = 0.0
     #if DEBUG
+    /// Debug triggers: the app in front is treated as one where the centre can't type.
+    var typingOff = false
     /// Every effect and refusal, for actions.jsonl; and each run the wheel starts.
     var onEvent: (([String: String]) -> Void)?
     var onRun: ((Task<ActionOutcome, Never>?) -> Void)?
@@ -110,7 +114,8 @@ import QuartzCore
         ring = [:]; queued = []; pressed = nil; settledTold = false
         motion = WheelMotion(reduceMotion: Self.reduceMotion)
         openedAt = CACurrentMediaTime()
-        apply(wheel.open(library, restorable: restorable, at: openedAt))
+        apply(wheel.open(library, restorable: restorable, typing: typingHere(), at: openedAt))
+        frame.canType = wheel.canType
         let timer = Timer(timeInterval: 0.016, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.advance() }
         }
@@ -138,8 +143,10 @@ import QuartzCore
         let web = found?.geometry.ancestors.contains { $0.role == "AXWebArea" } == true
         frame.ink = WheelInk(page: found?.style, web: web, systemDark: dark, increaseContrast: contrast, reduceTransparency: transparency)
         frame.increaseContrast = contrast; frame.reduceTransparency = transparency
+        // Read after the placement's own read, which the wheel waits for, and before anything takes the keys.
+        prepareDraft()
         show()
-        log(["wheel": "placed", "hub": "\(Int(hub.x)),\(Int(hub.y))", "found": found == nil ? "no" : "yes", "web": web ? "yes" : "no",
+        log(["wheel": "placed", "hub": "\(Int(hub.x)),\(Int(hub.y))", "found": found == nil ? "no" : "yes", "web": web ? "yes" : "no", "colour": found?.style?.color.map { "\($0.x),\($0.y),\($0.z)" } ?? "",
              "ink": frame.ink.plain ? "plain" : frame.ink.dark ? "dark" : "light",
              "strategy": CapsulePlacement.place(found?.geometry, envelope: CGSize(width: WheelLayout.drop, height: WheelLayout.envelope.height),
                                                 screens: WheelPanel.screens).strategy.rawValue])
@@ -187,27 +194,6 @@ import QuartzCore
         }
     }
 
-    /// Nothing moves: the display link stops drawing identical frames until input or the wheel's next wait.
-    private func doze(until due: TimeInterval?, now: TimeInterval) {
-        guard let link, !link.isPaused else { return }
-        link.isPaused = true
-        log(["wheel": "doze", "until": due.map { "\(Int(($0 - openedAt) * 1000))" } ?? ""])
-        guard let due else { return }
-        let timer = Timer(timeInterval: max(0, due - now), repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.wake() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        dozing = timer
-    }
-
-    /// Something may move again: the display link draws from now.
-    private func wake() {
-        dozing?.invalidate(); dozing = nil
-        guard let link, link.isPaused else { return }
-        lastTick = CACurrentMediaTime()
-        link.isPaused = false
-    }
-
     private func advance() { apply(wheel.advance(to: CACurrentMediaTime())) }
 
     /// The window goes once nothing is left to draw, or at once when a new opening needs it.
@@ -235,21 +221,29 @@ import QuartzCore
         case .key(.leave, true, _):
             log(["wheel": "leave"])
             close()
+        case .key(.text, true, false), .key(.enter, true, false):
+            // Typing, or Return, turns the centre into a field where the app in front allows it; else nothing.
+            if !wheel.isTyping { apply(wheel.type(at: now)) }
         case .key:
-            // Return, typing and the rest are taken so the draft never gets them, and do nothing here.
+            // The rest are taken so the draft never gets them, and do nothing here.
             break
         case let .mouseMoved(point):
             if case let .place(place)? = hit(point) { apply(wheel.hover(place, at: now)) } else { apply(wheel.hover(nil, at: now)) }
+        case let .mouseDown(point) where fieldTakes(point):
+            // The field has its own clicks.
+            pressed = nil
         case let .mouseDown(point):
             pressed = hit(point)
             stop = pressed != nil
             // A click anywhere else is the person moving on: the wheel closes and the click goes through.
             if !stop {
                 log(["wheel": "clickedAway", "at": "\(Int(point.x)),\(Int(point.y))"])
+                field.clickedAway = true
                 close()
             }
         case let .mouseUp(point):
             if case let .place(place)? = pressed, hit(point) == pressed { apply(wheel.click(place, at: now)) }
+            if pressed == .centre, hit(point) == .centre { apply(wheel.clickCentre(at: now)) }
             pressed = nil
         }
         advance()
@@ -269,7 +263,7 @@ import QuartzCore
 
     // MARK: Effects
 
-    private func apply(_ effects: [WheelEffect]) {
+    func apply(_ effects: [WheelEffect]) {
         guard !effects.isEmpty else { return }
         // The centre shows the chosen symbol a moment before everything goes back in.
         let selecting = effects.contains { if case .select = $0 { true } else { false } }
@@ -278,20 +272,16 @@ import QuartzCore
             switch effect {
             case let .run(invocation):
                 endOpen()
-                let run = actions.run(invocation)
-                #if DEBUG
-                onRun?(run)
-                #endif
+                startRun(invocation)
             case .restore:
                 endOpen()
                 if let kept { actions.remember(kept) }
                 let run = actions.restore()
                 if run == nil { actions.remember(nil) }
-                #if DEBUG
-                onRun?(run)
-                #endif
+                report(run)
             case .close:
                 endOpen()
+                endTyping(ran: effects.contains { if case .run = $0 { true } else { false } })
                 kept = nil
                 retract(after: selecting ? 0.12 : 0)
             case let .bloomChoices(places):
@@ -300,6 +290,10 @@ import QuartzCore
                     ringName = action.choice?.name ?? action.name
                     ring = Dictionary(places.compactMap { place in action.choice?.values[place].map { (place, petal(place, $0, nil)) } }) { a, _ in a }
                 }
+                enqueue(effect)
+            case .beginTyping:
+                // The keys wait from now, though the field comes up only with the wheel.
+                keys?.hold()
                 enqueue(effect)
             default:
                 enqueue(effect)
@@ -322,11 +316,17 @@ import QuartzCore
         case .skipBloom: motion.skipBloom()
         case let .point(place): motion.setLive(place)
         case .showNames: motion.showNames()
+        case .showHint:
+            frame.hintText = WheelTyping.hint(at: wheel.level) ?? ""
+            motion.showHint()
+        case let .beginTyping(placeholder):
+            motion.beginTyping()
+            openField(placeholder: placeholder)
         case let .select(place, symbol): motion.select(place, symbol: symbol)
         case let .bloomChoices(places):
             let pills = places.compactMap { ring[$0] }
             motion.bloomChoices(pills)
-            announce(WheelAnnouncement.choices(ringName, pills))
+            announce(WheelAnnouncement.choices(ringName, pills, typing: wheel.canType))
         case .run, .restore, .close: break
         }
     }

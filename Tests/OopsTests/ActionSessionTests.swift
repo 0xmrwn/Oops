@@ -25,6 +25,65 @@ import Testing
         #expect(fixture.forgotten == 1)
     }
 
+    @Test func `a prepared draft is used instead of a new read`() async throws {
+        let fixture = try Fixture()
+        let draft = PreparedDraft { throw EmptyDraft(geometry: .init(element: nil)) }
+        let outcome = await fixture.session.run(.typed("x"), draft: draft)?.value
+        guard case .failed(let failure)? = outcome else { Issue.record("expected a failure, got \(String(describing: outcome))"); return }
+        #expect(failure.reason == .empty)
+        #expect(!fixture.captured, "the run never read the draft again")
+    }
+
+    @Test func `a field only copy reaches is copied from the editor found, never one focused since`() async throws {
+        let fixture = try Fixture()
+        let opaque = OpaqueEditor(element: AXUIElementCreateSystemWide(), pid: 1, hostPID: nil, role: "AXFound", selected: true, empty: nil,
+                                  snapshot: { transaction in
+                                      EditorSnapshot(element: AXUIElementCreateSystemWide(), pid: 1, hostPID: nil, appName: "Fixture", bundleID: nil,
+                                                     owner: "Fixture", appVersion: nil, role: "AXFound", subrole: nil, transaction: transaction,
+                                                     geometry: .init(element: nil))
+                                  })
+        let outcome = await fixture.session.run(.typed("x"), draft: PreparedDraft { throw opaque })?.value
+        guard case .failed? = outcome else { Issue.record("expected a failure, got \(String(describing: outcome))"); return }
+        #expect(fixture.reading.copied == ["AXFound"])
+        #expect(!fixture.captured, "no new read of whatever has focus now")
+    }
+
+    @Test func `a prepared draft no run read is let go, on every way out`() async throws {
+        let fixture = try Fixture()
+        let released = Recorder<Int>()
+        fixture.session.editing.disableAccessibility = { _ in await released.add(1) }
+        let snapshot = try snapshot("x")
+        let agent = try fixture.agentAction()
+        let handed = PreparedDraft.holding { (snapshot, true) }
+        _ = await fixture.session.run(.saved(agent, value: nil), draft: handed)?.value
+        #expect(handed.released, "an agent run reads the field itself and lets the prepared read go")
+        // Its switch goes only if the agent run is over by then: what follows counts from here.
+        try await Task.sleep(for: .milliseconds(100))
+        let base = await released.items.count
+
+        fixture.drop.refuse = true
+        #expect(fixture.session.run(.typed("x"), draft: PreparedDraft.holding { (snapshot, true) }) == nil)
+        await released.until(base + 1)
+        #expect(await released.items.count == base + 1, "a refused run lets go of it, and its switch with it")
+
+        let draft = PreparedDraft.holding { (snapshot, true) }
+        fixture.session.release(draft)
+        fixture.session.release(draft)
+        await released.until(base + 3)
+        #expect(await released.items.count == base + 2, "once")
+    }
+
+    @Test func `a draft a run read is put back by the run alone`() async throws {
+        let fixture = try Fixture(reply: #"{"text":"new"}"#)
+        let released = Recorder<Int>()
+        fixture.session.editing.disableAccessibility = { _ in await released.add(1) }
+        fixture.session.editing.write = { _, snapshot, _ in snapshot }
+        let snapshot = try snapshot("old")
+        #expect(await fixture.session.run(.typed("x"), draft: PreparedDraft.holding { (snapshot, true) })?.value == .written)
+        await released.until(2)
+        #expect(await released.items.count == 1)
+    }
+
     @Test func `an agent run without Claude Code fails before reading the draft`() async throws {
         let fixture = try Fixture()
         let agent = try fixture.agentAction()
@@ -196,7 +255,7 @@ import Testing
         let store: ActionStore
         let library: ActionLibraryModel
         var forgotten = 0
-        private let reading = Reading()
+        let reading = Reading()
         var captured: Bool { reading.captured }
         var capture: @MainActor () async throws -> EditorSnapshot {
             get { reading.capture }
@@ -230,8 +289,9 @@ import Testing
             library = ActionLibraryModel(store: store)
             let reading = reading
             session = ActionSession(editor: EditorAccess(), providers: providerStore, drop: drop, library: library,
-                                    capture: { reading.captured = true; return try await reading.capture() }, locate: { nil },
-                                    agentRunner: agent ?? { throw ClaudeAgentError.notInstalled })
+                                    capture: { reading.captured = true; return try await reading.capture() },
+                                    captureCopy: { opaque in reading.copied.append(opaque.role); throw EmptyDraft(geometry: .init(element: nil)) },
+                                    locate: { nil }, agentRunner: agent ?? { throw ClaudeAgentError.notInstalled })
             session.forgetFix = { [weak self] in self?.forgotten += 1 }
         }
 
@@ -242,6 +302,8 @@ import Testing
 /// What the session reads the draft with, and whether it did.
 @MainActor private final class Reading {
     var captured = false
+    /// The roles of the editors copied from.
+    var copied: [String] = []
     var capture: @MainActor () async throws -> EditorSnapshot = { throw CancellationError() }
 }
 
@@ -276,6 +338,11 @@ private struct Replying: CorrectionBackend {
 private actor Recorder<Item: Sendable> {
     private(set) var items: [Item] = []
     func add(_ item: Item) { items.append(item) }
+    /// Waits for `count` items, a second at most.
+    func until(_ count: Int) async {
+        let deadline = ContinuousClock.now + .seconds(1)
+        while items.count < count, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(10)) }
+    }
 }
 
 private actor Signal {

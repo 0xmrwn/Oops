@@ -76,6 +76,21 @@ struct TunedHalo: ViewModifier {
     }
 }
 
+/// One ink for every glyph: near-black or white with a halo of the other tone, or under Increase Contrast and
+/// Reduce Transparency the appearance's own, with no halo. `strength` softens it for quiet words.
+struct WheelInkStyle: ViewModifier {
+    let ink: WheelInk
+    var strength = 1.0
+    func body(content: Content) -> some View {
+        if ink.plain {
+            content.foregroundStyle(.primary.opacity(strength))
+        } else {
+            content.foregroundStyle((ink.dark ? WheelView.darkInk : .white).opacity(strength))
+                .modifier(TunedHalo(color: ink.dark ? .white : .black, strength: WheelLayout.halo))
+        }
+    }
+}
+
 /// Where the lens shows: full under a piece's content, gone before its edge.
 struct LensMask: View {
     let pieces: [WheelPiece]

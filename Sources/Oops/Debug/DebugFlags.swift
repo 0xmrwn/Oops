@@ -22,6 +22,8 @@ enum DebugFlags {
     static var actions: Bool { bool("DebugActions") }
     /// `-DebugWheelSlow YES`: the Actions wheel's motion at a quarter speed, for frame-by-frame captures.
     static var wheelSlow: Bool { bool("DebugWheelSlow") }
+    /// `-DebugTypingUnavailable <bundle id>`: that app is treated as one where the wheel's centre can't take typing.
+    static var typingUnavailable: String? { string("DebugTypingUnavailable") }
 
     // MARK: Dictation
 

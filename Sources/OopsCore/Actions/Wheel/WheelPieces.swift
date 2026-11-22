@@ -115,8 +115,9 @@ public extension WheelMotion {
                                    light: formed, words: opening, lens: formed))
         }
         if present.x > 0.03 {
+            // A field keeps the drop's clear glass, with the lens under its words.
             list.append(WheelPiece(id: "centre", centre: centrePoint, size: centreSize, hole: 1, kind: .centre, scale: centreScale,
-                                   fade: reduceMotion ? min(1, present.x) : 1))
+                                   fade: reduceMotion ? min(1, present.x) : 1, lens: fieldOpen))
         }
         return list
     }

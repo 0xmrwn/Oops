@@ -14,6 +14,8 @@ struct StubBackend: CorrectionBackend {
         let calls = control.appendingPathExtension("calls")
         let count = (try? String(contentsOf: calls, encoding: .utf8)).flatMap { Int($0) } ?? 0
         try? String(count + 1).write(to: calls, atomically: true, encoding: .utf8)
+        // What it was asked, for a run to check what reached the model.
+        try? instructions.write(to: control.appendingPathExtension("instructions"), atomically: true, encoding: .utf8)
         let script = (try? Data(contentsOf: control)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
         if let delay = script["delayMs"] as? Int { try await Task.sleep(for: .milliseconds(delay)) }
         if let fail = script["fail"] as? String {

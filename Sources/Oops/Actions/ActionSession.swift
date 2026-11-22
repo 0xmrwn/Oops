@@ -14,6 +14,8 @@ import OopsCore
     let library: ActionLibraryModel
     /// Reads the focused draft; where the focused field is, without reading its text. The editor's own, or a test's.
     let capture: @MainActor () async throws -> EditorSnapshot
+    /// Reads a field only copy and paste reach, the one Accessibility found: never whatever has focus by then.
+    private let captureCopy: @MainActor (OpaqueEditor) async throws -> EditorSnapshot
     let locate: @MainActor () async -> CapsulePlacement.Geometry?
     /// Fix forgets the correction it could restore: the draft an action leaves is a new one to Fix.
     var forgetFix: () -> Void = {}
@@ -45,18 +47,28 @@ import OopsCore
     let agent: AgentRun
     var agentWriting = false
 
+    #if DEBUG
+    /// Debug triggers: how a typed instruction runs, in place of the saved setting, which they never touch.
+    var typedRunsWith: ActionRunsWith?
+    #else
+    let typedRunsWith: ActionRunsWith? = nil
+    #endif
+
     var isBusy: Bool { task != nil || agentWriting }
     var canRestore: Bool { !isBusy && written != nil }
 
     init(editor: EditorAccess, providers: ProviderStore, drop: any ActionDrop, library: ActionLibraryModel = .shared,
          capture: (@MainActor () async throws -> EditorSnapshot)? = nil,
+         captureCopy: (@MainActor (OpaqueEditor) async throws -> EditorSnapshot)? = nil,
          locate: (@MainActor () async -> CapsulePlacement.Geometry?)? = nil, agentDrop: AgentDrop? = nil,
          agentRunner: @escaping @MainActor () throws -> any AgentRunning = { throw ClaudeAgentError.notInstalled }) {
         self.editor = editor; self.providers = providers; self.drop = drop; self.library = library
+        let copy = captureCopy ?? { try await editor.captureByCopy($0, action: .actions, selecting: "the text") }
+        self.captureCopy = copy
         self.capture = capture ?? {
             do { return try await editor.capture() } catch let opaque as OpaqueEditor {
                 try Task.checkCancellation()
-                return try await editor.captureByCopy(opaque, action: .actions, selecting: "the text")
+                return try await copy(opaque)
             }
         }
         self.locate = locate ?? { try? await editor.focusedGeometry() }
@@ -88,36 +100,48 @@ import OopsCore
         agent.session = self
     }
 
-    /// `inTry`: only Settings' Try draft may be read and written, never another app's field.
-    @discardableResult func run(_ invocation: ActionInvocation, inTry: Bool = false) -> Task<ActionOutcome, Never>? {
+    /// `inTry`: only Settings' Try draft may be read and written, never another app's field. `draft`: the read the
+    /// wheel started as it opened, before its field took the keys; let go on every way out but a model run's read.
+    @discardableResult func run(_ invocation: ActionInvocation, inTry: Bool = false, draft: PreparedDraft? = nil) -> Task<ActionOutcome, Never>? {
         let runsWith = switch invocation {
         case .saved(let action, _): action.runsWith
-        case .typed: library.library.typed
+        case .typed: typedRunsWith ?? library.library.typed
         }
-        if runsWith.kind == .agent { return agent.start(invocation, providers.agentRun(runsWith.agent), inTry: inTry) }
-        guard !isBusy, drop.claim(busy: { [weak self] in self?.isBusy == true }) else { return nil }
+        if runsWith.kind == .agent {
+            // An agent run reads the field itself, once the wheel has given it back its focus: the prepared read goes.
+            if let draft { release(draft) }
+            return agent.start(invocation, providers.agentRun(runsWith.agent), inTry: inTry)
+        }
+        guard !isBusy, drop.claim(busy: { [weak self] in self?.isBusy == true }) else {
+            if let draft { release(draft) }
+            return nil
+        }
         forgetFix(); remember(nil); pending = nil; failure = nil; last = invocation; lastInTry = inTry; committed = nil
         let id = UUID(); generation = id
         let run = Task { [weak self] () -> ActionOutcome in
             guard let self else { return .cancelled }
             // A cancelled run keeps the session busy until it has finished, so a run begun meanwhile never meets its cleanup.
-            defer { self.task = nil }
-            return await self.runModel(invocation, runsWith.model, id)
+            // A prepared draft it never read (a failure before the read) is let go too.
+            defer {
+                self.task = nil
+                if let draft { self.release(draft) }
+            }
+            return await self.runModel(invocation, runsWith.model, id, inTry ? nil : draft)
         }
         task = run
         return run
     }
 
-    private func runModel(_ invocation: ActionInvocation, _ model: ActionModelRun, _ id: UUID) async -> ActionOutcome {
+    private func runModel(_ invocation: ActionInvocation, _ model: ActionModelRun, _ id: UUID, _ draft: PreparedDraft?) async -> ActionOutcome {
         var woken: EditorSnapshot?
-        let outcome = await perform(invocation, model, id, woken: &woken)
+        let outcome = await perform(invocation, model, id, draft, woken: &woken)
         // Capture may have woken a Chromium editor to read it: its switch goes back before the run lets go of the
         // session, so a run begun after this one never has it switched off under it.
         if let woken { await editing.disableAccessibility(woken) }
         return outcome
     }
 
-    private func perform(_ invocation: ActionInvocation, _ model: ActionModelRun, _ id: UUID,
+    private func perform(_ invocation: ActionInvocation, _ model: ActionModelRun, _ id: UUID, _ draft: PreparedDraft?,
                          woken: inout EditorSnapshot?) async -> ActionOutcome {
         var shown: CapsulePlacement.Geometry?
         do {
@@ -125,7 +149,7 @@ import OopsCore
             if lastInTry, !tryDraftFocused() { throw ActionFailure(.capture, "Click into the draft, then press Run.") }
             let backend = try providers.actionBackend(model)
             let snapshot: EditorSnapshot
-            do { snapshot = try await capture() } catch let error where !(error is CancellationError) { throw ActionFailure.capture(error) }
+            do { snapshot = try await read(draft) } catch let error where !(error is CancellationError) { throw ActionFailure.capture(error) }
             shown = snapshot.geometry
             woken = snapshot
             if lastInTry, snapshot.pid != getpid() { throw ActionFailure(.capture, "Click into the draft, then press Run.") }
@@ -181,6 +205,19 @@ import OopsCore
         drop.show(.held("The editor didn’t confirm every change, so the draft was put back as it was. The answer is ready to copy."),
                   geometry: nil, element: nil)
         return .held
+    }
+
+    /// The draft the wheel read as it opened, or a read now when there is none. A field only copy and paste reach is
+    /// read by copy now, which the wheel doesn't start before a run asks for it: the field found then, whose focus the
+    /// copy checks, never one that has focus since.
+    private func read(_ draft: PreparedDraft?) async throws -> EditorSnapshot {
+        guard let draft else { return try await capture() }
+        do {
+            return try await consume(draft)
+        } catch let opaque as OpaqueEditor {
+            try Task.checkCancellation()
+            return try await captureCopy(opaque)
+        }
     }
 
     /// The model's replacement for `draft`: Actions' own prompt, ended at `deadline` whatever the backend does, decoded.
