@@ -129,3 +129,10 @@ struct ProviderMark: View {
             .foregroundStyle(.primary).frame(width: size, height: size).accessibilityHidden(true)
     }
 }
+
+extension Notification.Name {
+    /// Popovers on a page close when it hides: pages stay alive, and so would their popovers.
+    static let settingsPageWillChange = Notification.Name("oops.settingsPageWillChange")
+    /// General's Turn on: the tab named by the object starts recording its feature's shortcut.
+    static let settingsRecordShortcut = Notification.Name("oops.settingsRecordShortcut")
+}

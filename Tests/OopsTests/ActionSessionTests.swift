@@ -37,12 +37,19 @@ import Testing
         #expect(fixture.drop.states.last == .failed(failure))
     }
 
+    @Test func `an edit in Settings is what the next run reads`() async throws {
+        let fixture = try Fixture()
+        fixture.capture = { throw EmptyDraft(geometry: .init(element: nil)) }
+        let top = try #require(ActionLibrary.starters.action(at: .up))
+        fixture.library.update(top.id) { $0.instruction = "Say it twice." }
+        _ = await fixture.session.pressed()?.value
+        guard case .saved(let action, _)? = fixture.session.last else { Issue.record("expected a saved action"); return }
+        #expect(action.instruction == "Say it twice.")
+    }
+
     @Test func `nothing at the top runs nothing`() throws {
         let fixture = try Fixture()
-        let shorten = try #require(ActionLibrary.starters.actions.first { $0.name == "Shorten" })
-        var action = shorten
-        action.place = .down
-        fixture.store.save(ActionLibrary(actions: [action]))
+        fixture.library.remove(try #require(ActionLibrary.starters.action(at: .up)).id)
         #expect(fixture.session.pressed() == nil)
         #expect(fixture.drop.claims == 0)
     }
@@ -50,9 +57,7 @@ import Testing
     @Test func `an agent run fails before reading the draft`() async throws {
         let fixture = try Fixture()
         let top = try #require(ActionLibrary.starters.action(at: .up))
-        var agent = top
-        agent.runsWith = .init(kind: .agent)
-        fixture.store.save(ActionLibrary(actions: [agent]))
+        fixture.library.update(top.id) { $0.runsWith = .init(kind: .agent) }
         let outcome = await fixture.session.pressed()?.value
         #expect(outcome == .failed(.agentRun))
         #expect(!fixture.captured)
@@ -172,6 +177,7 @@ import Testing
         let drop = FakeActionDrop()
         let session: ActionSession
         let store: ActionStore
+        let library: ActionLibraryModel
         var forgotten = 0
         private let reading = Reading()
         var captured: Bool { reading.captured }
@@ -197,8 +203,9 @@ import Testing
                                               defaults: defaults, writeKey: { _, _ in }, readKey: { _ in "synthetic-key" },
                                               makeBackend: { _, _, _ in Replying(reply: reply) })
             store = ActionStore(defaults: defaults)
+            library = ActionLibraryModel(store: store)
             let reading = reading
-            session = ActionSession(editor: EditorAccess(), providers: providerStore, drop: drop, store: store,
+            session = ActionSession(editor: EditorAccess(), providers: providerStore, drop: drop, library: library,
                                     capture: { reading.captured = true; return try await reading.capture() }, locate: { nil })
             session.forgetFix = { [weak self] in self?.forgotten += 1 }
         }

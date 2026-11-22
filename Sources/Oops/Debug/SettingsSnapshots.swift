@@ -33,7 +33,9 @@ import SwiftUI
         let historyFolder = FileManager.default.temporaryDirectory.appendingPathComponent("oops-history-snapshot-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: historyFolder) }
         let history = sampleHistory(in: historyFolder)
+        let actions = ActionLibraryModel(preview: true)
         let pages: [(String, () -> AnyView)] = [
+            ("actions-wheel", { AnyView(ActionsPage(store: store, navigation: ActionsNavigation(library: actions), spare: SpareSpaceModel(), library: actions)) }),
             ("dictate-history", { AnyView(DictationHistoryPage(model: history)) }),
             ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences)) }),
             ("picker-picks", { AnyView(SpeechModelPage(target: target, store: store, local: local) {}) }),

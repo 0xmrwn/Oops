@@ -29,6 +29,8 @@ struct SettingsView: View {
     /// Dictate's drilled-in page; its speech model page is `SpeechModelPicker`'s target. Launch-only aid:
     /// `-SettingsPreviewTab history`.
     @State private var dictateDetail = DictateDetail.launchPreview
+    /// Actions' pages: the wheel, an action's editor, Runs with. Launch-only aid: `-SettingsPreviewAction`.
+    @State private var actionPages = ActionsNavigation.launchPreview()
     @State private var scroll = ScrollPosition(edge: .top)
     /// How far the page is scrolled; read only when a switch starts, so scrolling re-evaluates nothing.
     @State private var scrolled = ScrollOffset()
@@ -99,7 +101,7 @@ struct SettingsView: View {
                 .focusEffectDisabled()
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.viewport = $0 }
                 // Whatever height the page leaves below it goes to the eyes.
-                .overlay(alignment: .bottom) { SpareSpace(model: spare, suppressed: tryShown) }
+                .overlay(alignment: .bottom) { SpareSpace(model: spare, suppressed: ownEyes) }
         }
         .frame(width: 620)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -179,12 +181,15 @@ struct SettingsView: View {
         case .fix: fixDetail
         case .dictate: SpeechModelPicker.shared.target?.id ?? dictateDetail.map { "\($0)" }
         case .providers: preferences.providers.openProvider ?? preferences.providers.draft?.id
-        case .actions: nil
+        case .actions: actionPages.level
         }
     }
 
     /// Try has eyes of its own (its status line), so the window's stay away.
     private var tryShown: Bool { page == .fix && fixDetail == .tryPage }
+
+    /// Try's status line and the Actions wheel have eyes of their own, so the window's stay away.
+    private var ownEyes: Bool { tryShown || page == .actions }
 
     /// Pages slide in from their side of the tab order (see `PageSwap`).
     private var pageSelection: Binding<SettingsTab> {
@@ -196,6 +201,7 @@ struct SettingsView: View {
                     if page == .fix { fixDetail = nil }
                     if page == .dictate { closeDictateDetail() }
                     if page == .providers { preferences.providers.closeDetail() }
+                    if page == .actions { actionPages.backToWheel() }
                 }
                 return
             }
@@ -227,6 +233,7 @@ struct SettingsView: View {
     private func open(_ tab: SettingsTab) {
         if tab == .fix { fixDetail = nil }
         if tab == .dictate { closeDictateDetail() }
+        if tab == .actions { actionPages.backToWheel() }
         pageSelection.wrappedValue = tab
     }
 
@@ -283,7 +290,7 @@ struct SettingsView: View {
                     UpdatePill(release: release, open: showUpdate)
                         .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .trailing)))
                 } else {
-                    HeaderEyes(model: spare, suppressed: tryShown)
+                    HeaderEyes(model: spare, suppressed: ownEyes)
                 }
             }
             .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
@@ -299,7 +306,7 @@ struct SettingsView: View {
                         detail: $generalDetail, open: open, preview: preview, previewPlacement: previewPlacement)
         case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
         case .dictate: DictatePage(store: preferences.providers, detail: $dictateDetail)
-        case .actions: ActionsPage()
+        case .actions: ActionsPage(store: preferences.providers, navigation: actionPages, spare: spare)
         case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
         }
     }
@@ -314,10 +321,3 @@ struct SettingsView: View {
 
 /// A reference, so writing it on every scrolled frame invalidates no view.
 private final class ScrollOffset { var y: CGFloat = 0 }
-
-extension Notification.Name {
-    /// Popovers on a page close when it hides: pages stay alive, and so would their popovers.
-    static let settingsPageWillChange = Notification.Name("oops.settingsPageWillChange")
-    /// General's Turn on: the tab named by the object starts recording its feature's shortcut.
-    static let settingsRecordShortcut = Notification.Name("oops.settingsRecordShortcut")
-}

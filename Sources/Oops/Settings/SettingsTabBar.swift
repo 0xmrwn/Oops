@@ -10,7 +10,7 @@ extension SettingsTab {
         case .general: "gearshape"
         case .fix: ShortcutSettings.Action.correct.symbol
         case .dictate: "mic"
-        case .actions: "bolt"
+        case .actions: "circle.grid.cross"
         case .providers: "sparkles"
         }
     }
