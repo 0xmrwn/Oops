@@ -56,6 +56,7 @@ import OopsCore
         capsule.model.revert = { [weak self] in self?.revert() }
         capsule.model.copy = { [weak self] in self?.copyPending() }
         capsule.model.dismiss = { [weak self] in self?.capsule.hide() }
+        capsule.model.words = .fix
         return true
     }
 

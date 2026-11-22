@@ -112,13 +112,13 @@ struct EyesDropView: View {
         .onChange(of: model.presented) { _, presented in
             if presented { shown = drop; morph() } else { morph(collapse: true) }
         }
-        .help(cancellable ? "Cancel correction · " + ShortcutSettings.shared.label(.correct) : model.detail)
+        .help(cancellable ? model.words.cancel + (model.words.cancelShortcut.map { " · " + ShortcutSettings.shared.label($0) } ?? "") : model.detail)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(model.label.isEmpty ? "Correction started" : model.label)
+        .accessibilityLabel(model.label.isEmpty ? model.words.started : model.label)
         .accessibilityValue(expanded ? model.detail : "")
         .accessibilityHidden(!model.presented)
         .accessibilityActions {
-            if cancellable { Button("Cancel correction") { model.cancel?() } }
+            if cancellable { Button(model.words.cancel) { model.cancel?() } }
             if closable { Button("Dismiss") { model.dismiss?() } }
         }
     }
@@ -224,9 +224,9 @@ struct EyesDropView: View {
     @ViewBuilder private var actions: some View {
         switch model.phase {
         case .fixed where model.canRevert:
-            button("arrow.uturn.backward", "Revert correction") { model.revert?() }
+            button("arrow.uturn.backward", model.words.revert) { model.revert?() }
         case .pending, .copied:
-            button(model.copied ? "checkmark" : "doc.on.doc", "Copy correction") { if !model.copied { model.copy?() } }
+            button(model.copied ? "checkmark" : "doc.on.doc", model.words.copy) { if !model.copied { model.copy?() } }
         case .failed:
             switch model.remedy {
             case .retry: button("arrow.clockwise", "Try again") { model.retry?() }

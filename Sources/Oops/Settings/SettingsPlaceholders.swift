@@ -60,16 +60,24 @@ struct DictatePage: View {
 
 /// Actions' planned settings: its shortcut (none, so off) and the action library.
 struct ActionsPage: View {
+    @State private var shortcutError: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SettingRow(symbol: SettingsTab.actions.symbol, title: "Run an action") {
-                ShortcutField { ShortcutPrompt("Record shortcut") }
+            VStack(alignment: .leading, spacing: 0) {
+                SettingRow(symbol: SettingsTab.actions.symbol, title: "Run an action") {
+                    ShortcutControl(title: "Run an action", action: .actions, error: $shortcutError)
+                }
+                if let shortcutError {
+                    Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
+                        .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
+                }
             }
             .settingsSurface()
             SettingRow(symbol: "square.stack", title: "Library") { Chevron() }
                 .settingsSurface()
+                .disabled(true)
         }
-        .disabled(true)
     }
 }
 

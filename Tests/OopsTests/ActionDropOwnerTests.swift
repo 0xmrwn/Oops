@@ -17,6 +17,16 @@ import Testing
         #expect(copies == 1, "the copy button is Fix's again")
     }
 
+    @Test func `each feature names the drop's controls its own way`() throws {
+        let fixture = try Fixture()
+        #expect(fixture.drop.panel.model.words == .fix)
+        #expect(fixture.actions.claim(busy: { false }))
+        #expect(fixture.drop.panel.model.words == .actions)
+        #expect(DropWords.actions.cancelShortcut == nil, "Fix's chord does not cancel an action")
+        #expect(fixture.fix.holdDrop())
+        #expect(fixture.drop.panel.model.words == .fix)
+    }
+
     @Test func `while an action runs Fix can't take the drop`() throws {
         let fixture = try Fixture()
         #expect(fixture.actions.claim(busy: { true }))

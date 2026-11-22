@@ -5,7 +5,7 @@ Builds Oops (Debug, so the stub exists) and installs it as the development runti
 with launch-argument-only settings (stub provider, debug log in a temporary folder, lab triggers,
 no sounds), drives each scenario and checks the lab's final text and the attempt Oops logged, then
 what each further press of Fix text did (`toggle:` cases), counting the stub's calls. No model is called.
-`insert-` cases write text at the caret instead (inserts.py). Native scenarios run in fixtures/native-lab; web ones run fixtures/e2e/web.html,
+`insert-` cases write text at the caret instead (inserts.py); `action:` cases run a saved action instead (actions.py). Native scenarios run in fixtures/native-lab; web ones run fixtures/e2e/web.html,
 served here, in each browser host: WebKit (the native lab's web view), Chrome and Zen (Gecko), the
 browsers with throwaway profiles. Fronts the lab windows: don't run it while someone is using the
 Mac. Leaves Oops relaunched as normal and no defaults or profiles behind.
@@ -28,7 +28,9 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import actions
 import inserts
+from footprint import resources
 from scenarios import QUICK, SCENARIOS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -253,6 +255,8 @@ class Run:
         self.capture = None
         if "insert" in case:
             return inserts.check(self, case)
+        if "action" in case:
+            return actions.check(self, case)
         self.write(self.stub, case["stub"])
         self.show(case.get("scenario", "e2e"), case.get("text"), case.get("selection"), case.get("variant"))
         before = len([e for e in self.entries() if e["kind"] == "attempt"])
@@ -340,20 +344,6 @@ class Run:
         return [f"{label}: wanted {want!r}, got {actual!r}" for label, actual, want in found if actual != want]
 
 
-def resources():
-    """Oops's footprint (MB), threads, open files and child processes, or None when it isn't running."""
-    pid = subprocess.run(["pgrep", "-x", "oops"], capture_output=True, text=True).stdout.split()
-    if not pid:
-        return None
-    pid = pid[0]
-    footprint = subprocess.run(["footprint", "-p", pid], capture_output=True, text=True).stdout
-    mb = next((line.split()[1] for line in footprint.splitlines() if "phys_footprint:" in line), "?")
-    threads = len(subprocess.run(["ps", "-M", "-p", pid], capture_output=True, text=True).stdout.splitlines()) - 1
-    files = len(subprocess.run(["lsof", "-p", pid], capture_output=True, text=True).stdout.splitlines()) - 1
-    children = len(subprocess.run(["pgrep", "-P", pid], capture_output=True, text=True).stdout.split())
-    return {"footprint_mb": mb, "threads": threads, "open_files": files, "children": children}
-
-
 def main():
     args = sys.argv[1:]
     soak = 1
@@ -398,6 +388,10 @@ def main():
             "YES",
             "-SoundsEnabled",
             "NO",
+            "-DebugActions",
+            "YES",
+            "-ResultSeconds",
+            "5",
         )
         run.write(run.lab, {"scenario": "e2e", "nonce": "0", "text": ""})
         lab = subprocess.Popen(

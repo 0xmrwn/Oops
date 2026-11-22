@@ -21,6 +21,8 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     @Published var hovering = false
     /// The drop's target width, set by the view, so the panel knows where the pointer counts as over it.
     var width: CGFloat = 46
+    /// What the drop's controls are called; it changes only with the panel's content, which rebuilds the view.
+    var words = DropWords.fix
     var cancel: (() -> Void)?
     var revert: (() -> Void)?
     var copy: (() -> Void)?
