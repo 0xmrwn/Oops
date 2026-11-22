@@ -1,3 +1,4 @@
+import Synchronization
 import XCTest
 @testable import OopsCore
 
@@ -8,7 +9,7 @@ final class ClaudeAgentRunnerTests: XCTestCase {
     private var runs: URL { root.appendingPathComponent("runs") }
     private var home: URL { root.appendingPathComponent("a b") }
     private var environment: ClaudeAgentEnvironment {
-        .init(home: home, runs: runs, sandboxAvailable: { true }, grace: .milliseconds(200), handshake: .seconds(1))
+        .init(home: home, runs: runs, sandboxAvailable: { true }, grace: .milliseconds(200), handshake: ClaudeAgent.limit)
     }
 
     override func setUpWithError() throws {
@@ -25,7 +26,7 @@ final class ClaudeAgentRunnerTests: XCTestCase {
         return (text ?? "").split(separator: "\n").compactMap { pid_t($0) }.filter { $0 > 1 }
     }
 
-    private func runner(_ mode: FakeClaude.Mode, limit: Duration = .seconds(4), env: ClaudeAgentEnvironment? = nil) throws -> ClaudeAgentRunner {
+    private func runner(_ mode: FakeClaude.Mode, limit: Duration = ClaudeAgent.limit, env: ClaudeAgentEnvironment? = nil) throws -> ClaudeAgentRunner {
         try ClaudeAgentRunner(executable: FakeClaude.script(mode, in: root, record: record), environment: env ?? environment, limit: limit)
     }
 
@@ -36,26 +37,19 @@ final class ClaudeAgentRunnerTests: XCTestCase {
         return received
     }
 
-    private func assertClean(count: Int) async throws {
-        let deadline = ContinuousClock.now + .seconds(2)
-        while ContinuousClock.now < deadline {
-            if try files.contentsOfDirectory(atPath: runs.path).isEmpty, pids.allSatisfy({ kill($0, 0) == -1 && errno == ESRCH }) { break }
-            try await Task.sleep(for: .milliseconds(20))
-        }
+    private func assertClean(count: Int) throws {
         XCTAssertEqual(pids.count, count)
         for pid in pids { XCTAssertTrue(kill(pid, 0) == -1 && errno == ESRCH, "process still alive: \(pid)") }
         XCTAssertEqual(try files.contentsOfDirectory(atPath: runs.path), [])
     }
 
     func testAnswerArrivesBeforeExit() async throws {
-        let start = ContinuousClock.now
         let updates = try await collect(runner(.answer))
-        XCTAssertLessThan(start.duration(to: .now), .seconds(3))
         XCTAssertEqual(updates, [.step(.starting), .step(.thinking), .step(.searching("iana example domain")), .step(.reading("example.com")),
                                  .step(.done), .answer(#"{"text":"answer"}"#)])
         let cwd = try XCTUnwrap(String(contentsOf: record, encoding: .utf8).split(separator: "\n").first)
         XCTAssertEqual(URL(fileURLWithPath: String(cwd)).deletingLastPathComponent().path, ClaudeAgentFolder.realPath(runs))
-        try await assertClean(count: 1)
+        try assertClean(count: 1)
     }
 
     func testChildReceivesOnlyAllowedEnvironment() async throws {
@@ -63,7 +57,7 @@ final class ClaudeAgentRunnerTests: XCTestCase {
         env.hostEnvironment = ["PATH": "/usr/bin:/bin", "UNRELATED_SECRET_KEY": "private", "CLAUDE_TEST_VALUE": "config", "ANTHROPIC_TEST_VALUE": "signin"]
         _ = try await collect(runner(.answer, env: env))
         XCTAssertEqual(try String(contentsOf: record.appendingPathExtension("env"), encoding: .utf8), "\nconfig\nsignin\n")
-        try await assertClean(count: 1)
+        try assertClean(count: 1)
     }
 
     func testRunMarkerMustBeAnEntireEnvironmentEntry() {
@@ -91,33 +85,59 @@ final class ClaudeAgentRunnerTests: XCTestCase {
     func testSlashOnlySkillUsesCatalogSpelling() async throws {
         _ = try await collect(runner(.answer), setup: true, instruction: "Please /Review.")
         XCTAssertTrue(try String(contentsOf: record, encoding: .utf8).contains("Please /review."))
-        try await assertClean(count: 1)
+        try assertClean(count: 1)
     }
 
     private func assertTimeout(_ mode: FakeClaude.Mode, count: Int) async throws {
-        let start = ContinuousClock.now
-        do { _ = try await collect(runner(mode, limit: .milliseconds(400))); XCTFail("Expected timeout") }
-        catch { XCTAssertEqual(error as? ClaudeAgentError, .timedOut) }
-        try await assertClean(count: count)
-        XCTAssertLessThan(start.duration(to: .now), .seconds(2))
+        let expiry = AsyncStream<Void>.makeStream()
+        var env = environment
+        let limit = Duration.milliseconds(400)
+        env.sleep = { duration in
+            XCTAssertEqual(duration, limit)
+            try await withDeadline(ClaudeAgent.limit, orThrow: CancellationError()) {
+                for await _ in expiry.stream { break }
+                try Task.checkCancellation()
+            }
+        }
+        let runner = try runner(mode, limit: limit, env: env)
+        do {
+            for try await update in runner.run(.init(run: .init(), instructions: "shorten", input: "draft")) {
+                if update == .step(.reading("example.com")) { expiry.continuation.yield(()) }
+            }
+            XCTFail("Expected timeout")
+        } catch { XCTAssertEqual(error as? ClaudeAgentError, .timedOut) }
+        try assertClean(count: count)
     }
 
     func testTimeout() async throws { try await assertTimeout(.slow, count: 1) }
     func testTimeoutEndsCommandGroup() async throws { try await assertTimeout(.child, count: 3) }
 
     func testCancellationEndsCommandGroup() async throws {
-        let runner = try runner(.child)
-        let ready = AsyncStream<Void>.makeStream()
+        var env = environment
+        env.sleep = { _ in while true { try await Task.sleep(for: .seconds(600)) } }
+        let runner = try runner(.child, env: env)
+        let changes = try FakeClaude.directoryChanges(in: runs)
         let task = Task {
-            defer { ready.continuation.finish() }
+            var cancelled = false
             for try await update in runner.run(.init(run: .init(), instructions: "shorten", input: "draft")) {
-                if update == .step(.reading("example.com")) { ready.continuation.yield(()) }
+                if update == .step(.reading("example.com")) {
+                    cancelled = true
+                    withUnsafeCurrentTask { $0?.cancel() }
+                }
+            }
+            return cancelled
+        }
+        let cancelled = try await task.value
+        XCTAssertTrue(cancelled)
+        let runs = runs
+        enum Watchdog: Error { case cancellationCleanupTimedOut }
+        try await withDeadline(.seconds(30), orThrow: Watchdog.cancellationCleanupTimedOut) {
+            for await _ in changes {
+                if try FileManager.default.contentsOfDirectory(atPath: runs.path).isEmpty { return }
+                try Task.checkCancellation()
             }
         }
-        for await _ in ready.stream { break }
-        task.cancel()
-        _ = await task.result
-        try await assertClean(count: 3)
+        try assertClean(count: 3)
     }
 
     func testQuitEndsCommandGroup() async throws {
@@ -128,7 +148,7 @@ final class ClaudeAgentRunnerTests: XCTestCase {
             }
             XCTFail("Expected the run to stop")
         } catch { XCTAssertEqual(error as? ClaudeAgentError, .stopped) }
-        try await assertClean(count: 3)
+        try assertClean(count: 3)
     }
 
     func testSweepRemovesOnlyOldRunFolders() throws {
@@ -154,13 +174,13 @@ final class ClaudeAgentRunnerTests: XCTestCase {
         do { _ = try await collect(runner(.answer), setup: true); XCTFail("Expected invalid permission rule") }
         catch { XCTAssertEqual(error as? ClaudeAgentError, .sandboxUnavailable) }
         XCTAssertFalse(files.fileExists(atPath: record.path))
-        try await assertClean(count: 0)
+        try assertClean(count: 0)
     }
 
     func testUsageLimit() async throws {
         do { _ = try await collect(runner(.error)); XCTFail("Expected usage limit") }
         catch { XCTAssertEqual((error as? CorrectionError)?.reason, .limit) }
-        try await assertClean(count: 1)
+        try assertClean(count: 1)
     }
 
     func testSandboxUnavailable() async throws {
@@ -169,10 +189,10 @@ final class ClaudeAgentRunnerTests: XCTestCase {
         do { _ = try await collect(runner(.answer, env: env)); XCTFail("Expected sandbox failure") }
         catch { XCTAssertEqual(error as? ClaudeAgentError, .sandboxUnavailable) }
         XCTAssertFalse(files.fileExists(atPath: record.path))
-        try await assertClean(count: 0)
+        try assertClean(count: 0)
         do { _ = try await collect(runner(.noSandbox)); XCTFail("Expected sandbox failure") }
         catch { XCTAssertEqual(error as? ClaudeAgentError, .sandboxUnavailable) }
-        try await assertClean(count: 1)
+        try assertClean(count: 1)
     }
 
     func testSetupStagesSkillsAndRewritesOnlyInstructions() async throws {
@@ -193,7 +213,7 @@ final class ClaudeAgentRunnerTests: XCTestCase {
         XCTAssertTrue(flags.contains("\nstaged\n"))
         XCTAssertTrue(files.fileExists(atPath: x.path))
         XCTAssertEqual(try String(contentsOf: record.appendingPathExtension("input"), encoding: .utf8), "<draft>$review</draft>")
-        try await assertClean(count: 1)
+        try assertClean(count: 1)
     }
 }
 
@@ -229,12 +249,12 @@ extension ClaudeAgentRunnerTests {
         let outsidePath = ClaudeAgentFolder.realPath(root) + "/outside"
         let probePath = ClaudeAgentFolder.realPath(probe)
         let receipt = UUID().uuidString
-        let observed = expectation(description: "finished tool calls")
+        let observed = Mutex(false)
         env.observeResult = { folder, refusals in
             XCTAssertTrue(refusals.contains(.init(tool: "Write", path: outsidePath)))
             XCTAssertTrue(refusals.contains(.init(tool: "Read", path: probePath)))
             XCTAssertEqual(try? String(contentsOf: folder.appendingPathComponent("receipt.txt"), encoding: .utf8), receipt)
-            observed.fulfill()
+            observed.withLock { $0 = true }
         }
         let instruction = """
         Use Write to create receipt.txt in the current directory containing exactly \(receipt) with no newline.
@@ -244,7 +264,7 @@ extension ClaudeAgentRunnerTests {
         """
         let answer = try await liveAnswer(instruction, draft: "Keep this sentence.", run: .init(model: "haiku", effort: "low", searchWeb: false, runCommands: true),
                                           runtime: runtime, environment: env)
-        await fulfillment(of: [observed], timeout: 1)
+        XCTAssertTrue(observed.withLock { $0 })
         XCTAssertFalse(files.fileExists(atPath: outside.path))
         XCTAssertFalse(answer.text.contains(token))
         XCTAssertEqual(answer.text, "Keep this sentence.")

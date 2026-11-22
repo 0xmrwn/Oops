@@ -209,9 +209,14 @@ public protocol CorrectionBackend: Sendable {
 /// `body`'s result, or `timeout` thrown once `limit` passes; `body` is cancelled either way.
 public func withDeadline<T: Sendable>(_ limit: Duration, orThrow timeout: Error,
                                       _ body: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withDeadline(limit, orThrow: timeout, sleep: { try await Task.sleep(for: $0) }, body)
+}
+
+func withDeadline<T: Sendable>(_ limit: Duration, orThrow timeout: Error, sleep: @escaping @Sendable (Duration) async throws -> Void,
+                               _ body: @escaping @Sendable () async throws -> T) async throws -> T {
     try await withThrowingTaskGroup(of: T.self) { group in
         group.addTask { try await body() }
-        group.addTask { try await Task.sleep(for: limit); throw timeout }
+        group.addTask { try await sleep(limit); throw timeout }
         defer { group.cancelAll() }
         return try await group.next()!
     }

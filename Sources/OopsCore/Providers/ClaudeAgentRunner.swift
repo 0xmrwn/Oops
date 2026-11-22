@@ -24,6 +24,7 @@ public struct ClaudeAgentEnvironment: Sendable {
     public var sandboxAvailable: @Sendable () -> Bool
     public var grace: Duration, handshake: Duration
 
+    var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     var hostEnvironment = ProcessInfo.processInfo.environment
     var observeResult: (@Sendable (URL, [ClaudeAgent.Refusal]) -> Void)?
 
@@ -89,7 +90,7 @@ public struct ClaudeAgentRunner: AgentRunning {
         process.send(request.input)
         updates.yield(.step(.starting))
         do {
-            try await withDeadline(limit, orThrow: ClaudeAgentError.timedOut) {
+            try await withDeadline(limit, orThrow: ClaudeAgentError.timedOut, sleep: environment.sleep) {
                 try await read(process, folder: folder.url, updates: updates)
             }
         } catch {

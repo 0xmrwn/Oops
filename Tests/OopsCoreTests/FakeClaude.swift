@@ -27,13 +27,20 @@ enum FakeClaude {
         if mode == .child {
             source += #"""
             trap '' TERM
+            mkfifo "$record.pids.ready" || exit 1
             /usr/bin/perl -e '
               setpgrp(0,0);
               sub record { open(my $f, ">>", $ARGV[0]) or die; print $f "$$\n"; close $f; }
               record();
-              if (fork() == 0) { record(); exec "/bin/sleep", "301"; }
-              exec "/bin/sleep", "302";' "$record.pids" &
-            while [ "$(wc -l < "$record.pids")" -lt 3 ]; do sleep 0.01; done
+              if (fork() == 0) {
+                alarm 600;
+                record();
+                open(my $ready, ">", "$ARGV[0].ready") or die;
+                print $ready "ready\n";
+                close $ready;
+              }
+              sleep 600;' "$record.pids" &
+            read -r ready < "$record.pids.ready"
 
             """#
         }
@@ -47,20 +54,35 @@ enum FakeClaude {
         """#
         switch mode {
         case .answer:
-            source += #"echo '{"type":"result","subtype":"success","structured_output":{"text":"answer"},"permission_denials":[{"tool_name":"Write"}]}'"# + "\nexec sleep 5"
+            source += #"echo '{"type":"result","subtype":"success","structured_output":{"text":"answer"},"permission_denials":[{"tool_name":"Write"}]}'"# + "\nexec /usr/bin/perl -e 'sleep 600'"
         case .orphan:
             source += #"""
             trap '' TERM
-            /bin/sleep 300 </dev/null >/dev/null 2>&1 &
+            /usr/bin/perl -e 'sleep 600' </dev/null >/dev/null 2>&1 &
             echo "$!" >> "$record.pids"
             exit 0
             """#
-        case .slow, .child: source += "exec sleep 300"
+        case .slow, .child: source += "exec /usr/bin/perl -e 'sleep 600'"
         case .noSandbox: source += "echo 'Error: sandbox is required but not available' >&2\nexit 1"
         case .error: source += #"echo '{"type":"result","is_error":true,"api_error_status":429}'"#
         }
         try source.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         return script
+    }
+}
+
+extension FakeClaude {
+    static func directoryChanges(in folder: URL) throws -> AsyncStream<Void> {
+        let fd = open(folder.path, O_EVTONLY)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: .write, queue: .global())
+        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { events in
+            source.setRegistrationHandler { events.yield(()) }
+            source.setEventHandler { events.yield(()) }
+            source.setCancelHandler { close(fd) }
+            events.onTermination = { _ in source.cancel() }
+            source.activate()
+        }
     }
 }
