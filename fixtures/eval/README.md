@@ -38,6 +38,28 @@ them. Synthetic cases are written fresh: no quotes, names or client details from
 - `split`: `dev` (150, tuned on) or `held` (50, never tuned on). The baseline runs both; a future optimizer must not see held-back cases.
 - `version`: the set's version; any change to a case makes a new one.
 
+## Action case: `action-cases.jsonl`
+
+`run --corpus` accepts Fix and Action cases in the same file. An `action` field selects Actions.
+
+```json
+{"id":"act-en-001","input":"The spare key is in the drawer under the window.","lang":"en",
+ "action":{"starter":"Translate","value":"French"},"checks":{"language":"fr"},"group":"starter","origin":"synthetic"}
+```
+
+- `id`: `act-<lang>-<nnn>`. `lang` is the draft's language, `en` or `fr`.
+- `action`: a `starter` name (Translate, Shorten, Tone or Sharpen prompt) with an optional free-text
+  `value`, or an `instruction` string for a custom rewrite.
+- `checks`: every answer must decode to non-empty text. Optional checks exclude a `canary` substring
+  ignoring case, require a target `language` (`en` or `fr`), or require fewer characters than the
+  draft (`shorter: true`). Language requires at least three function-word hits and a score favoring
+  the requested language.
+- `group`: `starter`, `custom` or `instructions-in-draft`. `origin` is `synthetic`.
+
+A decoded Action answer gets a `passed` or `failed` verdict across the requested checks. An unusable
+answer gets `invalid`. With `--provider echo`, a translation keeps the source language and a shorter
+rewrite keeps the original length, so both checks should fail.
+
 ## Result: `runs/<run>/results/<lane>--<model>.jsonl`
 
 One record per call. A run can be resumed: a case with a final record for an attempt isn't sent again, and an

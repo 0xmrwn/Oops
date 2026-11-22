@@ -12,6 +12,8 @@ struct Experiment: Codable, Equatable {
     var sourceRevision: String
     var prompt: String
     var promptSha256: String
+    var effectivePrompts: [String]?
+    var promptVersion: String { effectivePrompts == nil ? String(promptSha256.prefix(12)) : "multiple" }
     var attempts: Int
     var limit: Int?
     var pricesSha256: String? = nil
@@ -42,9 +44,15 @@ struct Experiment: Codable, Equatable {
         let revision = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw CorrectionError.message("Can't identify the source revision.") }
+        let prompts = selected.contains { $0.action != nil }
+            ? Set(selected.map { Data($0.request.instructions.utf8) }).sorted { $0.lexicographicallyPrecedes($1) }.map { String(decoding: $0, as: UTF8.self) }
+            : [CorrectionPolicy.instructions]
+        let multiple = prompts.count > 1
+        let prompt = multiple ? "multiple" : prompts[0]
         var experiment = Experiment(casesSha256: digest(try Data(contentsOf: cases)), configSha256: digest(try Data(contentsOf: config)),
-                          sourceSha256: digest(data), sourceRevision: revision, prompt: CorrectionPolicy.instructions,
-                          promptSha256: digest(Data(CorrectionPolicy.instructions.utf8)), attempts: attempts, limit: limit)
+                          sourceSha256: digest(data), sourceRevision: revision, prompt: prompt,
+                          promptSha256: multiple ? "multiple" : digest(Data(prompt.utf8)), effectivePrompts: multiple ? prompts : nil,
+                          attempts: attempts, limit: limit)
         if let prices = try LanesConfig.read(config).prices {
             experiment.pricesSha256 = digest(try Data(contentsOf: config.deletingLastPathComponent().appendingPathComponent(prices)))
         }

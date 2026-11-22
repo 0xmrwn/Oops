@@ -93,6 +93,14 @@ def fixture(root, output="the cat is here", two_lanes=False):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_collect_skips_action_output_and_raw_answer(self):
+        cases = {"c": case(), "a": case("a", action={"instruction": "Translate to French"})}
+        records = [{"case": key, "output": "one", "raw": '{"text":"two"}'} for key in cases]
+        tasks = collect(cases, records, self.rubric)
+        self.assertEqual(
+            [(t["evidence"]["case"], t["evidence"]["corrected"]) for t in tasks.values()], [("c", "one"), ("c", "two")]
+        )
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)

@@ -19,7 +19,7 @@ struct EvalCase: Codable, Sendable {
     var input: String
     var expected: String?
     var rejected: String?
-    var label: Label
+    var label: Label?
     var app: String?
     var model: String?
     var date: Date?
@@ -34,6 +34,10 @@ struct EvalCase: Codable, Sendable {
     /// A real draft and all synthetic descendants share a split and a sampling unit.
     var family: String?
     var instructions: String?
+
+    var action: ActionCase?
+    var checks: ActionChecks?
+    var group: String?
 
     struct Tags: Codable, Sendable {
         var errors: [String]?
@@ -134,7 +138,11 @@ enum Corpus {
 
     static func read(_ url: URL) throws -> [EvalCase] {
         let decoder = DebugLogStore.decoder()
-        return try Data(contentsOf: url).split(separator: 0x0A).map { try decoder.decode(EvalCase.self, from: Data($0)) }
+        return try Data(contentsOf: url).split(separator: 0x0A).map {
+            let item = try decoder.decode(EvalCase.self, from: Data($0))
+            guard item.action != nil || item.label != nil else { throw CorrectionError.message("Missing label for " + item.id) }
+            return item
+        }
     }
 
     static func write(_ items: [some Encodable], to url: URL) throws {

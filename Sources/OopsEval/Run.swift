@@ -21,12 +21,15 @@ struct EvalResult: Codable {
         case repeatedRejection
         /// No expected answer to compare with.
         case unscored
+        case passed, failed
         case invalid
         case error
     }
 
     var id: String
-    var label: EvalCase.Label
+    var label: EvalCase.Label?
+    var actionChecks: ActionChecks?
+    var checks: CallRecord.Checks?
     var verdict: Verdict
     /// The case's draft and the model's answer before decoding, so `replay` can decode it again.
     var input: String?
@@ -60,19 +63,27 @@ enum Runner {
 
     static func evaluate(_ item: EvalCase, backend: any CorrectionBackend) async -> EvalResult {
         let started = ContinuousClock.now
-        var result = EvalResult(id: item.id, label: item.label, verdict: .error, input: item.input, milliseconds: 0)
+        var result = EvalResult(id: item.id, label: item.label, actionChecks: item.action == nil ? nil : item.checks ?? ActionChecks(),
+                                verdict: .error, input: item.input, milliseconds: 0)
         do {
-            let raw = try await backend.complete(item.input, instructions: item.instructions ?? CorrectionPolicy.instructions)
+            let request = item.request
+            let raw = try await backend.complete(request.input, instructions: request.instructions)
             result.raw = raw
             do {
-                let reconciled = try CorrectionPolicy.reconcile(raw, original: item.input)
-                let output = reconciled.text
-                result.output = output
-                if !reconciled.dropped.isEmpty { result.dropped = reconciled.dropped.count }
-                result.verdict = verdict(output, for: item)
-                if let expected = item.expected { result.distance = distance(output, expected) }
+                if item.action != nil {
+                    let answer = try ActionAnswer(raw: raw, item: item)
+                    result.output = answer.output; result.checks = answer.checks; result.verdict = answer.verdict
+                } else {
+                    let reconciled = try CorrectionPolicy.reconcile(raw, original: item.input)
+                    let output = reconciled.text
+                    result.output = output
+                    if !reconciled.dropped.isEmpty { result.dropped = reconciled.dropped.count }
+                    result.verdict = verdict(output, for: item)
+                    if let expected = item.expected { result.distance = distance(output, expected) }
+                }
             } catch {
-                result.verdict = .invalid; result.output = raw; result.error = error.localizedDescription
+                if item.action != nil { result.checks = .init(valid: false) } else { result.output = raw }
+                result.verdict = .invalid; result.error = error.localizedDescription
             }
         } catch {
             result.error = error.localizedDescription
@@ -128,7 +139,10 @@ struct Summary: Codable {
 
     init(_ results: [EvalResult], cases: [EvalCase], model: String) {
         self.model = model
-        promptVersion = CorrectionPolicy.promptVersion
+        if cases.contains(where: { $0.action != nil }) {
+            let versions = Set(cases.map(\.promptVersion))
+            promptVersion = versions.count == 1 ? versions.first! : "multiple"
+        } else { promptVersion = CorrectionPolicy.promptVersion }
         self.cases = results.count
         verdicts = Dictionary(grouping: results, by: \.verdict.rawValue).mapValues(\.count)
         let byID = Dictionary(cases.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })

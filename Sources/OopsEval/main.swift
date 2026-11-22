@@ -78,7 +78,7 @@ case "export":
                                                                redact: flags.contains("--redact")))
     let url = output("--out", default: "corpus.jsonl")
     do { try Corpus.write(cases, to: url) } catch { fail(error.localizedDescription) }
-    let labels = Dictionary(grouping: cases, by: \.label.rawValue).mapValues(\.count).sorted { $0.key < $1.key }
+    let labels = Dictionary(grouping: cases.compactMap(\.label), by: \.rawValue).mapValues(\.count).sorted { $0.key < $1.key }
     print("\(cases.count) cases → \(url.path) (\(labels.map { "\($0.key) \($0.value)" }.joined(separator: ", ")))")
 
 case "finetune":
