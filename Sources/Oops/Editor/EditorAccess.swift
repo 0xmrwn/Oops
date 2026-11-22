@@ -138,7 +138,7 @@ actor EditorAccess {
             }
             // The copy fallback reads whatever is selected: never in a field that holds a secret.
             guard subrole != kAXSecureTextFieldSubrole, !SensitiveField.matches(self.descriptions(element)) else {
-                throw CorrectionError.message("Oops doesn’t read password or code fields.")
+                throw CorrectionError.message(Self.secureFieldMessage)
             }
             self.logOpaque(element, role: role)
             throw opaque(role: role, subrole: subrole, selected: nil)
@@ -146,7 +146,7 @@ actor EditorAccess {
         AXUIElementSetMessagingTimeout(element, 0.25)
         guard field.subrole != kAXSecureTextFieldSubrole, field.role == kAXTextAreaRole || !SensitiveField.matches(self.descriptions(element)) else {
             self.restoreFullAccessibility(pid: pid)
-            throw CorrectionError.message("Oops doesn’t read password or code fields.")
+            throw CorrectionError.message(Self.secureFieldMessage)
         }
         guard var value = self.text(element, strategy), var selection = self.selection(element, strategy) else {
             self.restoreFullAccessibility(pid: pid)

@@ -81,11 +81,12 @@ extension EditorAccess {
         return (applied, corrected)
     }
 
+    /// `keepsTokens` false lets an action rewrite code and mentions; an attachment is never pasted over.
     func replace(_ snapshot: EditorSnapshot, from before: String, to after: String, caret: NSRange, clipboard: ClipboardLease,
-                 protected: () -> Bool) throws -> EditorSnapshot {
+                 protected: () -> Bool, keepsTokens: Bool = true) throws -> EditorSnapshot {
         if sameText(before, after) { return snapshot }
         let edits = TextEdits.between(before, after)
-        guard !edits.contains(where: { Self.containsMentionOrCode($0.original) || $0.original.contains("\u{FFFC}") }) else {
+        guard !edits.contains(where: { keepsTokens && Self.containsMentionOrCode($0.original) || $0.original.contains("\u{FFFC}") }) else {
             throw CorrectionError.message("The edited span crosses code, a mention or an attachment. Select a smaller text span to preserve it.")
         }
         try Task.checkCancellation()
@@ -118,7 +119,8 @@ extension EditorAccess {
                 throw PartialReplacement(applied: draft, done: done, total: edits.count, snapshot: snapshot)
             } catch is EditorKeptSelection where done == 0 && (initial?.length ?? 0) > 0 {
                 // The editor still holds the person's own selection: replace it whole instead.
-                return try replaceSelection(snapshot, initial!, from: before, to: after, clipboard: clipboard, protected: protected)
+                return try replaceSelection(snapshot, initial!, from: before, to: after, clipboard: clipboard, protected: protected,
+                                            keepsTokens: keepsTokens)
             } catch {
                 guard done > 0 else { throw error }
                 // A paste confirmed only by the letters the text holds isn't proved: no partial revert from it.

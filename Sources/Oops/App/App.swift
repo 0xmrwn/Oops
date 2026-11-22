@@ -10,6 +10,7 @@ import OopsCore
     /// The drop and the flash over the draft, which one feature holds at a time.
     let drop = DropOwner()
     private(set) lazy var session = CorrectionSession(preferences: preferences, testEditor: testEditor, drop: drop)
+    private(set) lazy var actions = makeActions()
     private(set) lazy var settings = SettingsWindow(preferences: preferences, testEditor: testEditor, session: session)
     private(set) var menuBar: MenuBar?
     let shortcuts = HyperShortcuts()
@@ -50,6 +51,8 @@ import OopsCore
             switch (action, phase) {
             case (.correct, .pressed): self?.session.correct()
             case (.correct, .released): break
+            case (.actions, .pressed): self?.actions.pressed()
+            case (.actions, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
             case (.dictateAndCleanUp, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock, cleanUp: true)
             }

@@ -1,5 +1,6 @@
 import Carbon
 @testable import Oops
+import OopsCore
 import XCTest
 
 /// Which actions register, with what, and that two of them never share a chord.
@@ -42,5 +43,32 @@ import XCTest
         XCTAssertEqual(ShortcutSettings.clash(.dictate, fixDefault, with: both), .correct)
         XCTAssertEqual(ShortcutSettings.clash(.correct, chord, with: both), .dictate)
         XCTAssertNil(ShortcutSettings.clash(.dictate, chord, with: both), "its own chord again")
+    }
+
+    func testActionsHasNoDefaultAndIsItsFeaturesSwitch() {
+        XCTAssertNil(ShortcutSettings.defaultShortcut(.actions, w: 13))
+        XCTAssertEqual(ShortcutSettings.registration(.actions, shortcut: nil, dictation: true), .off)
+        XCTAssertEqual(ShortcutSettings.registration(.actions, shortcut: chord, dictation: true), .chord(chord))
+        XCTAssertTrue(ShortcutSettings.Action.actions.isSwitch)
+        XCTAssertEqual(ShortcutSettings.Action.actions.tab, .actions)
+    }
+
+    func testActionsIsUnsetWithoutItsDebugSwitch() {
+        XCTAssertFalse(ShortcutSettings.isAvailable(.actions, actions: false))
+        XCTAssertTrue(ShortcutSettings.isAvailable(.actions, actions: true))
+        XCTAssertTrue(ShortcutSettings.isAvailable(.correct, actions: false))
+        XCTAssertTrue(ShortcutSettings.isAvailable(.dictate, actions: false))
+    }
+
+    func testHotkeyIdentitiesKeepTheirPlaces() {
+        let router = HotkeyRouter(ShortcutSettings.Action.allCases)
+        XCTAssertEqual(router.identity(of: .correct), 1)
+        XCTAssertEqual(router.identity(of: .dictate), 2)
+        XCTAssertEqual(router.identity(of: .dictateAndCleanUp), 3)
+        XCTAssertEqual(router.identity(of: .actions), 4)
+    }
+
+    func testActionsClashesLikeAnyOther() {
+        XCTAssertEqual(ShortcutSettings.clash(.actions, chord, with: [.dictate: chord]), .dictate)
     }
 }
