@@ -71,12 +71,14 @@ private struct ChoiceBounds<Value: Hashable>: PreferenceKey {
 struct GlassSearchField: View {
     let title: String
     @Binding var text: String
+    /// Return in the field.
+    var onSubmit: () -> Void = {}
     @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 7) {
             Image(systemName: "magnifyingglass").font(.system(size: 12, weight: .semibold)).secondaryText().accessibilityHidden(true)
-            TextField(title, text: $text, prompt: Text(title)).textFieldStyle(.plain).focused($focused)
+            TextField(title, text: $text, prompt: Text(title)).textFieldStyle(.plain).focused($focused).onSubmit(onSubmit)
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 13)).secondaryText().contentShape(Circle())

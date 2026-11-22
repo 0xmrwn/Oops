@@ -8,6 +8,8 @@ struct InfoTip<Visual: View>: View {
     let title: String?
     let text: String
     @ViewBuilder let visual: Visual
+    /// Where the popover opens from the icon: above it for a tip near the window's bottom edge.
+    var edge: Edge = .bottom
     @State private var shown = false
     /// Opened by a click rather than a hover: leaving it doesn't close it.
     @State private var pinned = false
@@ -35,7 +37,7 @@ struct InfoTip<Visual: View>: View {
         // leaves Escape to whatever holds the tip, such as the speech model picker.
         .onExitCommand(perform: shown ? { shown = false } : nil)
         .onHover { overIcon = $0; hovered() }
-        .popover(isPresented: $shown, arrowEdge: .bottom) {
+        .popover(isPresented: $shown, arrowEdge: edge) {
             tip.onHover { overTip = $0; hovered() }
         }
         .onChange(of: shown) { if !shown { pinned = false } }
@@ -70,6 +72,7 @@ struct InfoTip<Visual: View>: View {
 extension InfoTip where Visual == EmptyView {
     init(_ text: String) { self.init(nil, text) { EmptyView() } }
     init(_ title: String, _ text: String) { self.init(title, text) { EmptyView() } }
+    init(_ title: String, _ text: String, edge: Edge) { self.init(title, text) { EmptyView() }; self.edge = edge }
 }
 
 /// What saying something writes, in a tip: Clean up's and its small cleanups' examples.

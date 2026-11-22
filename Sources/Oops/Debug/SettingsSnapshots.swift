@@ -34,8 +34,15 @@ import SwiftUI
         defer { try? FileManager.default.removeItem(at: historyFolder) }
         let history = sampleHistory(in: historyFolder)
         let actions = ActionLibraryModel(preview: true)
+        let modelRun = ActionRunsWith(kind: .model, model: .init(choice: .init(providerID: "claude-code", modelID: "haiku"), effort: "low"))
+        let agentRun = ActionRunsWith(kind: .agent, agent: .init(model: "sonnet", effort: "high", searchWeb: true, runCommands: true))
         let pages: [(String, () -> AnyView)] = [
             ("actions-wheel", { AnyView(ActionsPage(store: store, navigation: ActionsNavigation(library: actions), spare: SpareSpaceModel(), library: actions)) }),
+            ("actions-runs-model", { AnyView(RunsWithPage(store: store, parent: "Translate", runsWith: .constant(modelRun), back: {})) }),
+            ("actions-runs-agent", { AnyView(RunsWithPage(store: store, parent: "Translate", runsWith: .constant(agentRun), back: {}, agent: .ready)) }),
+            ("actions-runs-agent-missing", {
+                AnyView(RunsWithPage(store: store, parent: "Translate", runsWith: .constant(agentRun), back: {}, agent: .unavailable("Not set up")))
+            }),
             ("dictate-history", { AnyView(DictationHistoryPage(model: history)) }),
             ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences)) }),
             ("picker-picks", { AnyView(SpeechModelPage(target: target, store: store, local: local) {}) }),

@@ -113,10 +113,8 @@ private struct ModelPopover: View {
     let dismiss: () -> Void
     let openProviders: () -> Void
     @State private var choosing: Bool
-    @State private var highlighted: ModelSelection.Choice?
-    @FocusState private var focus: Focus?
+    @FocusState private var focus: ModelPickerFocus?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private enum Focus: Hashable { case slider, list }
 
     init(store: ProviderStore, dismiss: @escaping () -> Void, openProviders: @escaping () -> Void) {
         self.store = store; self.dismiss = dismiss; self.openProviders = openProviders
@@ -141,14 +139,10 @@ private struct ModelPopover: View {
         .frame(width: 300)
         .padding(14)
         .clipped()
-        .onAppear {
-            highlighted = store.selection.choice
-            focus = choosing ? .list : .slider
-        }
+        .onAppear { focus = choosing ? .list : .slider }
     }
 
     private func drill(_ into: Bool) {
-        if into { highlighted = store.selection.choice }
         withAnimation(SettingsMotion.drill(reduceMotion)) { choosing = into }
         DispatchQueue.main.async { focus = into ? .list : .slider }
     }
@@ -244,104 +238,10 @@ private struct ModelPopover: View {
 
     // MARK: Model list pane
 
-    /// Every shown model in picker order, for arrow-key movement across providers.
-    private var choices: [ModelSelection.Choice] {
-        store.pickerGroups.flatMap { group in
-            store.problem(group.provider.id) == nil ? group.models.map { .init(providerID: group.provider.id, modelID: $0.id) } : []
-        }
-    }
-
     private var modelList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                if Self.hasOptions(store.currentModel) {
-                    Button { drill(false) } label: { Image(systemName: "chevron.left").frame(width: 16, height: 16) }
-                        .buttonStyle(.settingsGlass)
-                        .buttonBorderShape(.circle)
-                        .accessibilityLabel("Back")
-                        .frame(width: 30)
-                } else {
-                    Color.clear.frame(width: 30, height: 1)
-                }
-                Spacer()
-                Text("Select model").font(.headline).accessibilityAddTraits(.isHeader)
-                Spacer()
-                Color.clear.frame(width: 30, height: 1)
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(store.pickerGroups.enumerated()), id: \.element.provider.id) { index, group in
-                        let problem = store.problem(group.provider.id)
-                        if index > 0 { SettingsDivider().padding(.vertical, 6) }
-                        HStack(spacing: 8) {
-                            ProviderMark(provider: group.provider, size: 18)
-                            Text(group.provider.name).fontWeight(.semibold)
-                            Spacer()
-                            if let problem { StatusBadge(problem, ok: false) }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .accessibilityAddTraits(.isHeader)
-                        ForEach(group.models) { model in row(model, in: group.provider, disabled: problem != nil) }
-                    }
-                }
-            }
-            .scrollBounceBehavior(.basedOnSize)
-            // Scrolling is the exception (many providers); then the bar shows, so nothing hides below.
-            .scrollIndicators(.visible)
-            .frame(maxHeight: 560)
-            .fixedSize(horizontal: false, vertical: true)
-            .focusable()
-            .focused($focus, equals: .list)
-            .focusEffectDisabled()
-            .onKeyPress(.upArrow) { moveHighlight(-1); return .handled }
-            .onKeyPress(.downArrow) { moveHighlight(1); return .handled }
-            .onKeyPress(.return) {
-                if let highlighted, choices.contains(highlighted) { choose(highlighted) }
-                return .handled
-            }
-            .onKeyPress(.leftArrow) { if Self.hasOptions(store.currentModel) { drill(false) }; return .handled }
-            Button(action: openProviders) {
-                HStack {
-                    Text("Providers…")
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(PopoverRowStyle())
-        }
-        .onKeyPress(.escape) {
-            if Self.hasOptions(store.currentModel) { drill(false) } else { dismiss() }
-            return .handled
-        }
-    }
-
-    private func row(_ model: CatalogModel, in provider: Provider, disabled: Bool) -> some View {
-        let choice = ModelSelection.Choice(providerID: provider.id, modelID: model.id)
-        let current = choice == store.selection.choice
-        return Button { choose(choice) } label: {
-            HStack(spacing: 8) {
-                // Indented to the provider name above it: the header is the group, rows its members.
-                Text(model.name).padding(.leading, 26)
-                Spacer(minLength: 4)
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .opacity(current ? 1 : 0)
-            }
-        }
-        .buttonStyle(PopoverRowStyle(highlighted: highlighted == choice))
-        .disabled(disabled)
-        .onHover { if $0, !disabled { highlighted = choice } }
-        .accessibilityLabel("\(model.name), \(provider.name)")
-        .accessibilityAddTraits(current ? .isSelected : [])
-    }
-
-    private func moveHighlight(_ delta: Int) {
-        let list = choices
-        guard !list.isEmpty else { return }
-        let index = highlighted.flatMap { list.firstIndex(of: $0) } ?? 0
-        highlighted = list[min(max(index + delta, 0), list.count - 1)]
+        ModelList(store: store, groups: store.pickerGroups, current: store.selection.choice, title: "Select model",
+                  back: Self.hasOptions(store.currentModel) ? { drill(false) } : nil, openProviders: openProviders,
+                  choose: { if let choice = $0 { choose(choice) } }, dismiss: dismiss, focus: $focus)
     }
 
     private func choose(_ choice: ModelSelection.Choice) {

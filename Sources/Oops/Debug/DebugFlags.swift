@@ -148,11 +148,15 @@ enum DebugFlags {
     static var actionsPreview: Bool { bool("SettingsPreviewActions") }
     /// Opens an Actions page: an action's name (a prefix), `new` for a new one, or `typed` for how a typed instruction runs.
     static var settingsAction: String? { string("SettingsPreviewAction") }
-    /// A state inside an action's editor: `runs`, `try`, `icons`, `delete`, `choice`, `insert`, `eight` or `long`.
+    /// A state inside an action's editor: `runs`, `picker` (Runs with, its model list open), `try`, `icons`, `delete`, `choice`, `insert`, `eight` or `long`.
     static var settingsActionPage: String? { string("SettingsPreviewActionPage") }
     /// With `-SettingsPreviewActions`, how the opened action runs: `model` (Haiku 5.5, Low) or `agent` (Claude Code,
     /// Sonnet 5.5, High, with web and commands).
     static var actionRuns: String? { string("SettingsPreviewActionRuns") }
+    /// `notInstalled`, `signedOut` or `missing`: Runs with's Agent side as if Claude Code were so.
+    static var claudeCodeState: String? { string("SettingsPreviewClaudeCode") }
+    /// The model list opens with this search typed (Fix's and an action's).
+    static var modelSearch: String? { string("SettingsPreviewModelSearch") }
     static var chatGPT: String? { string("SettingsPreviewChatGPT") }
     static var provider: String? { string("SettingsPreviewProvider") }
     /// A pointer position (`x,y`) for hover states in captures.
