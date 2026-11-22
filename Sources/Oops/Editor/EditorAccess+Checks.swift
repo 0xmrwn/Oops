@@ -5,6 +5,7 @@ import OopsCore
 /// What a readable field must pass before its text counts as a draft: no input method composing in
 /// it, editable, not a masked secret, and not a hidden input proxy whose value isn't the text on screen.
 extension EditorAccess {
+    static let secureFieldMessage = "Oops doesn’t read password or code fields."
     static let composingMessage = "An input method is still composing here. Finish typing, then try again."
 
     /// Why this field's text can't be corrected, or nil when it can.
@@ -12,7 +13,7 @@ extension EditorAccess {
                              value: String, webContent: Bool) -> CorrectionError? {
         // Marked text isn't the person's yet, and pasting under it breaks the composition.
         if composing(element) { return .message(Self.composingMessage) }
-        if field.role != kAXTextAreaRole, SensitiveField.isMasked(value) { return .message("Oops doesn’t read password or code fields.") }
+        if field.role != kAXTextAreaRole, SensitiveField.isMasked(value) { return .message(Self.secureFieldMessage) }
         if strategy != .markers, readOnly(element, webContent: webContent) {
             return .message("This text is read-only, so there’s no draft to correct. Click into a field you can edit.")
         }

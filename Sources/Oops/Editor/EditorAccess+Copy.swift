@@ -8,10 +8,12 @@ import OopsCore
 extension EditorAccess {
     /// The selection of an editor that exposes no text, read with ⌘C under a clipboard lease; the
     /// clipboard is put back after.
-    func captureByCopy(_ opaque: OpaqueEditor) async throws -> EditorSnapshot {
-        let shortcut = await ShortcutSettings.shared.label(.correct)
+    /// `action` is the feature asking, whose shortcut the messages name, and `selecting` what they ask to select.
+    func captureByCopy(_ opaque: OpaqueEditor, action: ShortcutSettings.Action = .correct,
+                       selecting: String = "the text to fix") async throws -> EditorSnapshot {
+        let shortcut = await ShortcutSettings.shared.label(action)
         if opaque.selected == false {
-            throw CorrectionError.message("Oops can’t read this editor’s text. Select the text to fix, then press \(shortcut).")
+            throw CorrectionError.message("Oops can’t read this editor’s text. Select \(selecting), then press \(shortcut).")
         }
         try await KeyboardGate.waitForModifierRelease()
         // Waiting for the shortcut's keys to be let go gave focus time to move: copy only from the captured editor.
@@ -30,7 +32,7 @@ extension EditorAccess {
         let lineCopy = (opaque.empty != nil || opaque.rejectCopiedLine && opaque.selected != true) && copied?.last?.isNewline == true
         guard let copied, !copied.isEmpty, !lineCopy else {
             if let empty = opaque.empty { throw empty }
-            throw CorrectionError.message("Oops can’t read this editor’s text. Select the text to fix, then press \(shortcut).")
+            throw CorrectionError.message("Oops can’t read this editor’s text. Select \(selecting), then press \(shortcut).")
         }
         // Pasting plain text back over an attachment or image would drop it, with no revert to bring it back.
         guard !copiedAttachment(copied) else {

@@ -70,7 +70,7 @@ struct Shortcut: Codable, Equatable {
 }
 
 /// The shortcuts. Fix text defaults to ⌃⌘W wherever the layout puts W; pressed again it restores (D10).
-/// Dictate and Clean up with AI have no default: without a shortcut they are off. A custom one is stored
+/// Dictate, Clean up with AI and Actions have no default: without a shortcut they are off. A custom one is stored
 /// by key code under `Shortcut.<action>`.
 @MainActor @Observable final class ShortcutSettings {
     enum Action: String, CaseIterable {
@@ -79,31 +79,9 @@ struct Shortcut: Codable, Equatable {
         /// Cleans the last dictation with the model while it is intact, or dictates one cleaned whatever Clean up says;
         /// no default, so no hotkey until one is chosen.
         case dictateAndCleanUp
-        /// The action's icon everywhere it appears (Settings rows, Try's buttons, stats).
-        var symbol: String {
-            switch self {
-            case .correct: "checkmark.bubble"
-            case .dictate: SettingsTab.dictate.symbol
-            case .dictateAndCleanUp: "wand.and.sparkles"
-            }
-        }
-        /// The action's name in Settings.
-        var title: String {
-            switch self {
-            case .correct: "Fix text"
-            case .dictate: "Dictate"
-            case .dictateAndCleanUp: "Clean up with AI"
-            }
-        }
-        /// The Settings tab the action belongs to.
-        var tab: SettingsTab {
-            switch self {
-            case .correct: .fix
-            case .dictate, .dictateAndCleanUp: .dictate
-            }
-        }
-        /// Whether the shortcut is its feature's switch, which General's Turn on records.
-        var isSwitch: Bool { self == .correct || self == .dictate }
+        /// Runs an action on the focused draft; no default, so Actions is off until one is chosen. Kept last: each
+        /// action's hotkey identity is its place in this list.
+        case actions
     }
 
     /// What `register()` does with an action: binds its chord, leaves it off, or reports that its
@@ -137,7 +115,13 @@ struct Shortcut: Codable, Equatable {
         }
     }
 
-    func shortcut(_ action: Action) -> Shortcut? { off.contains(action) ? nil : custom[action] ?? defaultShortcut(action) }
+    func shortcut(_ action: Action) -> Shortcut? {
+        guard Self.isAvailable(action) else { return nil }
+        return off.contains(action) ? nil : custom[action] ?? defaultShortcut(action)
+    }
+    /// Actions is built behind its debug switch: until it ships its shortcut reads as unset everywhere, so it never
+    /// registers, never clashes and never shows.
+    static func isAvailable(_ action: Action, actions: Bool = DebugFlags.actions) -> Bool { action != .actions || actions }
     func defaultShortcut(_ action: Action) -> Shortcut? { Self.defaultShortcut(action, w: KeyboardLayout.keyCode(for: "w")) }
     /// ⌃⌘W to fix, a chord most people can press and that apps leave free (D8), when the layout has a W
     /// (`w`, its key code). Dictate has none.

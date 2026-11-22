@@ -48,6 +48,23 @@ import OopsCore
             guard let self, let text = info["text"], Self.labIsInFront() else { return }
             Task { Self.recordInsert(await self.session.editor.insert(text)) }
         }
+        // Runs the saved action `name` with `value` for its choice on the lab's draft, without a wheel or a hotkey, or
+        // restores the last one; each outcome is a line in actions.jsonl. Fix's finished drop steps aside first, as a
+        // person would wait it out.
+        on("action-lab") { [weak self] info in
+            guard let self, DebugFlags.actions, Self.labIsInFront() else { return }
+            guard let action = ActionStore().load().actions.first(where: { $0.name == info["name"] }) else {
+                Self.record(["outcome": "unknown"], to: "actions.jsonl"); return
+            }
+            if self.drop.holder == .fix, !self.session.isBusy { self.session.capsule.hide() }
+            self.recordAction(self.actions.run(.saved(action, value: info["value"].flatMap { $0.isEmpty ? nil : $0 })))
+        }
+        on("action-restore-lab") { [weak self] _ in
+            guard let self, DebugFlags.actions, Self.labIsInFront() else { return }
+            self.recordAction(self.actions.restore())
+        }
+        // A held answer waits in the drop to be copied: the next case gets the drop back.
+        on("action-dismiss-lab") { [weak self] _ in self?.actions.cancel() }
         // Compatibility runs: a scratch draft in the app the trigger names, and only while it is in front.
         on("app") { [weak self] info in
             guard let self, let bundle = info["bundle"], let action = info["action"] else { return }
@@ -68,15 +85,35 @@ import OopsCore
 
     /// One line per lab insert in the run's log folder (`inserts.jsonl`), for the run to check.
     private static func recordInsert(_ outcome: InsertOutcome) {
-        guard let directory = DebugFlags.debugLogDirectory else { return }
         let entry: [String: String] = switch outcome {
         case .inserted: ["outcome": "inserted"]
         case .unconfirmed: ["outcome": "unconfirmed"]
         case .refused(let refusal): ["outcome": "refused", "reason": refusal.rawValue]
         }
-        guard let line = try? JSONSerialization.data(withJSONObject: entry) else { return }
+        record(entry, to: "inserts.jsonl")
+    }
+
+    /// Logs how a lab action ended, with the drop's phase then.
+    private func recordAction(_ run: Task<ActionOutcome, Never>?) {
+        guard let run else { Self.record(["outcome": "ignored"], to: "actions.jsonl"); return }
+        Task { [drop] in
+            var entry: [String: String] = switch await run.value {
+            case .written: ["outcome": "written"]
+            case .held: ["outcome": "held"]
+            case .restored: ["outcome": "restored"]
+            case .cancelled: ["outcome": "cancelled"]
+            case .failed(let failure): ["outcome": "failed", "reason": failure.reason.rawValue]
+            }
+            entry["drop"] = String(describing: drop.panel.model.phase)
+            Self.record(entry, to: "actions.jsonl")
+        }
+    }
+
+    /// Appends one JSON line to `name` in the run's log folder.
+    private static func record(_ entry: [String: String], to name: String) {
+        guard let directory = DebugFlags.debugLogDirectory, let line = try? JSONSerialization.data(withJSONObject: entry) else { return }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let file = directory.appendingPathComponent("inserts.jsonl")
+        let file = directory.appendingPathComponent(name)
         if !FileManager.default.fileExists(atPath: file.path) { FileManager.default.createFile(atPath: file.path, contents: nil) }
         guard let handle = try? FileHandle(forWritingTo: file) else { return }
         defer { try? handle.close() }

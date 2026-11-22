@@ -7,9 +7,10 @@ import OopsCore
 /// person's whole selection replaced at once, once a copy shows the editor still holds exactly it.
 extension EditorAccess {
     /// The person's selection, replaced whole: for an editor that keeps its own selection and never
-    /// takes one from Accessibility, once a copy shows it still holds exactly that text.
+    /// takes one from Accessibility, once a copy shows it still holds exactly that text. `keepsTokens` false lets an
+    /// action rewrite code and mentions; an attachment is never pasted over.
     func replaceSelection(_ snapshot: EditorSnapshot, _ selection: NSRange, from before: String, to after: String,
-                          clipboard: ClipboardLease, protected: () -> Bool) throws -> EditorSnapshot {
+                          clipboard: ClipboardLease, protected: () -> Bool, keepsTokens: Bool = true) throws -> EditorSnapshot {
         var snapshot = snapshot
         // The editor reported this selection: it must lie in the draft, and the correction must change nothing outside it.
         let changed = NSRange(location: selection.location, length: selection.length + after.utf16.count - before.utf16.count)
@@ -19,7 +20,7 @@ extension EditorAccess {
         else { throw EditorKeptSelection() }
         let original = (before as NSString).substring(with: selection)
         let replacement = (after as NSString).substring(with: changed)
-        guard !Self.containsMentionOrCode(original), !original.contains("\u{FFFC}") else {
+        guard !(keepsTokens && Self.containsMentionOrCode(original)), !original.contains("\u{FFFC}") else {
             throw CorrectionError.message("This editor keeps its own selection, and it holds a mention or an attachment. Select less text.")
         }
         Self.selectionLog.notice("replacement_whole_selection length=\(selection.length, privacy: .public)")
