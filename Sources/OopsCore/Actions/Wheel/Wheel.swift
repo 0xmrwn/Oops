@@ -136,6 +136,20 @@ public struct Wheel: Equatable, Sendable {
         return effects
     }
 
+    /// When `advance` next has something to do, or nil while nothing waits on time: until then the window can stop
+    /// drawing frames once its motion is at rest.
+    public var nextDue: TimeInterval? {
+        guard isOpen else { return nil }
+        var due: [TimeInterval] = []
+        if let commitAt = gesture.commitAt { due.append(commitAt) }
+        if flicking { due.append(enteredAt + WheelTiming.flick) }
+        if case .choices = level, !bloomed, !flicking { due.append(choicesAt) }
+        if level == .root, bloomed, !named, !flicking, gesture.pointed == nil, gesture.held.isEmpty, gesture.commitAt == nil {
+            due.append(lingerAt)
+        }
+        return due.min()
+    }
+
     /// The release whose grace has run out, if any: what it chose (and then nothing else is due), or the pointing it
     /// leaves behind when letting go ended in neutral.
     private mutating func expired(at now: TimeInterval) -> (effects: [WheelEffect], chose: Bool) {

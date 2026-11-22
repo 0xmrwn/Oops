@@ -30,6 +30,7 @@ from pathlib import Path
 
 import actions
 import inserts
+import wheel
 from footprint import resources
 from scenarios import QUICK, SCENARIOS
 
@@ -257,6 +258,8 @@ class Run:
             return inserts.check(self, case)
         if "action" in case:
             return actions.check(self, case)
+        if "steps" in case:
+            return wheel.check(self, case)
         self.write(self.stub, case["stub"])
         self.show(case.get("scenario", "e2e"), case.get("text"), case.get("selection"), case.get("variant"))
         before = len([e for e in self.entries() if e["kind"] == "attempt"])

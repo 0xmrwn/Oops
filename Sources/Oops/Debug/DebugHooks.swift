@@ -66,6 +66,7 @@ import OopsCore
         }
         // A held answer waits in the drop to be copied: the next case gets the drop back.
         on("action-dismiss-lab") { [weak self] _ in self?.actions.cancel() }
+        if DebugFlags.actions { observeWheelTriggers(on) }
         // Compatibility runs: a scratch draft in the app the trigger names, and only while it is in front.
         on("app") { [weak self] info in
             guard let self, let bundle = info["bundle"], let action = info["action"] else { return }
@@ -95,7 +96,7 @@ import OopsCore
     }
 
     /// Logs how a lab action ended, with the drop's phase then.
-    private func recordAction(_ run: Task<ActionOutcome, Never>?) {
+    func recordAction(_ run: Task<ActionOutcome, Never>?) {
         guard let run else { Self.record(["outcome": "ignored"], to: "actions.jsonl"); return }
         Task { [drop] in
             var entry: [String: String] = switch await run.value {
@@ -111,7 +112,7 @@ import OopsCore
     }
 
     /// Appends one JSON line to `name` in the run's log folder.
-    private static func record(_ entry: [String: String], to name: String) {
+    static func record(_ entry: [String: String], to name: String) {
         guard let directory = DebugFlags.debugLogDirectory, let line = try? JSONSerialization.data(withJSONObject: entry) else { return }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appendingPathComponent(name)
@@ -125,7 +126,7 @@ import OopsCore
     /// Whether the focused element's window is a lab (fixtures/composer-lab, fixtures/native-lab), by
     /// title. Chromium's focused-window attribute is less reliable, and its tree can be dormant until a
     /// client reads the app: wake it and retry, like capture.
-    private static func labIsInFront() -> Bool {
+    static func labIsInFront() -> Bool {
         let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Correction")
         var focused: CFTypeRef?, window: CFTypeRef?, title: CFTypeRef?
         let system = AXUIElementCreateSystemWide()

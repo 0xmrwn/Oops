@@ -11,6 +11,7 @@ import OopsCore
     let drop = DropOwner()
     private(set) lazy var session = CorrectionSession(preferences: preferences, testEditor: testEditor, drop: drop)
     private(set) lazy var actions = makeActions()
+    private(set) lazy var wheel = makeWheel()
     private(set) lazy var settings = SettingsWindow(preferences: preferences, testEditor: testEditor, session: session)
     private(set) var menuBar: MenuBar?
     let shortcuts = HyperShortcuts()
@@ -49,10 +50,12 @@ import OopsCore
         // Fix runs on its press; its release ends nothing. Dictate hears both, at the instants they happened,
         // and Escape while it records.
         shortcuts.invoke = { [weak self] action, phase, instant in
+            // Any other shortcut means the person moved on: an open wheel steps aside first.
+            if phase == .pressed, action != .actions, DebugFlags.actions { self?.wheel.yield() }
             switch (action, phase) {
             case (.correct, .pressed): self?.session.correct()
             case (.correct, .released): break
-            case (.actions, .pressed): self?.actions.pressed()
+            case (.actions, .pressed): self?.wheel.shortcut()
             case (.actions, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
             case (.dictateAndCleanUp, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock, cleanUp: true)

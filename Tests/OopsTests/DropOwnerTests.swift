@@ -27,4 +27,28 @@ import Testing
         #expect(built == ["fix", "other"])
         #expect(!drop.claim(.fix, busy: { false }) { built.append("fix"); return AnyView(EmptyView()) })
     }
+
+    @Test func `a hold waits for another feature's drop`() {
+        let drop = DropOwner()
+        #expect(drop.claim(.fix, busy: { true }) { AnyView(EmptyView()) })
+        #expect(!drop.hold(.actions, busy: { true }))
+        #expect(drop.holder == .fix)
+    }
+
+    @Test func `a hold keeps the others out until it ends`() {
+        let drop = DropOwner()
+        var open = true
+        #expect(drop.hold(.actions, busy: { open }))
+        #expect(drop.holder == .actions)
+        #expect(!drop.claim(.fix, busy: { false }) { AnyView(EmptyView()) })
+        open = false
+        #expect(drop.holder == nil)
+        #expect(drop.claim(.fix, busy: { false }) { AnyView(EmptyView()) })
+    }
+
+    @Test func `a hold is refused while the same feature's drop is at work`() {
+        let drop = DropOwner()
+        #expect(drop.claim(.actions, busy: { true }) { AnyView(EmptyView()) })
+        #expect(!drop.hold(.actions, busy: { true }))
+    }
 }

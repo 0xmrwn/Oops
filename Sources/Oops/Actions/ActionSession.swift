@@ -82,12 +82,6 @@ import OopsCore
             disableAccessibility: { await editor.disableFullAccessibility(for: $0) })
     }
 
-    /// The Actions shortcut. Until the wheel exists it runs the action at the top place, with its choice's first value.
-    @discardableResult func pressed() -> Task<ActionOutcome, Never>? {
-        guard !isBusy, let action = library.library.action(at: .up) else { return nil }
-        return run(.saved(action, value: action.choice?.ordered.first))
-    }
-
     /// `inTry`: only Settings' Try draft may be read and written, never another app's field.
     @discardableResult func run(_ invocation: ActionInvocation, inTry: Bool = false) -> Task<ActionOutcome, Never>? {
         guard !isBusy, drop.claim(busy: { [weak self] in self?.isBusy == true }) else { return nil }

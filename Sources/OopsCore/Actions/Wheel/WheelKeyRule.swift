@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// The Actions shortcut as the wheel sees it, to tell its own key from every other.
+/// An Oops shortcut as the wheel sees it, to tell those keys from every other.
 public struct WheelChord: Equatable, Sendable {
     public var keyCode: Int64, flags: CGEventFlags
     public init(keyCode: Int64, flags: CGEventFlags) {
@@ -18,7 +18,8 @@ public enum WheelKey: Equatable, Sendable {
     case swallow
     /// ⌘ or ⌃ with another key: the wheel closes and the key goes on.
     case leave
-    /// The Actions chord itself, which goes on so its own handler toggles the wheel.
+    /// An Oops shortcut, the Actions one included, which goes on to its own handler: Actions' toggles the wheel,
+    /// any other closes it and runs.
     case pass
 
     private static let modifiers: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
@@ -27,9 +28,11 @@ public enum WheelKey: Equatable, Sendable {
         71, 122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111, 105, 107, 113, 106, 64, 79, 80, 90, 115, 119, 116, 121, 114,
     ]
 
-    public static func classify(keyCode: Int64, flags: CGEventFlags, characters: String, chord: WheelChord?) -> WheelKey {
-        // The shortcut itself comes first: it may be an arrow with modifiers, and pressing it again must close the wheel.
-        if let chord, chord.keyCode == keyCode, flags.intersection(modifiers) == chord.flags.intersection(modifiers) { return .pass }
+    /// `chords` are the shortcuts Oops has registered.
+    public static func classify(keyCode: Int64, flags: CGEventFlags, characters: String, chords: [WheelChord]) -> WheelKey {
+        // Oops's own shortcuts come first: one may be an arrow with modifiers or an Option chord that types, and each
+        // must reach its handler, the Actions one to close the wheel, the others to step it aside and run.
+        if chords.contains(where: { $0.keyCode == keyCode && flags.intersection(modifiers) == $0.flags.intersection(modifiers) }) { return .pass }
         // Every other arrow counts with any modifiers: a held chord's modifiers are still down when the first arrow lands.
         if let arrow = WheelArrow(keyCode: keyCode) { return .arrow(arrow) }
         if flags.contains(.maskCommand) || flags.contains(.maskControl) { return .leave }
