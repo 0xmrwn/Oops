@@ -82,7 +82,11 @@ struct SettingsView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spare.content = $0 }
                 }
                 .scrollPosition($scroll)
-                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, y in scrolled.y = y }
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { old, y in
+                    scrolled.y = y
+                    // The choice panel points at a pill that moved.
+                    if abs(old - y) > 1, actionPages.choice != nil { actionPages.choice = nil }
+                }
                 .scrollIndicators(.automatic)
                 // The scroller starts below the fade, not under it.
                 .contentMargins(.top, Self.fade, for: .scrollIndicators)
@@ -105,6 +109,9 @@ struct SettingsView: View {
         }
         .frame(width: 620)
         .frame(maxHeight: .infinity, alignment: .top)
+        // The choice panel, over everything, in the window's own space.
+        .overlay(alignment: .topLeading) { ChoicePanel(navigation: actionPages) }
+        .animation(.easeOut(duration: 0.12), value: actionPages.choice)
         .background { if style.opaque { Color(nsColor: .windowBackgroundColor) } }
         // Measure and lay out the whole window, title bar included, so the fit is exact.
         .ignoresSafeArea()

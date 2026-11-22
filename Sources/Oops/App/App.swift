@@ -41,6 +41,7 @@ import OopsCore
             return self.settings.tryIsActive ? self.testEditor : OnboardingWindow.shared.activeTry
         }
         testEditor.onCorrect = { [weak self] in self?.correctInTry() }
+        wireActionsTry()
         testEditor.onRestore = { [weak self] in self?.restoreInTry() }
         testEditor.onOpenSettings = { [weak self] in self?.preferences.providers.wantsProvidersPage = true }
         dictation = makeDictation()

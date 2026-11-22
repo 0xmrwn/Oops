@@ -2,7 +2,7 @@ import Observation
 import OopsCore
 import SwiftUI
 
-/// Where the Actions tab is: the wheel, an action's editor, or Runs with over either.
+/// Where the Actions tab is: the wheel, an action's editor, or Runs with over either; and the choice panel.
 @Observable @MainActor final class ActionsNavigation {
     enum RunsWith: Hashable { case action(UUID), typed }
     struct Level: Hashable { var editing: UUID?, runsWith: RunsWith? }
@@ -10,6 +10,8 @@ import SwiftUI
     private(set) var editing: UUID?
     /// Runs with, over the editor (`.action`) or over the wheel (`.typed`).
     private(set) var runsWith: RunsWith?
+    /// The choice panel, while open.
+    var choice: ChoiceRequest?
     /// The last move went one page deeper: the page shown slides in from the right, else from the left.
     private(set) var forward = true
     @ObservationIgnored let library: ActionLibraryModel
@@ -18,25 +20,34 @@ import SwiftUI
 
     var level: Level { Level(editing: editing, runsWith: runsWith) }
 
-    func edit(_ id: UUID) { forward = true; editing = id; runsWith = nil }
+    func edit(_ id: UUID) { choice = nil; forward = true; editing = id; runsWith = nil }
     func add(at place: ActionPlace) { if let id = library.startNew(at: place) { edit(id) } }
-    func openRunsWith(_ target: RunsWith) { forward = true; runsWith = target }
+    func openRunsWith(_ target: RunsWith) { choice = nil; forward = true; runsWith = target }
 
     /// One page up: Runs with goes back to what it was opened from; the editor goes back to the wheel, dropping a new
     /// action nobody wrote anything in.
     func back() {
+        choice = nil
         forward = false
         if runsWith != nil { runsWith = nil; return }
         leaveEditor()
     }
 
     /// The tab chosen again, or the action deleted: straight back to the wheel.
-    func backToWheel() { forward = false; runsWith = nil; leaveEditor() }
+    func backToWheel() { choice = nil; forward = false; runsWith = nil; leaveEditor() }
 
     private func leaveEditor() {
         if let id = editing, library.draft?.id == id { library.discardDraft() }
         editing = nil
     }
+}
+
+/// The choice panel's request: the pill's frame and the window's size, in the window's top-left space, and whether it
+/// opens to name a choice just inserted.
+struct ChoiceRequest: Equatable {
+    var anchor: CGRect
+    var bounds: CGSize
+    var naming = false
 }
 
 extension ActionsNavigation {
@@ -88,7 +99,7 @@ struct ActionsPage: View {
                 }
             }
             .settingsSurface()
-            ActionWheelCard(library: library, navigation: navigation, spare: spare).settingsSurface()
+            ActionWheelCard(library: library, navigation: navigation, spare: spare, store: store).settingsSurface()
         }
     }
 
