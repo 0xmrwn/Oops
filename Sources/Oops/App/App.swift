@@ -19,6 +19,8 @@ import OopsCore
     private(set) var dictation: DictationSession?
     /// Keeps the dictation's microphone open while Settings asks for it.
     private var dictationReadiness: DictationReadiness?
+    /// Who has Escape armed: Dictate, an agent run, or both.
+    var escapes = EscapeChords()
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         settings.show()
@@ -30,6 +32,8 @@ import OopsCore
         CommandKeys.shared.observe()
         // A previous run that crashed mid-correction may have left a Chromium app's switch on.
         session.editor.switches.restoreAll()
+        // Agent run folders a crash or a forced quit left behind.
+        DispatchQueue.global(qos: .utility).async { ClaudeAgentFolder.sweep(ClaudeAgentEnvironment.live.runs) }
         quitOnSIGTERM()
         DictationCleanupMode.migrate()
         configureMainMenu()
@@ -55,13 +59,13 @@ import OopsCore
             switch (action, phase) {
             case (.correct, .pressed): self?.session.correct()
             case (.correct, .released): break
-            case (.actions, .pressed): self?.wheel.shortcut()
+            case (.actions, .pressed): self?.actionsShortcut()
             case (.actions, .released): break
             case (.dictate, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock)
             case (.dictateAndCleanUp, _): self?.dictation?.shortcut(phase, at: instant.capture, now: instant.clock, cleanUp: true)
             }
         }
-        shortcuts.cancel = { [weak self] in self?.dictation?.cancel() }
+        shortcuts.cancel = { [weak self] in self?.escapePressed() }
         shortcuts.registrationFailed = { [weak self] message in self?.preferences.status = message }
         do { try shortcuts.register() } catch { preferences.status = error.localizedDescription }
         warmUpDictation()
@@ -86,10 +90,11 @@ import OopsCore
         #endif
     }
 
-    /// Nothing Oops started outlives it: Claude Code processes, Chromium accessibility switches and the speech
+    /// Nothing Oops started outlives it: Claude Code processes (an agent run's too, whose held answer goes with it), Chromium accessibility switches and the speech
     /// model, which `exit` must not find loaded.
     func applicationWillTerminate(_ notification: Notification) {
         ClaudeCode.endRunningProcesses()
+        ClaudeAgent.endRunningProcesses()
         ClaudeCodeSignIn.cancel()
         session.editor.settle(timeout: 1)
         session.editor.switches.restoreAll()

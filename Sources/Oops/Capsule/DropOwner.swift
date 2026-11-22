@@ -7,6 +7,8 @@ struct DropFeature: Hashable, Sendable {
     static let fix = DropFeature(name: "fix")
     static let dictate = DropFeature(name: "dictate")
     static let actions = DropFeature(name: "actions")
+    /// An agent run: at the caret while the person stays in its field, and nowhere while they work elsewhere.
+    static let agent = DropFeature(name: "agent")
 }
 
 /// The drop and the flash over the draft, which one feature holds at a time. A feature claims them
@@ -19,14 +21,21 @@ struct DropFeature: Hashable, Sendable {
     private var claimed: (feature: DropFeature, busy: () -> Bool, passive: () -> Bool, released: () -> Void)?
     /// Whose view the panel holds: kept between claims, so a feature claiming again finds its view as it left it.
     private(set) var shown: DropFeature?
+    /// Runs once a drop has gone, on the next turn of the run loop so its feature has let go: a feature waiting for
+    /// the drop (an agent run's status) can take it then.
+    var onIdle: (() -> Void)?
 
     init() {
         // The flash never outlives the drop it belongs to.
         panel.onHide = { [weak self] in
             self?.highlight.clear()
             self?.claimed?.released()
+            DispatchQueue.main.async { self?.onIdle?() }
         }
     }
+
+    /// The feature that last claimed the drop and hasn't let go of it, at work or not.
+    var claimant: DropFeature? { claimed?.feature }
 
     /// The feature holding the drop: the last to claim it, while it is at work or its drop is up and not passive.
     var holder: DropFeature? {
@@ -51,7 +60,17 @@ struct DropFeature: Hashable, Sendable {
             shown = feature
         }
         claimed = (feature, busy, passive, released)
+        // Only an agent's drop opens anything or narrates its work: no other feature's drop inherits either.
+        panel.model.open = nil; panel.model.narrates = false
         return true
+    }
+
+    /// Lets go of the drop at once if `feature` holds it, hiding its drop: an agent run the person has left keeps
+    /// going without it, and Fix, Dictate or another action can claim it straight away.
+    func yield(_ feature: DropFeature) {
+        guard claimed?.feature == feature else { return }
+        claimed = nil
+        if shown == feature, panel.isShown { panel.hide() }
     }
 
     /// Holds the drop for `feature` while `busy`, with nothing in the shared panel: a feature drawing in its own
@@ -61,6 +80,7 @@ struct DropFeature: Hashable, Sendable {
         guard holder == nil else { return false }
         if panel.isShown { panel.hide() }
         claimed = (feature, busy, { false }, {})
+        panel.model.open = nil; panel.model.narrates = false
         return true
     }
 }

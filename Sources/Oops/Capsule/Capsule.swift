@@ -29,6 +29,10 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     var retry: (() -> Void)?
     var openSettings: (() -> Void)?
     var dismiss: (() -> Void)?
+    /// A finished drop that stands for a result waiting elsewhere (an agent's): a tap, or its button, takes it there.
+    var open: (() -> Void)?
+    /// The working drop says what it is doing (an agent's step), where Fix's shows only its eyes.
+    var narrates = false
     enum Remedy { case retry, settings }
 }
 
@@ -100,14 +104,15 @@ private final class PassivePanel: NSPanel {
         }
         if panel.isVisible { position() }
     }
-    /// `spoken` replaces the label in the VoiceOver announcement, for labels that read badly aloud.
+    /// `spoken` replaces the label in the VoiceOver announcement, for labels that read badly aloud; `cue` false keeps
+    /// a drop shown again quiet.
     func show(_ phase: CapsulePhase, label: String, detail: String = "", remedy: CapsuleModel.Remedy? = nil,
-              spoken: String? = nil, geometry: CapsulePlacement.Geometry? = nil) {
+              spoken: String? = nil, cue: Bool = true, geometry: CapsulePlacement.Geometry? = nil) {
         let entering = !panel.isVisible || hiding != nil
         let previous = entering ? nil : DropState(model.phase)
         model.phase = phase; model.label = label; model.detail = detail; model.remedy = remedy
         // An entering drop presents one frame later (below), so its cue waits that frame too.
-        if let played = SoundCues.cue(from: previous, to: DropState(phase), reduceMotion: Self.reduceMotion) {
+        if cue, let played = SoundCues.cue(from: previous, to: DropState(phase), reduceMotion: Self.reduceMotion) {
             Sounds.play(played.cue, after: played.delay + (entering ? 0.016 : 0))
         }
         if phase != .copied { model.copied = false }

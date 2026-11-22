@@ -13,14 +13,16 @@ import SwiftUI
     private let dictation: () -> DictationSession?
     private let openSettings: () -> Void
     private let quit: () -> Void
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let statusLine = NSMenuItem()
     private let status = StatusLine()
     /// Shown only while Dictate is on: its items, and the headers that tell the two features apart.
     private var dictateOnly: [NSMenuItem] = []
     /// The newest dictations in history, rebuilt each time the menu opens; hidden while there are none.
     private let recent = NSMenuItem(title: "Recent dictations", action: nil, keyEquivalent: "")
-    private var menuOpen = false
+    private(set) var menuOpen = false
+    /// The Actions session's agent run, once Actions has been used: its state shows under the status line.
+    var agent: () -> AgentRun? = { nil }
 
     init(preferences: Preferences, session: CorrectionSession, dictation: @escaping () -> DictationSession? = { nil },
          openSettings: @escaping () -> Void, quit: @escaping () -> Void) {
@@ -33,6 +35,7 @@ import SwiftUI
         host.frame.size = host.fittingSize
         statusLine.view = host
         menu.addItem(statusLine)
+        installAgentItems(in: menu)
         dictateOnly = [.separator(), .sectionHeader(title: "Fix")]
         dictateOnly.forEach(menu.addItem)
         menu.addItem(withTitle: "Fix text", action: #selector(fix), keyEquivalent: "").image = Self.symbol(ShortcutSettings.Action.correct.symbol)
@@ -105,6 +108,7 @@ import SwiftUI
     func menuNeedsUpdate(_ menu: NSMenu) {
         // Before layout, so the status line is sized for its text.
         updateStatusLine()
+        updateAgentItems()
         // Dictate's shortcut is its switch: without one, dictation is off and so is its part of the menu.
         let dictating = dictation() != nil && ShortcutSettings.shared.shortcut(.dictate) != nil
         for item in dictateOnly { item.isHidden = !dictating }
@@ -231,7 +235,7 @@ import SwiftUI
         return copy
     }
 
-    private static func symbol(_ name: String) -> NSImage? { NSImage(systemSymbolName: name, accessibilityDescription: nil) }
+    static func symbol(_ name: String) -> NSImage? { NSImage(systemSymbolName: name, accessibilityDescription: nil) }
 }
 
 /// The menu's first line: whether a fix would work and with which model, then the tally.

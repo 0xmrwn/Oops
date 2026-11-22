@@ -7,8 +7,8 @@ import WebKit
 // Usage: NativeLab <control.json> <composer-lab/index.html>; switches to whatever control.json names.
 // End-to-end runs (fixtures/e2e) use `e2e` (a plain text view with the control's `text` and optional
 // `selection` "location,length", and a `variant`: `ime` leaves a composition at the caret, `readonly` can't be
-// edited, `remount` rebuilds the text view after each edit like a remounted component, `dark` draws the window in the
-// dark appearance whatever the system's, `placeholder` is an
+// edited, `remount` rebuilds the text view after each edit like a remounted component, `dark` (`light`) draws the window in the
+// dark (light) appearance whatever the system's, `placeholder` is an
 // empty text field showing only its placeholder, and every U+FFFC in the text becomes an attachment chip),
 // `e2e-secure` (a password field), `e2e-opaque` (a text view that hides its text from Accessibility, like
 // editors only copy and paste can reach), `append` to type into the current editor mid-correction, and
@@ -115,7 +115,7 @@ final class Lab: NSObject, NSApplicationDelegate, NSTextViewDelegate {
 
     private func variant(_ name: String?) {
         guard let text = current else { return }
-        if name == "dark" { window.appearance = NSAppearance(named: .darkAqua) }
+        if name == "dark" || name == "light" { window.appearance = NSAppearance(named: name == "dark" ? .darkAqua : .aqua) }
         switch name {
         case "ime":
             text.setMarkedText("にほんご", selectedRange: NSRange(location: 4, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))

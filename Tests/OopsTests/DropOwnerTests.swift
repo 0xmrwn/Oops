@@ -46,6 +46,52 @@ import Testing
         #expect(drop.claim(.fix, busy: { false }) { AnyView(EmptyView()) })
     }
 
+    @Test func `an agent that yields lets Fix claim at once`() {
+        let drop = DropOwner()
+        #expect(drop.claim(.agent, busy: { true }) { AnyView(EmptyView()) })
+        #expect(!drop.claim(.fix, busy: { true }) { AnyView(EmptyView()) })
+        drop.yield(.agent)
+        #expect(drop.holder == nil)
+        #expect(drop.claimant == nil)
+        #expect(drop.claim(.fix, busy: { true }) { AnyView(EmptyView()) })
+        #expect(drop.holder == .fix)
+    }
+
+    @Test func `yielding leaves another feature's claim alone`() {
+        let drop = DropOwner()
+        #expect(drop.claim(.fix, busy: { true }) { AnyView(EmptyView()) })
+        drop.yield(.agent)
+        #expect(drop.holder == .fix)
+    }
+
+    @Test func `an agent whose person left lets Fix claim`() {
+        let drop = DropOwner()
+        var inField = true
+        #expect(drop.claim(.agent, busy: { inField }) { AnyView(EmptyView()) })
+        #expect(!drop.claim(.fix, busy: { true }) { AnyView(EmptyView()) })
+        inField = false
+        #expect(drop.claim(.fix, busy: { true }) { AnyView(EmptyView()) })
+    }
+
+    @Test func `a claim takes away what an agent's ready drop opened`() {
+        let drop = DropOwner()
+        #expect(drop.claim(.agent, busy: { false }) { AnyView(EmptyView()) })
+        drop.panel.model.open = {}; drop.panel.model.narrates = true
+        #expect(drop.claim(.fix, busy: { false }) { AnyView(EmptyView()) })
+        #expect(drop.panel.model.open == nil)
+        #expect(!drop.panel.model.narrates, "Fix's working drop shows its eyes only")
+    }
+
+    @Test func `the drop going away is reported once it has let go`() async {
+        let drop = DropOwner()
+        var idle = 0
+        drop.onIdle = { idle += 1 }
+        drop.panel.hide()
+        #expect(idle == 0, "not while the hide is still under way")
+        await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
+        #expect(idle == 1)
+    }
+
     @Test func `a hold is refused while the same feature's drop is at work`() {
         let drop = DropOwner()
         #expect(drop.claim(.actions, busy: { true }) { AnyView(EmptyView()) })

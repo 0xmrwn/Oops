@@ -47,7 +47,7 @@ struct EyesDropView: View {
     private var font: NSFont { scale == 1 ? Self.font : NSFont.monospacedDigitSystemFont(ofSize: 13 * scale, weight: .semibold) }
 
     private var working: Bool { model.phase == .working }
-    private var expanded: Bool { ![.invoked, .working, .copied].contains(model.phase) }
+    private var expanded: Bool { ![.invoked, .working, .copied].contains(model.phase) || working && model.narrates && !model.label.isEmpty }
     private var painted: Bool { !increasedContrast }
     /// Clear glass does not flip its content for the backdrop, and oops cannot see what is behind
     /// it. The ink follows the appearance, which most apps share: white on dark, near-black on
@@ -71,7 +71,7 @@ struct EyesDropView: View {
     /// One action at most; dismissing is the close badge's job.
     private var actionCount: Int {
         switch model.phase {
-        case .fixed: model.canRevert ? 1 : 0
+        case .fixed: model.canRevert || model.open != nil ? 1 : 0
         case .pending: 1
         case .failed: model.remedy == nil ? 0 : 1
         default: 0
@@ -99,7 +99,7 @@ struct EyesDropView: View {
         }
         // No cancel button while working: the drop itself cancels, like pressing the shortcut again.
         .contentShape(Capsule())
-        .onTapGesture { if cancellable { model.cancel?() } }
+        .onTapGesture { if cancellable { model.cancel?() } else if model.phase == .fixed { model.open?() } }
         .overlay(alignment: .topTrailing) { closeBadge }
         .scaleEffect(model.presented ? 1 : 0.35, anchor: dropAnchor)
         .opacity(model.presented ? 1 : 0)
@@ -119,6 +119,7 @@ struct EyesDropView: View {
         .accessibilityHidden(!model.presented)
         .accessibilityActions {
             if cancellable { Button(model.words.cancel) { model.cancel?() } }
+            if model.phase == .fixed, let open = model.open { Button(Self.openLabel) { open() } }
             if closable { Button("Dismiss") { model.dismiss?() } }
         }
     }
@@ -223,6 +224,8 @@ struct EyesDropView: View {
 
     @ViewBuilder private var actions: some View {
         switch model.phase {
+        case .fixed where model.open != nil:
+            button("arrow.turn.down.left", Self.openLabel) { model.open?() }
         case .fixed where model.canRevert:
             button("arrow.uturn.backward", model.words.revert) { model.revert?() }
         case .pending, .copied:
@@ -236,6 +239,7 @@ struct EyesDropView: View {
         default: EmptyView()
         }
     }
+    private static let openLabel = "Put in the draft"
     private func button(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         DropActionButton(symbol: symbol, label: label, scale: scale, action: action)
     }

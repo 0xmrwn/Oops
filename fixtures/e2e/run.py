@@ -5,7 +5,7 @@ Builds Oops (Debug, so the stub exists) and installs it as the development runti
 with launch-argument-only settings (stub provider, debug log in a temporary folder, lab triggers,
 no sounds), drives each scenario and checks the lab's final text and the attempt Oops logged, then
 what each further press of Fix text did (`toggle:` cases), counting the stub's calls. No model is called.
-`insert-` cases write text at the caret instead (inserts.py); `action:` cases run a saved action instead (actions.py). Native scenarios run in fixtures/native-lab; web ones run fixtures/e2e/web.html,
+`insert-` cases write text at the caret instead (inserts.py); `action:` cases run a saved action instead (actions.py), `agent:` ones as an agent (agent.py). Native scenarios run in fixtures/native-lab; web ones run fixtures/e2e/web.html,
 served here, in each browser host: WebKit (the native lab's web view), Chrome and Zen (Gecko), the
 browsers with throwaway profiles. Fronts the lab windows: don't run it while someone is using the
 Mac. Leaves Oops relaunched as normal and no defaults or profiles behind.
@@ -29,6 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import actions
+import agent
 import inserts
 import wheel
 from footprint import resources
@@ -256,6 +257,8 @@ class Run:
         self.capture = None
         if "insert" in case:
             return inserts.check(self, case)
+        if case["name"].startswith("agent:"):
+            return agent.check(self, case)
         if "action" in case:
             return actions.check(self, case)
         if "steps" in case:
@@ -383,6 +386,8 @@ def main():
             "--args",
             "-StubProvider",
             str(run.stub),
+            "-StubAgent",
+            str(work / "agent.json"),
             "-DebugLog",
             "YES",
             "-DebugLogDirectory",
