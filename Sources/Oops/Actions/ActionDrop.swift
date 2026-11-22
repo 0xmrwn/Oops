@@ -64,6 +64,7 @@ struct ActionDropControls {
         model.retry = { [weak self] in self?.controls.retry() }
         model.openSettings = { [weak self] in self?.controls.openSettings() }
         model.dismiss = { [weak panel] in panel?.hide() }
+        model.words = .actions
         model.canRevert = false; model.canCancel = true
         return true
     }

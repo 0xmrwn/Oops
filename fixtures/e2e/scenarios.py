@@ -1,5 +1,7 @@
 """The end-to-end scenarios fixtures/e2e/run.py drives: native ones, then each web editor in each browser."""
 
+from actions import ACTIONS
+
 # name, lab text, stub script, expectations (insert cases: the `insert` text and the `expect`ed outcome, see
 # inserts.py). Selections are "location,length" in UTF-16 units.
 # "{round}" in a text becomes the soak round, for drafts that must differ from the last round's.
@@ -355,6 +357,9 @@ SCENARIOS += [
         restore=True,
     ),
 ]
+
+# Actions on the lab's draft (actions.py).
+SCENARIOS += ACTIONS
 
 # Insert at the caret: no correction runs, so there is no stub. Each case checks the outcome Oops logs, the
 # text left behind and that the clipboard is back as it was.

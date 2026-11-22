@@ -48,12 +48,13 @@ import OopsCore
             guard let self, let text = info["text"], Self.labIsInFront() else { return }
             Task { Self.recordInsert(await self.session.editor.insert(text)) }
         }
-        // Runs the saved action `name` with `value` for its choice on the lab's draft, without a wheel or a hotkey, or
-        // restores the last one; each outcome is a line in actions.jsonl. Fix's finished drop steps aside first, as a
-        // person would wait it out.
+        // Runs the starter action `name` with `value` for its choice on the lab's draft, without a wheel or a hotkey, or
+        // restores the last one; each outcome is a line in actions.jsonl. The starters are looked up, not the saved
+        // library, so a run never depends on, or touches, a person's own actions. Fix's finished drop steps aside
+        // first, as a person would wait it out.
         on("action-lab") { [weak self] info in
             guard let self, DebugFlags.actions, Self.labIsInFront() else { return }
-            guard let action = ActionStore().load().actions.first(where: { $0.name == info["name"] }) else {
+            guard let action = ActionLibrary.starters.actions.first(where: { $0.name == info["name"] }) else {
                 Self.record(["outcome": "unknown"], to: "actions.jsonl"); return
             }
             if self.drop.holder == .fix, !self.session.isBusy { self.session.capsule.hide() }

@@ -22,7 +22,7 @@ struct FeatureOverview: View {
     }
 
     private func row(_ tab: SettingsTab) -> some View {
-        // A feature with no shortcut is off. Actions has none to set yet.
+        // A feature with no shortcut is off.
         let shortcut = ShortcutSettings.Action.allCases.first { $0.tab == tab }.flatMap(ShortcutSettings.shared.shortcut)
         return HStack(spacing: 14) {
             Button { open(tab) } label: {
