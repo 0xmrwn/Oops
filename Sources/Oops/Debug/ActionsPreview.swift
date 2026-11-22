@@ -15,7 +15,7 @@ import OopsCore
         }
         guard let id = navigation.editing else { return }
         if DebugFlags.actionsPreview { seed(id, in: library) }
-        if DebugFlags.settingsActionPage == "runs" { navigation.openRunsWith(.action(id)) }
+        if ["runs", "picker"].contains(DebugFlags.settingsActionPage) { navigation.openRunsWith(.action(id)) }
     }
 
     /// States an editor capture needs that the starters don't have; nothing is saved (the library is in memory).

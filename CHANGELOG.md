@@ -2,6 +2,10 @@
 
 Written by hand for people using Oops, not from commits: list what someone would notice, in plain words. Settings → General → Changelog shows this file: each `## ` heading is a release, newest first, version only (no dates), each `- ` line an entry; **bold** and `code` render. The same section becomes an update's release notes, so rename `## X.Y.Z (unreleased)` to `## X.Y.Z` before building the release.
 
+## 0.3.0 (unreleased)
+
+- In Settings → Fix, the model list has a search field: type part of a model's or a provider's name to find it.
+
 ## 0.2.0
 
 - **Dictate is new.** Hold a shortcut and talk, and Oops writes what you said where you're typing; a quick tap keeps it listening until you tap again, and Escape cancels. Turn it on from the card under the menu bar eyes after this update, or in Settings → Dictate. Setting Oops up for the first time now starts by choosing Fix, Dictate or both.

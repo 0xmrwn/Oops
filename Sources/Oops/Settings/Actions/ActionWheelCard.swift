@@ -189,7 +189,11 @@ private struct TypedCentre: View {
 
     var body: some View {
         ZStack {
-            Button(action: open) { WatchingEyes(model: spare, height: 52, visible: true).contentShape(Circle()) }
+            // The eyes blink on a tap of their own, which would swallow the click: the button's shape takes it.
+            Button(action: open) {
+                WatchingEyes(model: spare, height: 52, visible: true).allowsHitTesting(false)
+                    .overlay(Color.clear.contentShape(Circle()))
+            }
                 .buttonStyle(.plain).frame(width: 52, height: 52)
             Button(action: open) {
                 Label("Typed instruction", systemImage: "character.cursor.ibeam").font(.system(size: 12, weight: .medium))

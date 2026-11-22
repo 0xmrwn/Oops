@@ -32,6 +32,40 @@ extension ProviderStore {
 
 /// What the editor's Runs with row says, as the run resolves it.
 extension ProviderStore {
+    /// The models an action can run on: switched-on models that take text, grouped as Fix's picker groups them. The same
+    /// text filter as Clean up's, so the picker and `actionModel` agree.
+    var actionGroups: [(provider: Provider, models: [CatalogModel])] {
+        pickerGroups.map { group in
+            (group.provider, group.models.filter { model in
+                capabilities(.init(providerID: group.provider.id, modelID: model.id)).capabilities.map(ModelFeature.actions.accepts) ?? true
+            })
+        }
+        .filter { !$0.models.isEmpty }
+    }
+
+    /// The catalog entry of a model, once its provider's catalog has loaded.
+    func catalogModel(_ choice: ModelSelection.Choice) -> CatalogModel? {
+        catalogs[choice.providerID]?.first { $0.id == choice.modelID }
+    }
+
+    /// Whether there is no model an action could run on, Fix's (when its provider works) included: only then does choosing one lead to Providers.
+    var actionNeedsProvider: Bool {
+        actionGroups.isEmpty && selection.choice.map { provider($0.providerID) == nil || problem($0.providerID) != nil } ?? true
+    }
+
+    /// Why an agent can't run: Claude Code missing, not installed, signed out or unreachable; nil when it can.
+    var agentProblem: String? {
+        #if DEBUG
+        switch DebugFlags.claudeCodeState {
+        case "notInstalled": return "Not installed"
+        case "signedOut": return "Signed out"
+        case "missing": return "Not set up"
+        default: break
+        }
+        #endif
+        return provider("claude-code") == nil ? "Not set up" : problem("claude-code")
+    }
+
     /// Claude Code's own models, as its live `initialize` lists them, for an agent.
     var agentModels: [CatalogModel] { catalogs["claude-code"] ?? [] }
 
