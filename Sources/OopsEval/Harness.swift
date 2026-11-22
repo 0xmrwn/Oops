@@ -56,10 +56,10 @@ struct Harness {
             throw CorrectionError.message("The run manifest is unreadable. Restore it before resuming; it cannot be replaced silently.")
         }
         var manifest = Manifest.read(manifestURL) ?? Manifest(run: options.run, cases: options.cases.path,
-                                                               datasets: [], prompt: CorrectionPolicy.promptVersion,
+                                                               datasets: [], prompt: experiment.promptVersion,
                                                                attempts: attempts, created: now, updated: now)
         manifest.datasets = Array(Set(cases.compactMap(\.version))).sorted()
-        manifest.prompt = CorrectionPolicy.promptVersion; manifest.attempts = attempts; manifest.cases = options.cases.path
+        manifest.prompt = experiment.promptVersion; manifest.attempts = attempts; manifest.cases = options.cases.path
 
         let lanes = await Resolve.lanes(config, only: options.only)
         guard !lanes.isEmpty else { throw CorrectionError.message("No lanes match --only. Check provider names and model IDs in --config.") }
@@ -194,8 +194,8 @@ struct Harness {
     /// One case and attempt, retried on a rate limit (up to four times, waiting what the provider asks
     /// or 5, 10, 20, 40 s) and on a transient failure (twice). A spent daily quota defers it.
     private func call(_ job: Job, lane: any Lane, resolved: ResolvedLane, pacer: Pacer, prices: PriceTable?) async -> Outcome {
-        let input = job.item.input
-        let instructions = job.item.instructions ?? CorrectionPolicy.instructions
+        let request = job.item.request
+        let input = request.input, instructions = request.instructions
         let estimate = (instructions.utf8.count + 2 * input.utf8.count) / 4 + 64
         var retries = 0, limited = 0, queued: Duration = .zero
         let began = ContinuousClock.now
@@ -231,7 +231,16 @@ struct Harness {
                         limited: Int, prices: PriceTable?) -> CallRecord {
         let item = job.item
         var verdict = answer.malformed ? "invalid" : "error", output: String?, restored: String?, failure = answer.error, dropped = 0
-        if let raw = answer.raw {
+        var checks: CallRecord.Checks?
+        if item.action != nil {
+            checks = .init(valid: false)
+            if let raw = answer.raw {
+                do {
+                    let action = try ActionAnswer(raw: raw, item: item)
+                    output = action.output; checks = action.checks; verdict = action.verdict.rawValue; failure = nil
+                } catch { verdict = "invalid"; failure = error.localizedDescription }
+            }
+        } else if let raw = answer.raw {
             restored = try? CorrectionPolicy.restoredAnswer(raw, original: item.input)
             do {
                 let correction = try CorrectionPolicy.reconcile(raw, original: item.input)
@@ -239,7 +248,7 @@ struct Harness {
                 output = text; verdict = Checks.verdict(text, for: item); failure = nil
             } catch { verdict = "invalid"; failure = error.localizedDescription }
         }
-        var result = CallRecord(run: options.run, dataset: item.version, prompt: item.instructions.map { String(Experiment.digest(Data($0.utf8)).prefix(12)) } ?? CorrectionPolicy.promptVersion, lane: resolved.provider.lane.rawValue,
+        var result = CallRecord(run: options.run, dataset: item.version, prompt: item.promptVersion, lane: resolved.provider.lane.rawValue,
                           provider: resolved.provider.name, model: resolved.model, modelReported: answer.modelReported, effort: answer.effort,
                           surface: answer.surface, case: item.id, attempt: job.attempt, started: CallRecord.timestamp(started),
                           queuedMs: Int((queued / .milliseconds(1)).rounded()), ttftMs: answer.ttft, ttfcMs: answer.ttfc,
@@ -247,7 +256,7 @@ struct Harness {
                           finish: answer.finish, requestId: answer.requestID, tokens: answer.tokens,
                           costUsd: answer.cost ?? prices?.cost(provider: resolved.provider.name, model: resolved.model, tokens: answer.tokens),
                           raw: answer.raw, output: output, verdict: verdict,
-                          checks: Checks.make(item, answer: restored, output: output), error: failure)
+                          checks: checks ?? Checks.make(item, answer: restored, output: output), error: failure)
         result.droppedEdits = dropped
         return result
     }

@@ -7,6 +7,8 @@ struct Replay: Codable {
     struct Answer: Codable {
         var input: String
         var raw: String
+        var actionChecks: ActionChecks?
+        var checks: CallRecord.Checks?
     }
 
     var answers = 0
@@ -22,9 +24,23 @@ struct Replay: Codable {
     var absorbed = 0
     var droppedByRule: [String: Int] = [:]
 
+    struct Actions: Codable {
+        var passed = 0, failed = 0, invalid = 0, decodedWithoutChecks = 0
+    }
+
+    var actions = Actions()
+
     init(_ answers: [Answer]) {
-        self.answers = answers.count
         for answer in answers {
+            if answer.actionChecks != nil || answer.checks != nil {
+                guard let output = try? ActionPrompt.decode(answer.raw, draft: answer.input) else { actions.invalid += 1; continue }
+                if let checks = answer.actionChecks {
+                    let result = checks.evaluate(input: answer.input, output: output)
+                    if result.actionVerdict == .passed { actions.passed += 1 } else { actions.failed += 1 }
+                } else { actions.decodedWithoutChecks += 1 }
+                continue
+            }
+            self.answers += 1
             if let text = try? CorrectionPolicy.restoredAnswer(answer.raw, original: answer.input),
                (try? CorrectionPolicy.validate(text, original: answer.input)) != nil { strictValid += 1 }
             guard let reconciled = try? CorrectionPolicy.reconcile(answer.raw, original: answer.input) else { invalid += 1; continue }
@@ -45,11 +61,14 @@ struct Replay: Codable {
     var text: String {
         func share(_ n: Int) -> String { answers == 0 ? "–" : String(format: "%.1f%%", Double(n) / Double(answers) * 100) }
         let rules = droppedByRule.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
-        return """
+        let fix = """
         \(answers) answers
         before: usable \(share(strictValid)) (\(strictValid))
         now:    usable \(share(full + partial)) (\(full) whole, \(partial) in part) · invalid \(invalid) · drift absorbed in \(absorbed)
         dropped changes: \(rules.isEmpty ? "none" : rules)
         """
+        guard actions.passed + actions.failed + actions.invalid + actions.decodedWithoutChecks > 0 else { return fix }
+        let summary = "actions: passed \(actions.passed), failed \(actions.failed), invalid \(actions.invalid), decoded without checks \(actions.decodedWithoutChecks)"
+        return answers == 0 ? summary : "Fix: " + fix + "\n" + summary
     }
 }

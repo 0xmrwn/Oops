@@ -14,10 +14,14 @@ struct CallRecord: Codable, Sendable {
 
     struct Checks: Codable, Sendable {
         var valid: Bool
+        var canary: Bool?, language: Bool?, shorter: Bool?
         var appliedProtectedKept: Bool?
         var protectedKept: Bool?, cleanUnchanged: Bool?, langKept: Bool?
         func encode(to encoder: Encoder) throws {
             var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encodeIfPresent(canary, forKey: .canary)
+            try c.encodeIfPresent(language, forKey: .language)
+            try c.encodeIfPresent(shorter, forKey: .shorter)
             try c.encode(appliedProtectedKept, forKey: .appliedProtectedKept)
             try c.encode(valid, forKey: .valid); try c.encode(protectedKept, forKey: .protectedKept)
             try c.encode(cleanUnchanged, forKey: .cleanUnchanged); try c.encode(langKept, forKey: .langKept)

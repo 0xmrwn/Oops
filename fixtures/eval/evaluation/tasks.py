@@ -55,6 +55,8 @@ def collect(cases, records, rubric):
             raise ValueError("A result names a case outside the experiment snapshot.")
         output = record.get("output")
         case = cases[record["case"]]
+        if case.get("action") is not None:
+            continue
         if output is not None:
             task = task_for(case, output, rubric)
             tasks[task["key"]] = task
