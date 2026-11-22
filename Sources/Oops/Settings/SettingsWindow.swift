@@ -43,9 +43,9 @@ import SwiftUI
 
     /// Try's buttons act on its own draft: capture reads the system-wide focus, so the window and the
     /// editor take it first. Activation is asynchronous; wait briefly until it lands.
-    func focusTry() async {
+    func focusTry(_ editor: DraftEditorView? = nil) async {
         NSApp.activate(ignoringOtherApps: true); window?.makeKeyAndOrderFront(nil)
-        testEditor.editor?.focus()
+        (editor ?? testEditor.editor)?.focus()
         await Task.yield()
         for _ in 0..<40 where !(NSApp.isActive && window?.isKeyWindow == true) {
             try? await Task.sleep(for: .milliseconds(25))

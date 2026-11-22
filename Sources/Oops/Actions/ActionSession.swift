@@ -19,6 +19,12 @@ import OopsCore
     var forgetFix: () -> Void = {}
     /// Opens Settings, on Providers when `providers`.
     var openSettings: (_ providers: Bool) -> Void = { _ in }
+    /// Whether Settings' Try draft holds the keyboard. A Try run reads nothing unless it does.
+    var tryDraftFocused: @MainActor () -> Bool = { false }
+    /// The whole draft as the last write left it, for Try to guard its Restore with; nil until a run writes.
+    private(set) var committed: String?
+    /// Repeats a Try run: focuses Try's draft first.
+    var retryInTry: (ActionInvocation) -> Void = { _ in }
 
     var task: Task<ActionOutcome, Never>?
     var generation = UUID()
@@ -28,6 +34,8 @@ import OopsCore
     private(set) var pending: String?
     /// The run the drop's Try again repeats, and why the last one failed (for its Settings button).
     private(set) var last: ActionInvocation?
+    /// The last run was Settings' Try, so Try again goes back through Try's own draft.
+    private(set) var lastInTry = false
     private var failure: ActionFailure?
     /// What the last run wrote, while it can be restored.
     struct Written { var snapshot: EditorSnapshot; let applied: String }
@@ -50,7 +58,10 @@ import OopsCore
         self.locate = locate ?? { try? await editor.focusedGeometry() }
         drop.controls = ActionDropControls(
             cancel: { [weak self] in self?.cancel() }, restore: { [weak self] in _ = self?.restore() },
-            copy: { [weak self] in self?.copyPending() }, retry: { [weak self] in _ = self?.last.flatMap { self?.run($0) } },
+            copy: { [weak self] in self?.copyPending() }, retry: { [weak self] in
+                guard let self, let last = self.last else { return }
+                if self.lastInTry { self.retryInTry(last) } else { _ = self.run(last) }
+            },
             openSettings: { [weak self] in self?.openSettings(self?.failure?.reason != .capture) },
             ended: { [weak self] in self?.written = nil })
         editing = ActionEditing(
@@ -77,9 +88,10 @@ import OopsCore
         return run(.saved(action, value: action.choice?.ordered.first))
     }
 
-    @discardableResult func run(_ invocation: ActionInvocation) -> Task<ActionOutcome, Never>? {
+    /// `inTry`: only Settings' Try draft may be read and written, never another app's field.
+    @discardableResult func run(_ invocation: ActionInvocation, inTry: Bool = false) -> Task<ActionOutcome, Never>? {
         guard !isBusy, drop.claim(busy: { [weak self] in self?.isBusy == true }) else { return nil }
-        forgetFix(); remember(nil); pending = nil; failure = nil; last = invocation
+        forgetFix(); remember(nil); pending = nil; failure = nil; last = invocation; lastInTry = inTry; committed = nil
         let runsWith = switch invocation {
         case .saved(let action, _): action.runsWith
         case .typed: library.library.typed
@@ -115,11 +127,14 @@ import OopsCore
                          woken: inout EditorSnapshot?) async -> ActionOutcome {
         var shown: CapsulePlacement.Geometry?
         do {
+            // Before anything is read, by capture or by copy: a Try run takes the Try draft or nothing.
+            if lastInTry, !tryDraftFocused() { throw ActionFailure(.capture, "Click into the draft, then press Run.") }
             let backend = try providers.actionBackend(model)
             let snapshot: EditorSnapshot
             do { snapshot = try await capture() } catch let error where !(error is CancellationError) { throw ActionFailure.capture(error) }
             shown = snapshot.geometry
             woken = snapshot
+            if lastInTry, snapshot.pid != getpid() { throw ActionFailure(.capture, "Click into the draft, then press Run.") }
             try checkCurrent(id)
             let name = Self.name(invocation), source = snapshot.transaction.source
             drop.show(.working(name), geometry: snapshot.geometry, element: snapshot.element)
@@ -133,6 +148,7 @@ import OopsCore
             pending = answer
             let applied = try await editing.write(answer, snapshot, id)
             pending = nil
+            committed = snapshot.transaction.replacement(answer)
             let restorable = snapshot.strategy != .copy
             if restorable { remember(.init(snapshot: applied, applied: snapshot.transaction.replacement(answer))) }
             let geometry = await editing.geometry(applied.element) ?? snapshot.geometry

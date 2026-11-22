@@ -63,6 +63,31 @@ import Testing
         #expect(!fixture.captured)
     }
 
+    @Test func `a run in Try refuses another app's field`() async throws {
+        let fixture = try Fixture()
+        fixture.capture = { try Self.snapshotValue("old") }
+        fixture.session.tryDraftFocused = { true }
+        let outcome = await fixture.session.run(.typed("x"), inTry: true)?.value
+        #expect(outcome == .failed(ActionFailure(.capture, "Click into the draft, then press Run.")))
+        #expect(fixture.session.lastInTry)
+    }
+
+    @Test func `a run in Try reads nothing unless the Try draft is focused`() async throws {
+        let fixture = try Fixture()
+        fixture.capture = { try Self.snapshotValue("old") }
+        let outcome = await fixture.session.run(.typed("x"), inTry: true)?.value
+        #expect(outcome == .failed(ActionFailure(.capture, "Click into the draft, then press Run.")))
+        #expect(!fixture.captured)
+    }
+
+    @Test func `a write hands back the draft it left`() async throws {
+        let fixture = try Fixture(reply: #"{"text":"new"}"#)
+        fixture.capture = { try Self.snapshotValue("old") }
+        fixture.session.editing.write = { _, snapshot, _ in snapshot }
+        _ = await fixture.session.run(.typed("x"))?.value
+        #expect(fixture.session.committed == "new")
+    }
+
     @Test func `no model fails before reading the draft and opens Providers`() async throws {
         let fixture = try Fixture(providers: false)
         var opened: [Bool] = []

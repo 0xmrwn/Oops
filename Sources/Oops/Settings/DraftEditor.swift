@@ -58,15 +58,22 @@ final class DraftTextView: NSTextView {
 final class DraftEditorView: NSView {
     enum FlashStyle { case correction, restore }
 
+    /// The accessibility identifier of Actions' Try draft, which a Try run requires before it reads anything.
+    static let actionTryIdentifier = "oops-action-try"
+
     let textView: DraftTextView
     private let scrollView = NSScrollView()
     private let highlights = PassthroughView()
     private var flashGeneration = 0
     private var scrollObserver: NSObjectProtocol?
+    /// Actions' Try: smaller type and inset, and a draft that never takes focus on arrival (Run focuses it).
+    private let compact: Bool
+    private var fontSize: CGFloat { compact ? 13 : 15 }
 
     var text: String { textView.string }
 
-    init(initialText: String) {
+    init(initialText: String, compact: Bool = false) {
+        self.compact = compact
         textView = DraftTextView(frame: NSRect(x: 0, y: 0, width: 560, height: 200))
         super.init(frame: .zero)
         configureTextView(initialText)
@@ -101,7 +108,7 @@ final class DraftEditorView: NSView {
         text.minSize = NSSize(width: 0, height: 0)
         text.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         text.textContainer?.widthTracksTextView = true
-        text.textContainerInset = NSSize(width: 16, height: 16)
+        text.textContainerInset = compact ? NSSize(width: 10, height: 10) : NSSize(width: 16, height: 16)
         // Let oops do the correcting: no system spelling, quote, dash or text
         // substitutions that would mask what the pipeline does.
         text.isAutomaticSpellingCorrectionEnabled = false
@@ -110,14 +117,14 @@ final class DraftEditorView: NSView {
         text.isAutomaticTextReplacementEnabled = false
         text.isContinuousSpellCheckingEnabled = false
         text.isGrammarCheckingEnabled = false
-        text.setAccessibilityIdentifier("oops-test-editor")
+        text.setAccessibilityIdentifier(compact ? Self.actionTryIdentifier : "oops-test-editor")
         text.setAccessibilityLabel("Draft")
         let paragraph = NSMutableParagraphStyle()
-        paragraph.lineHeightMultiple = 1.22
+        if compact { paragraph.lineSpacing = 3 } else { paragraph.lineHeightMultiple = 1.22 }
         text.defaultParagraphStyle = paragraph
-        text.typingAttributes = [.font: NSFont.systemFont(ofSize: 15), .foregroundColor: NSColor.textColor,
+        text.typingAttributes = [.font: NSFont.systemFont(ofSize: fontSize), .foregroundColor: NSColor.textColor,
                                  .paragraphStyle: paragraph]
-        text.font = .systemFont(ofSize: 15)
+        text.font = .systemFont(ofSize: fontSize)
         text.textColor = .textColor
         text.string = initialText
         text.textStorage?.setAttributes(text.typingAttributes, range: NSRange(location: 0, length: (initialText as NSString).length))
@@ -125,7 +132,7 @@ final class DraftEditorView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        guard let window else { return }
+        guard let window, !compact else { return }
         window.initialFirstResponder = textView
         DispatchQueue.main.async { [weak self] in self?.focus() }
     }
@@ -235,7 +242,7 @@ final class DraftEditorView: NSView {
                                             in: container) { rect, _ in segments.append(rect) }
         }
         let origin = textView.textContainerOrigin
-        let font = NSFont.systemFont(ofSize: 15)
+        let font = NSFont.systemFont(ofSize: fontSize)
         let glyphHeight = ceil(font.ascender - font.descender) + 3
         return segments.map { segment in
             var rect = segment.offsetBy(dx: origin.x, dy: origin.y)

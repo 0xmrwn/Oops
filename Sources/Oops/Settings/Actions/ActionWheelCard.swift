@@ -53,6 +53,7 @@ struct ActionWheelCard: View {
     let navigation: ActionsNavigation
     /// The pointer, for the drop's eyes.
     let spare: SpareSpaceModel
+    let store: ProviderStore
     @State private var dragging: UUID?
     @State private var translation = CGSize.zero
     @State private var target: ActionPlace?
@@ -72,10 +73,7 @@ struct ActionWheelCard: View {
 
     private var actions: [Action] { library.library.actions }
     /// How a typed instruction runs, as the centre's tooltip and VoiceOver value say it.
-    private var typedSummary: String {
-        let typed = library.library.typed
-        return typed.kind == .agent ? "Agent" : typed.model.choice?.modelID ?? "Same as Fix"
-    }
+    private var typedSummary: String { store.runsWithSummary(library.library.typed) }
 
     var body: some View {
         ZStack {
