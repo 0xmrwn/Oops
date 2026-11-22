@@ -8,7 +8,9 @@ is ever sent. Results print as a Markdown table for docs/compatibility.md and go
 Fronts each app in turn and types into it: run it only when nobody is using the Mac. Oops is installed as
 the development runtime (like fixtures/e2e) and relaunched as normal at the end.
 
-Usage: fixtures/compat/run.py [--no-build] [--out FILE] [app ...]
+Usage: fixtures/compat/run.py [--no-build] [--focus-trip] [--out FILE] [app ...]
+--focus-trip measures, instead, whether each app keeps its field while a panel of Oops's takes the keys (focus_trip.py:
+only the probe's own drafts unless --personal-apps).
 """
 
 import functools
@@ -23,6 +25,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "e2e"))
+import focus_trip  # noqa: E402
 import run as e2e  # noqa: E402  (build, quit_oops, RUNTIME, TOOLS)
 
 LAB = Path(__file__).resolve().parents[1] / "composer-lab/index.html"
@@ -293,8 +296,10 @@ def main():
         i = args.index("--out")
         out = Path(args[i + 1])
         del args[i : i + 2]
-    names = [a for a in args if a != "--no-build"]
-    apps = [a for a in APPS if not names or a["name"] in names or a["bundle"] in names]
+    trips = "--focus-trip" in args
+    names = [a for a in args if a not in ("--no-build", "--focus-trip", "--personal-apps")]
+    candidates = focus_trip.apps(APPS, "--personal-apps" in args) if trips else APPS
+    apps = [a for a in candidates if not names or a["name"] in names or a["bundle"] in names]
     e2e.build("--no-build" in sys.argv)
     work = Path(tempfile.mkdtemp(prefix="oops-compat-"))
     (work / "compat.txt").write_text("")
@@ -302,6 +307,7 @@ def main():
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     probe = Probe(work, f"http://127.0.0.1:{server.server_port}/index.html")
+    session = focus_trip.Session(probe, installed, vault=obsidian_vault)
     results = []
     try:
         e2e.quit_oops()
@@ -329,13 +335,17 @@ def main():
         time.sleep(3)
         for spec in apps:
             try:
-                result = probe.app(spec)
+                result = session.trip(spec) if trips else probe.app(spec)
             except Exception as error:  # one app's trouble shouldn't end the run
                 result = {"app": spec["name"], "bundle": spec["bundle"], "capture": f"probe error: {error}"}
             finally:
-                # Whatever happened, the probe's own text goes (only that text: it can't match anything else).
-                for text in (FIXED, DRAFT):
-                    probe.trigger("remove", spec["bundle"], text)
+                if trips:
+                    # Only what the trip wrote, from the field it wrote into.
+                    session.cleanup()
+                else:
+                    # Whatever happened, the probe's own text goes (only that text: it can't match anything else).
+                    for text in (FIXED, DRAFT):
+                        probe.trigger("remove", spec["bundle"], text)
             if result.get("cleanup"):
                 Path(result["cleanup"]).unlink(missing_ok=True)
             results.append(result)
@@ -348,10 +358,10 @@ def main():
         server.server_close()
         e2e.quit_oops()
         subprocess.run(["open", str(e2e.RUNTIME)])
-    print("\n" + table(results))
+    print("\n" + (focus_trip.table(results) if trips else table(results)))
     if out:
         out.write_text(json.dumps(results, indent=2, ensure_ascii=False) + "\n")
-    return int(any(failed_result(result) for result in results))
+    return 0 if trips else int(any(failed_result(result) for result in results))
 
 
 if __name__ == "__main__":

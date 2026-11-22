@@ -2,14 +2,15 @@ import Foundation
 
 /// What VoiceOver reads when the wheel opens and when a ring opens.
 public enum WheelAnnouncement {
-    public static func opening(_ petals: [WheelPetal]) -> String {
-        guard !petals.isEmpty else { return "Actions. None saved yet." }
-        return "Actions. " + list(petals)
+    /// `typing`: the centre takes typing here, which is said last.
+    public static func opening(_ petals: [WheelPetal], typing: Bool = false) -> String {
+        let said = petals.isEmpty ? "Actions. None saved yet." : "Actions. " + list(petals)
+        return typing ? said + " Or type an instruction." : said
     }
 
-    public static func choices(_ name: String, _ pills: [WheelPetal]) -> String {
-        guard !pills.isEmpty else { return "\(name). No values yet." }
-        return "\(name). " + list(pills)
+    public static func choices(_ name: String, _ pills: [WheelPetal], typing: Bool = false) -> String {
+        let said = pills.isEmpty ? "\(name). No values yet." : "\(name). " + list(pills)
+        return typing ? said + " Or type one." : said
     }
 
     /// The direction as a person says it.

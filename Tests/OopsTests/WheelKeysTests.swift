@@ -48,6 +48,77 @@ import Testing
         #expect(!keys.handle(.keyDown, Self.key(0, down: true, characters: "a")))
     }
 
+    @Test func `keys wait while the field comes up, then go to it`() throws {
+        let posted = Box<[String]>([])
+        let keys = try WheelKeys(chords: [Self.dictate], deliver: { _ in false }, listening: false, post: { event in
+            var length = 0
+            var units = [UniChar](repeating: 0, count: 4)
+            event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &length, unicodeString: &units)
+            posted.value.append((event.type == .keyDown ? "down " : "up ") + String(utf16CodeUnits: units, count: length))
+        })
+        #expect(keys.handle(.keyDown, Self.key(0, down: true, characters: "a")))
+        keys.hold()
+        #expect(keys.handle(.keyDown, Self.key(11, down: true, characters: "b")))
+        #expect(keys.handle(.keyUp, Self.key(11, down: false, characters: "b")))
+        #expect(!keys.handle(.keyDown, Self.key(2, down: true, flags: .maskAlternate, characters: "∂")), "Oops's shortcuts still go on")
+        #expect(posted.value.isEmpty)
+        keys.replay()
+        #expect(keys.mode == .typing)
+        #expect(posted.value == ["down b", "up b"])
+        #expect(!keys.handle(.keyDown, Self.key(8, down: true, characters: "c")), "the field has the keys now")
+        #expect(!keys.handle(.keyUp, Self.key(8, down: false, characters: "c")))
+    }
+
+    @Test func `the key that opens the field is held as its first character, a Return is not`() throws {
+        let posted = Box(0)
+        let keys = Box<WheelKeys?>(nil)
+        keys.value = try WheelKeys(chords: [], deliver: { input in
+            // The controller opens the field on the first text or Return it hears.
+            if case .key(.text, true, _) = input { keys.value?.hold() }
+            if case .key(.enter, true, _) = input { keys.value?.hold() }
+            return false
+        }, listening: false, post: { _ in posted.value += 1 })
+        let tap = try #require(keys.value)
+        #expect(tap.handle(.keyDown, Self.key(36, down: true)))
+        tap.replay()
+        #expect(posted.value == 0, "Return only opened the field")
+        #expect(tap.handle(.keyUp, Self.key(36, down: false)), "its key-up still stops here")
+
+        posted.value = 0
+        keys.value = try WheelKeys(chords: [], deliver: { input in
+            if case .key(.text, true, _) = input { keys.value?.hold() }
+            return false
+        }, listening: false, post: { _ in posted.value += 1 })
+        let second = try #require(keys.value)
+        #expect(second.handle(.keyDown, Self.key(0, down: true, characters: "q")))
+        second.replay()
+        #expect(posted.value == 1, "the first character reaches the field")
+        #expect(!second.handle(.keyUp, Self.key(0, down: false, characters: "q")), "and its key-up goes there too")
+    }
+
+    @Test func `Escape closes at once while the field is still coming up`() throws {
+        let heard = Box(0)
+        let keys = try WheelKeys(chords: [], deliver: { input in
+            if case .key(.escape, true, _) = input { heard.value += 1 }
+            return false
+        }, listening: false, post: { _ in Issue.record("nothing waits to be posted") })
+        keys.hold()
+        #expect(keys.handle(.keyDown, Self.key(53, down: true)))
+        #expect(heard.value == 1)
+        keys.replay()
+    }
+
+    @Test func `a field that never took the keys drops them`() throws {
+        let posted = Box(0)
+        let keys = try WheelKeys(chords: [], deliver: { _ in false }, listening: false, post: { _ in posted.value += 1 })
+        keys.hold()
+        #expect(keys.handle(.keyDown, Self.key(0, down: true, characters: "a")))
+        keys.discardHeld()
+        keys.replay()
+        #expect(posted.value == 0)
+        #expect(keys.mode == .wheel)
+    }
+
     @Test func `draining ends at the key-up`() throws {
         let keys = try WheelKeys(chords: [], deliver: { _ in false }, listening: false, keyIsDown: { _ in true })
         #expect(keys.handle(.keyDown, Self.key(125, down: true)))

@@ -2,6 +2,7 @@
 
 from actions import ACTIONS
 from agent import AGENT
+from typed import TYPED
 from wheel import WHEEL
 
 # name, lab text, stub script, expectations (insert cases: the `insert` text and the `expect`ed outcome, see
@@ -361,7 +362,7 @@ SCENARIOS += [
 ]
 
 # Actions on the lab's draft (actions.py), and through the wheel (wheel.py).
-SCENARIOS += ACTIONS + WHEEL + AGENT
+SCENARIOS += ACTIONS + WHEEL + AGENT + TYPED
 
 # Insert at the caret: no correction runs, so there is no stub. Each case checks the outcome Oops logs, the
 # text left behind and that the clipboard is back as it was.

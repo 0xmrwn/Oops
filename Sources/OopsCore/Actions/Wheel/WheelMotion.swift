@@ -43,6 +43,8 @@ public struct WheelMotion: Equatable, Sendable {
     public private(set) var dip = WheelSpring(1), iconMix = WheelSpring(), check = WheelSpring(), dim = WheelSpring()
     public private(set) var live: ActionPlace?
     public private(set) var named = false
+    /// The words under the centre that say it takes typing; and whether the centre is a field.
+    public private(set) var hint = WheelSpring(), typing = false
     /// What the centre shows once a petal has flowed into it.
     public private(set) var symbol: String?
     var cues: [Pending] = []
@@ -59,6 +61,8 @@ public struct WheelMotion: Equatable, Sendable {
         epoch += 1
         live = nil
         named = false
+        typing = false
+        hint.target = 0
         bloomed = false
         symbol = nil
         iconMix.target = 0
@@ -126,9 +130,36 @@ public struct WheelMotion: Equatable, Sendable {
         for index in root.indices where !root[index].leaving { root[index].name.target = 1 }
     }
 
+    /// The words under the centre come out with the names.
+    public mutating func showHint() { hint.target = 1 }
+
+    /// The centre widens into a field and both rings go back into it.
+    public mutating func beginTyping() {
+        epoch += 1
+        typing = true
+        live = nil
+        dim.target = 0
+        named = false
+        hint.target = 0
+        width.target = WheelLayout.field
+        relax()
+        retract(\.root, chosen: nil)
+        retract(\.choice, chosen: nil)
+    }
+
+    /// The field closes back into the drop.
+    public mutating func endTyping() {
+        typing = false
+        width.target = WheelLayout.drop
+    }
+
+    /// How far the centre has widened into its field, 0 to 1.
+    public var fieldOpen: Double { min(1, max(0, (width.x - WheelLayout.drop) / (WheelLayout.field - WheelLayout.drop))) }
+
     /// The chosen petal flows into the centre, which shows its symbol; the rest of its ring goes back.
     public mutating func select(_ place: ActionPlace?, symbol: String) {
         epoch += 1
+        hint.target = 0
         self.symbol = symbol
         iconMix.target = 1
         live = nil
@@ -143,6 +174,8 @@ public struct WheelMotion: Equatable, Sendable {
         epoch += 1
         live = nil
         named = false
+        typing = false
+        hint.target = 0
         dim.target = 0
         width.target = WheelLayout.drop
         relax()
@@ -174,6 +207,7 @@ public struct WheelMotion: Equatable, Sendable {
         recoilY.step(dt, 0.3, 0.45)
         dip.step(dt, 0.32, 0.42)
         iconMix.step(dt, 0.2, 1)
+        hint.step(dt, 0.3, 0.85)
         check.step(dt, 0.4, 0.6)
         dim.step(dt, 0.2, 1)
     }
@@ -185,7 +219,7 @@ public struct WheelMotion: Equatable, Sendable {
 
     /// Nothing moves and nothing is scheduled: another step would draw the same frame.
     public var resting: Bool {
-        cues.isEmpty && [present, width, recoilX, recoilY, dip, iconMix, check, dim].allSatisfy(\.resting)
+        cues.isEmpty && [present, width, recoilX, recoilY, dip, iconMix, check, dim, hint].allSatisfy(\.resting)
             && (root + choice).allSatisfy { [$0.out, $0.grow, $0.highlight, $0.name, $0.fade].allSatisfy(\.resting) }
     }
 

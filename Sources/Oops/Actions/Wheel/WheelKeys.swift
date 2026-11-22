@@ -30,6 +30,12 @@ enum WheelInput {
     private var mouseTaken = false
     private var draining = false
     private var drainEnd: Task<Void, Never>?
+    /// The wheel hears the keys; or holds them while its field comes up; or the field has them and they go on.
+    enum Mode { case wheel, holding, typing }
+    private(set) var mode = Mode.wheel
+    /// Key events held while the field comes up, posted again once it has the keys.
+    private var held: [CGEvent] = []
+    private let post: @MainActor (CGEvent) -> Void
     #if DEBUG
     /// Key events this tap handled, for the probe that asks whether posted events reach it.
     private(set) var handledCount = 0
@@ -42,8 +48,9 @@ enum WheelInput {
     /// `handle` feeds it, as tests do.
     init(chords: [WheelChord], deliver: @escaping @MainActor (WheelInput) -> Bool, listening: Bool = true,
          keyIsDown: @escaping @MainActor (Int64) -> Bool = { CGEventSource.keyState(.hidSystemState, key: CGKeyCode($0)) },
-         drain timing: Drain = Drain()) throws {
+         drain timing: Drain = Drain(), post: @escaping @MainActor (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }) throws {
         self.chords = chords
+        self.post = post
         self.deliver = deliver
         self.keyIsDown = keyIsDown
         self.timing = timing
@@ -82,6 +89,7 @@ enum WheelInput {
         #endif
         let code = event.getIntegerValueField(.keyboardEventKeycode)
         if draining { return drained(type, code) }
+        if type == .keyDown || type == .keyUp, let stop = typing(type, code, event) { return stop }
         switch type {
         case .keyDown:
             let key = WheelKey.classify(keyCode: code, flags: event.flags, characters: Self.characters(event), chords: chords)
@@ -96,6 +104,12 @@ enum WheelInput {
                 // Taken before it is heard: a key that closes the wheel still has its key-up stopped.
                 taken.insert(code)
                 _ = deliver(.key(key, down: true, isRepeat: isRepeat))
+                // The key that opened the field is its first character, so it waits with whatever follows; a Return
+                // only opened it.
+                if mode == .holding, key != .enter, let copy = event.copy() {
+                    held.append(copy)
+                    taken.remove(code)
+                }
                 return true
             }
         case .keyUp:
@@ -116,6 +130,52 @@ enum WheelInput {
             return stop
         default:
             return false
+        }
+    }
+
+    /// The field is coming up: from now every key waits here until `replay`.
+    func hold() {
+        guard live, mode == .wheel else { return }
+        mode = .holding
+    }
+
+    /// The field has the keys: what waited goes to it by the system's own path, so input methods and dead keys see
+    /// it, and from now keys go on.
+    func replay() {
+        guard mode == .holding else { return }
+        mode = .typing
+        let events = held
+        held = []
+        // Untagged, as a person's keys: the tap lets them by now, and so does the swap's gate.
+        events.forEach(post)
+    }
+
+    /// The field never took the keys: what waited is dropped, and the wheel hears the keys again.
+    func discardHeld() {
+        held = []
+        mode = .wheel
+    }
+
+    /// Keys while the field comes up or has them; nil in the wheel's own mode.
+    private func typing(_ type: CGEventType, _ code: Int64, _ event: CGEvent) -> Bool? {
+        switch mode {
+        case .wheel: return nil
+        case .holding:
+            // Oops's shortcuts still reach their handlers.
+            let key = type == .keyDown ? WheelKey.classify(keyCode: code, flags: event.flags, characters: "", chords: chords) : nil
+            if key == .pass { return false }
+            // Escape doesn't wait for a field still coming up: it closes the wheel at once.
+            if key == .escape {
+                taken.insert(code)
+                _ = deliver(.key(.escape, down: true, isRepeat: false))
+                return true
+            }
+            // Keys already down when the field began come up here, after the field's first character.
+            if let copy = event.copy() { held.append(copy) }
+            return true
+        case .typing:
+            // Only the key-up of a Return that opened the field still stops here.
+            return type == .keyUp && taken.remove(code) != nil
         }
     }
 

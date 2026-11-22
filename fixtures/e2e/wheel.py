@@ -2,11 +2,11 @@
 hears posted keys, so the shortcut has a trigger of its own; keys and the pointer go through the wheel's own tap.
 Oops logs every effect, refusal, state and outcome in actions.jsonl, which the checks read.
 
-Steps: ("shortcut",), ("key", name, phase), ("keys", spec), ("mouse", kind, at), ("wait", ms), ("state",),
-("outcome",) to wait for the next run's outcome, ("fix",) to run Fix on the draft and wait for its attempt, and
+Steps: ("shortcut",), ("key", name, phase), ("keys", spec), ("type", text), ("mouse", kind, at), ("wait", ms),
+("state",), ("outcome",) to wait for the next run's outcome, ("fix",) to run Fix on the draft and wait for its attempt, and
 ("probe",) to ask whether a posted key reaches the tap. Expectations: `outcomes` in order, `seen` effects in order
 ("select=down"), `unseen` effects, `counts` of an effect, `state` fields of the last state logged, the field's `final`
-text (the shown text by default) and the stub's `calls`."""
+text (the shown text by default), the stub's `calls`, and words the model's `instructions` must hold."""
 
 import json
 import time
@@ -180,11 +180,12 @@ WHEEL = [
         calls=1,
         settle=True,
     ),
-    # Typing, Return and Delete go to the wheel, never to the draft.
+    # Where the centre can't type, typing, Return and Delete are the wheel's and never reach the draft.
     dict(
         name="wheel:keys-held",
         text="keep me",
         stub={"answer": "x"},
+        library={"typing": False},
         steps=OPEN
         + [("key", "a", "tap"), ("key", "return", "tap"), ("key", "delete", "tap"), ("key", "escape", "tap")],
         outcomes=[],
@@ -204,6 +205,7 @@ WHEEL = [
 
 # The field an effect is told by, in "name=value".
 FIELDS = {
+    "beginTyping": "placeholder",
     "bloom": "places",
     "bloomChoices": "places",
     "select": "place",
@@ -258,6 +260,8 @@ def check(run, case):
             run.trigger("wheel-key", step[1], step[2])
         elif kind == "keys":
             run.trigger("wheel-keys", step[1])
+        elif kind == "type":
+            run.trigger("wheel-type", step[1])
         elif kind == "mouse":
             run.trigger("wheel-mouse", step[1], step[2])
         elif kind == "state":
@@ -287,6 +291,12 @@ def check(run, case):
     found = [("outcomes", outcomes(), wanted), ("text", run.state().get("text"), final)]
     if "calls" in case:
         found.append(("stub calls", run.calls() - calls, case["calls"]))
+    if "instructions" in case:
+        try:
+            asked = run.stub.with_suffix(".json.instructions").read_text()
+        except OSError:
+            asked = ""
+        found.append(("instructions hold", case["instructions"] in asked, True))
     problems = [f"{label}: wanted {wanted!r}, got {actual!r}" for label, actual, wanted in found if actual != wanted]
     rest = iter(events)
     problems += [f"never saw {spec}" for spec in case.get("seen", []) if not any(matches(e, spec) for e in rest)]

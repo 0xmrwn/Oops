@@ -24,6 +24,10 @@ enum AppProbe {
         /// The field's placeholder and description, to tell a placeholder reported as text apart.
         var placeholder: String?
         var fieldDescription: String?
+        /// `focus-trip`: what a key panel taking the keys for a moment did to the field.
+        var trip: FocusTrip?
+        /// The focused field's identity in this run, to tell it is still the one written into.
+        var element: Int?
         var date = Date()
     }
 
@@ -50,12 +54,15 @@ enum AppProbe {
                 case "new": KeyboardGate.postCommand("n")
                 case "remove": try remove(text ?? "", editor)
                 case "type": try paste(text ?? "")
+                case "write", "select", "clear": try scratch(action, text ?? "", editor)
+                case "focus-trip", "focus-trip-refocus": state.trip = try focusTrip(editor, refocus: action == "focus-trip-refocus")
                 case "read", "markers", "attributes", "bounds": break
                 default: throw Failure("unknown action \(action)")
                 }
                 Thread.sleep(forTimeInterval: 0.3)
                 if let raw = focused() {
                     let element = action == "markers" ? editor.caretHolder(raw) ?? raw : raw
+                    state.element = Int(bitPattern: UInt(CFHash(element)))
                     state.role = string(element, kAXRoleAttribute)
                     state.subrole = string(element, kAXSubroleAttribute)
                     state.value = string(element, kAXValueAttribute)

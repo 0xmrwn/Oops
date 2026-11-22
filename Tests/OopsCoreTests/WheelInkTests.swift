@@ -23,11 +23,15 @@ struct WheelInkTests {
         #expect(ink(0.46, systemDark: false).dark)
     }
 
-    @Test func `pure black in dark mode follows the system, except on a web page`() {
+    @Test func `pure black or white outside a web page follows the system`() {
         #expect(!ink(0, systemDark: true).dark)
         #expect(ink(0, systemDark: false).dark)
+        #expect(!ink(1, systemDark: true).dark)
+        #expect(ink(1, systemDark: false).dark)
         #expect(ink(0.02, systemDark: true).dark)
+        #expect(!ink(0.98, systemDark: false).dark)
         #expect(WheelInk(page: CaretStyle(color: SIMD3(0, 0, 0)), web: true, systemDark: true, increaseContrast: false, reduceTransparency: false).dark)
+        #expect(!WheelInk(page: CaretStyle(color: SIMD3(1, 1, 1)), web: true, systemDark: false, increaseContrast: false, reduceTransparency: false).dark)
     }
 
     @Test func `contrast and transparency use the plain ink`() {

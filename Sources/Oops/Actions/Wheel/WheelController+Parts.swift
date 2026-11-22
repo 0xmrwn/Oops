@@ -16,7 +16,28 @@ extension WheelController {
                 return said
             }
         }
-        return WheelAnnouncement.opening(spoken)
+        return WheelAnnouncement.opening(spoken, typing: wheel.canType)
+    }
+
+    /// Nothing moves: the display link stops drawing identical frames until input or the wheel's next wait.
+    func doze(until due: TimeInterval?, now: TimeInterval) {
+        guard let link, !link.isPaused else { return }
+        link.isPaused = true
+        log(["wheel": "doze", "until": due.map { "\(Int(($0 - openedAt) * 1000))" } ?? ""])
+        guard let due else { return }
+        let timer = Timer(timeInterval: max(0, due - now), repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.wake() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        dozing = timer
+    }
+
+    /// Something may move again: the display link draws from now.
+    func wake() {
+        dozing?.invalidate(); dozing = nil
+        guard let link, link.isPaused else { return }
+        lastTick = CACurrentMediaTime()
+        link.isPaused = false
     }
 
     /// A petal or pill for `title`, measured in the label font, its width kept for the view.
@@ -65,14 +86,20 @@ extension WheelController {
         case .showNames: ["wheel": "showNames"]
         case let .select(place, symbol): ["wheel": "select", "place": place.rawValue, "symbol": symbol]
         case let .bloomChoices(places): ["wheel": "bloomChoices", "places": list(places)]
-        case let .run(invocation): ["wheel": "run", "invocation": ActionSession.name(invocation) + (Self.value(invocation).map { "/" + $0 } ?? "")]
+        case let .run(invocation): ["wheel": "run", "invocation": Self.said(invocation)]
+        case let .beginTyping(placeholder): ["wheel": "beginTyping", "placeholder": placeholder]
+        case .showHint: ["wheel": "showHint"]
         case .restore: ["wheel": "restore"]
         case .close: ["wheel": "close"]
         }
     }
 
-    private static func value(_ invocation: ActionInvocation) -> String? {
-        if case let .saved(_, value) = invocation { value } else { nil }
+    /// "Translate/French", or what was typed.
+    private static func said(_ invocation: ActionInvocation) -> String {
+        switch invocation {
+        case let .saved(action, value): action.name + (value.map { "/" + $0 } ?? "")
+        case let .typed(text): "typed/" + text
+        }
     }
 
     /// Where the field is and how its text is coloured.

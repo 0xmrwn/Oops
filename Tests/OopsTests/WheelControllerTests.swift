@@ -105,6 +105,48 @@ import Testing
         #expect(fixture.wheel.wheel.gesture.pointed == .down)
     }
 
+    @Test func `typing turns the centre into a field and holds the keys meanwhile`() throws {
+        let fixture = try Fixture(tapped: true)
+        fixture.wheel.shortcut()
+        let keys = try #require(fixture.wheel.keys)
+        let letter = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
+        letter.flags = []
+        letter.keyboardSetUnicodeString(stringLength: 1, unicodeString: Array("m".utf16))
+        #expect(keys.handle(.keyDown, letter))
+        #expect(fixture.wheel.wheel.level == .typing(from: .root))
+        #expect(keys.mode == .holding, "the letter waits for the field, as its first character")
+        fixture.wheel.close()
+        #expect(!fixture.wheel.isOpen)
+    }
+
+    @Test func `where the centre can't type a letter is taken and does nothing`() throws {
+        let fixture = try Fixture(tapped: true)
+        fixture.wheel.typingOff = true
+        fixture.wheel.shortcut()
+        let keys = try #require(fixture.wheel.keys)
+        let letter = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
+        letter.flags = []
+        letter.keyboardSetUnicodeString(stringLength: 1, unicodeString: Array("m".utf16))
+        #expect(keys.handle(.keyDown, letter), "the draft never gets it")
+        #expect(fixture.wheel.wheel.level == .root)
+        #expect(keys.mode == .wheel)
+        #expect(fixture.wheel.openingAnnouncement()?.hasSuffix("Tone.") == true, "the announcement offers no typing")
+    }
+
+    @Test func `a click elsewhere keeps the focus it chose`() {
+        #expect(WheelFieldState.refocuses(shown: true, clickedAway: false), "Escape gives the field its focus back")
+        #expect(!WheelFieldState.refocuses(shown: true, clickedAway: true))
+        #expect(!WheelFieldState.refocuses(shown: false, clickedAway: false), "no field, nothing to give back")
+    }
+
+    @Test func `the selection given back is the one the editor reported`() {
+        // Capture measured the editor 3 characters behind and 2 short: corrected = reported + shift.
+        let corrected = NSRange(location: 13, length: 6)
+        #expect(EditorAccess.reported(corrected, shift: 3, lengthShift: 2) == NSRange(location: 10, length: 4))
+        #expect(EditorAccess.reported(NSRange(location: 13, length: 0), shift: 3, lengthShift: 2) == NSRange(location: 10, length: 0))
+        #expect(EditorAccess.reported(corrected, shift: 0, lengthShift: 0) == corrected)
+    }
+
     @Test func `the first ring is announced only while it is the one showing`() throws {
         let fixture = try Fixture()
         fixture.wheel.shortcut()

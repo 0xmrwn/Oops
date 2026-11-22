@@ -11,17 +11,23 @@ import OopsCore
         wheel.onRun = { [weak self] in self?.recordAction($0) }
         on("wheel-shortcut") { [weak self] _ in if Self.labIsInFront() { self?.wheel.shortcut() } }
         on("wheel-key") { [weak self] info in
-            guard let self, let name = info["key"], Self.labIsInFront() else { return }
+            guard let self, let name = info["key"], self.overLab() else { return }
             Task { await self.key(name, phase: info["phase"] ?? "tap") }
         }
         // `up+right,40,up-,30,right-`: presses, waits in milliseconds and releases (`open` is the shortcut), in one
         // go, so a gesture's timing doesn't depend on how fast triggers arrive.
         on("wheel-keys") { [weak self] info in
-            guard let self, let spec = info["spec"], Self.labIsInFront() else { return }
+            guard let self, let spec = info["spec"], self.overLab() else { return }
             Task { await self.keys(spec) }
         }
+        // Characters as a person types them: the first through the tap's own path, which holds it while the field
+        // comes up; the rest as real key events, which reach the field by the system's path.
+        on("wheel-type") { [weak self] info in
+            guard let self, let text = info["text"], self.overLab() else { return }
+            Task { await self.type(text) }
+        }
         on("wheel-mouse") { [weak self] info in
-            guard let self, let kind = info["kind"], let at = info["at"], Self.labIsInFront() else { return }
+            guard let self, let kind = info["kind"], let at = info["at"], self.overLab() else { return }
             Task { await self.mouse(kind, at: at) }
         }
         on("wheel-state") { [weak self] _ in
@@ -43,14 +49,17 @@ import OopsCore
             }
         }
         // The wheel's actions for the next openings, from a file: `places` keeps those starters (all when absent) and
-        // `add` puts more at theirs. The saved actions are never read or touched.
+        // `add` puts more at theirs; `typing` false treats the lab as an app where the centre can't type. The saved
+        // actions are never read or touched.
         on("wheel-library") { [weak self] info in
             guard let self, let path = info["path"] else { return }
             guard let library = Self.library(at: URL(fileURLWithPath: path)) else {
                 Self.record(["library": "unreadable"], to: "actions.jsonl"); return
             }
-            self.wheel.library = { library }
-            Self.record(["library": "set", "count": "\(library.actions.count)"], to: "actions.jsonl")
+            self.wheel.library = { library.actions }
+            self.wheel.typingOff = !library.typing
+            self.actions.typedRunsWith = library.actions.typed.kind == .agent ? library.actions.typed : nil
+            Self.record(["library": "set", "count": "\(library.actions.actions.count)"], to: "actions.jsonl")
         }
     }
 
@@ -76,16 +85,45 @@ import OopsCore
         }
     }
 
+    /// A lab is in front, or the wheel's own field has the keys over it: the field's window is then the focused one.
+    private func overLab() -> Bool { wheel.field.shown || Self.labIsInFront() }
+
+    private func type(_ text: String) async {
+        for (index, character) in text.enumerated() {
+            for down in [true, false] {
+                guard let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: down) else { continue }
+                event.flags = []
+                let units = Array(String(character).utf16)
+                event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                if index == 0 {
+                    let taken = wheel.keys?.handle(down ? .keyDown : .keyUp, event) ?? false
+                    if down { Self.record(["wheel": "key", "key": String(character), "down": "yes", "taken": taken ? "yes" : "no"], to: "actions.jsonl") }
+                } else {
+                    event.post(tap: .cghidEventTap)
+                }
+                try? await Task.sleep(for: .milliseconds(25))
+            }
+        }
+    }
+
     /// One key event through the wheel's tap, logged; true when it stopped there.
     private func send(_ name: String, down: Bool) -> Bool {
-        let codes: [String: CGKeyCode] = ["up": 126, "right": 124, "down": 125, "left": 123, "escape": 53, "return": 36,
+        var codes: [String: CGKeyCode] = ["up": 126, "right": 124, "down": 125, "left": 123, "escape": 53, "return": 36,
                                           "delete": 51, "space": 49, "tab": 48, "f5": 96]
+        // `code:33`: that key as the current layout types it, a dead key included.
+        if name.hasPrefix("code:"), let code = CGKeyCode(name.dropFirst(5)) { codes[name] = code }
         guard let event = CGEvent(keyboardEventSource: nil, virtualKey: codes[name] ?? 0, keyDown: down) else { return false }
         // A new event takes the modifiers held right now; these stand for a bare key.
         event.flags = []
         if codes[name] == nil {
             let units = Array(name.utf16)
             event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+        }
+        // The field has the keys: they go to it the way a person's do.
+        if wheel.keys?.mode == .typing {
+            event.post(tap: .cghidEventTap)
+            Self.record(["wheel": "key", "key": name, "down": down ? "yes" : "no", "taken": "field"], to: "actions.jsonl")
+            return false
         }
         let taken = wheel.keys?.handle(down ? .keyDown : .keyUp, event) ?? false
         Self.record(["wheel": "key", "key": name, "down": down ? "yes" : "no", "taken": taken ? "yes" : "no"], to: "actions.jsonl")
@@ -138,15 +176,22 @@ import OopsCore
         case .closed: "closed"
         case .root: "root"
         case let .choices(action): "choices:" + action.name
+        case .typing(from: .root): "typing"
+        case let .typing(from: .choices(action)): "typing:" + action.name
         }
+        entry["typing"] = model.canType ? "yes" : "no"
+        entry["fieldKey"] = wheel.field.shown && wheel.field.panel.window.isKeyWindow ? "yes" : "no"
+        entry["fieldText"] = wheel.field.model.text
+        entry["frontmost"] = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
         for node in wheel.motion.root where !node.leaving { entry["title." + node.petal.place.rawValue] = node.petal.title }
         return entry
     }
 
-    private static func library(at url: URL) -> ActionLibrary? {
+    private static func library(at url: URL) -> (actions: ActionLibrary, typing: Bool)? {
         struct Added: Decodable { var name: String, symbol: String, place: ActionPlace, values: [ActionPlace: String]? }
-        // `agent`: the starters at these places run as agents.
-        struct Spec: Decodable { var places: [ActionPlace]?, add: [Added]?, agent: [ActionPlace]? }
+        // `agent`: the starters at these places run as agents, and `typedAgent` a typed instruction; `typing` false: the
+        // centre can't type.
+        struct Spec: Decodable { var places: [ActionPlace]?, add: [Added]?, agent: [ActionPlace]?, typedAgent: Bool?, typing: Bool? }
         guard let data = try? Data(contentsOf: url), let spec = try? JSONDecoder().decode(Spec.self, from: data) else { return nil }
         let kept = ActionLibrary.starters.actions.filter { spec.places?.contains($0.place) ?? true }.map { action in
             var action = action
@@ -158,7 +203,9 @@ import OopsCore
             return Action(symbol: added.symbol, name: added.name, instruction: added.name + (choice == nil ? "." : ": " + Action.choiceMark + "."),
                           choice: choice, place: added.place)
         }
-        return ActionLibrary(actions: kept + added)
+        var library = ActionLibrary(actions: kept + added)
+        if spec.typedAgent == true { library.typed.kind = .agent }
+        return (library, spec.typing ?? true)
     }
 }
 #endif
