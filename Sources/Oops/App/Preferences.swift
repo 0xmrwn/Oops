@@ -31,7 +31,7 @@ import OopsCore
     let preview: ChatGPTPreview?
     private let defaults: UserDefaults
     private var signInTask: Task<Void, Never>?
-    private var modelsTask: Task<Void, Never>?
+    private(set) var modelsTask: Task<Void, Never>?
     private var modelsFetchedAt: Date?
     private var accountRevision = 0
     private var readingStatusAt: Int?
