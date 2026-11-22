@@ -10,6 +10,9 @@ final class AccessibilitySwitches: @unchecked Sendable {
     private static let log = Logger(subsystem: "dev.0xmrwn.oops", category: "Highlight")
     private let lock = NSLock()
     private var entries: [pid_t: Entry] = [:]
+    /// Runs that need a switch for longer than the operation that set it (an agent run), per process: while any holds
+    /// one, no one else turns it off, and the last to let go does.
+    private var holds: [pid_t: Int] = [:]
     private let file = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("oops/accessibility-switches.json")
 
@@ -20,6 +23,19 @@ final class AccessibilitySwitches: @unchecked Sendable {
 
     /// The switch set on `pid`, still recorded.
     func attribute(for pid: pid_t) -> String? { lock.withLock { entries[pid]?.attribute } }
+
+    func hold(_ pid: pid_t) { lock.withLock { holds[pid, default: 0] += 1 } }
+
+    /// Lets go of one hold on `pid`; true when none is left, so the switch may go.
+    func release(_ pid: pid_t) -> Bool {
+        lock.withLock {
+            let left = max(0, (holds[pid] ?? 0) - 1)
+            holds[pid] = left == 0 ? nil : left
+            return left == 0
+        }
+    }
+
+    func isHeld(_ pid: pid_t) -> Bool { lock.withLock { holds[pid] != nil } }
 
     /// The switch set on `pid`, forgotten.
     func take(_ pid: pid_t) -> String? {

@@ -66,7 +66,7 @@ import OopsCore
         }
         // A held answer waits in the drop to be copied: the next case gets the drop back.
         on("action-dismiss-lab") { [weak self] _ in self?.actions.cancel() }
-        if DebugFlags.actions { observeWheelTriggers(on) }
+        if DebugFlags.actions { observeWheelTriggers(on); observeAgentTriggers(on) }
         // Compatibility runs: a scratch draft in the app the trigger names, and only while it is in front.
         on("app") { [weak self] info in
             guard let self, let bundle = info["bundle"], let action = info["action"] else { return }

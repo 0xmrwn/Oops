@@ -70,7 +70,7 @@ struct ActionRunTests {
     }
 
     @Test @MainActor func `failure labels never say correct`() {
-        let reasons: [ActionFailure.Reason] = [.empty, .tooLong, .secure, .capture, .agentRun, .noModel, .offline, .slow, .signIn, .limit,
+        let reasons: [ActionFailure.Reason] = [.empty, .tooLong, .secure, .capture, .agentBusy, .sandbox, .noModel, .offline, .slow, .signIn, .limit,
                                                .setup, .model, .output, .restore, .partial]
         for reason in reasons {
             let text = ActionFailure(reason, "x").label.text.lowercased()

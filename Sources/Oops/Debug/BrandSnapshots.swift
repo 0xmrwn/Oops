@@ -41,6 +41,7 @@ import SwiftUI
                   let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { fatalError("Brand render failed") }
             try? data.write(to: directory.appendingPathComponent("brand-\(name).png"))
         }
+        MenuBarMarkSnapshots.render(to: directory)
     }
 }
 #endif

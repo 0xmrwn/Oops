@@ -25,14 +25,34 @@ import Testing
         #expect(fixture.forgotten == 1)
     }
 
-    @Test func `an agent run fails before reading the draft`() async throws {
+    @Test func `an agent run without Claude Code fails before reading the draft`() async throws {
         let fixture = try Fixture()
-        let top = try #require(ActionLibrary.starters.action(at: .up))
-        fixture.library.update(top.id) { $0.runsWith = .init(kind: .agent) }
-        let agent = try #require(fixture.library.library.action(at: .up))
+        let agent = try fixture.agentAction()
         let outcome = await fixture.session.run(.saved(agent, value: nil))?.value
-        #expect(outcome == .failed(.agentRun))
+        let failure = ActionFailure.agent(ClaudeAgentError.notInstalled)
+        #expect(failure.reason == .setup)
+        #expect(outcome == .failed(failure))
+        #expect(fixture.drop.states.last == .failed(failure))
         #expect(!fixture.captured)
+    }
+
+    @Test func `a second agent run is refused while one is under way, and a model run is not`() async throws {
+        let calls = Recorder<Int>()
+        let fixture = try Fixture(agent: { Task { await calls.add(1) }; return Silent() })
+        let gate = Signal()
+        fixture.capture = { await gate.wait(); throw CancellationError() }
+        let agent = try fixture.agentAction()
+        let first = try #require(fixture.session.run(.saved(agent, value: nil)))
+        #expect(fixture.session.agent.isRunning)
+        #expect(!fixture.session.isBusy, "an agent run leaves the session to model runs")
+        let second = await fixture.session.run(.saved(agent, value: nil))?.value
+        #expect(second == .failed(.agentBusy(agent.name)))
+        #expect(fixture.drop.states.last == .failed(.agentBusy(agent.name)))
+        fixture.session.agent.cancel()
+        #expect(!fixture.session.agent.isRunning)
+        await gate.release()
+        #expect(await first.value == .cancelled)
+        #expect(await calls.items.count == 1)
     }
 
     @Test func `a run in Try refuses another app's field`() async throws {
@@ -185,7 +205,14 @@ import Testing
         private let suite = "oops-action-session-" + UUID().uuidString
         private let defaults: UserDefaults
 
-        init(providers: Bool = true, reply: String? = nil) throws {
+        /// An action that runs as an agent, saved in the fixture's library.
+        func agentAction() throws -> Action {
+            let top = try #require(ActionLibrary.starters.action(at: .up))
+            library.update(top.id) { $0.runsWith = .init(kind: .agent) }
+            return try #require(library.library.action(at: .up))
+        }
+
+        init(providers: Bool = true, reply: String? = nil, agent: (@MainActor () throws -> any AgentRunning)? = nil) throws {
             defaults = try #require(UserDefaults(suiteName: suite))
             if !providers {
                 defaults.set(try JSONEncoder().encode([Provider]()), forKey: "providers")
@@ -203,7 +230,8 @@ import Testing
             library = ActionLibraryModel(store: store)
             let reading = reading
             session = ActionSession(editor: EditorAccess(), providers: providerStore, drop: drop, library: library,
-                                    capture: { reading.captured = true; return try await reading.capture() }, locate: { nil })
+                                    capture: { reading.captured = true; return try await reading.capture() }, locate: { nil },
+                                    agentRunner: agent ?? { throw ClaudeAgentError.notInstalled })
             session.forgetFix = { [weak self] in self?.forgotten += 1 }
         }
 
@@ -230,6 +258,11 @@ import Testing
     }
     func show(_ state: ActionDropState, geometry: CapsulePlacement.Geometry?, element: AXUIElement?) { states.append(state) }
     func leave() {}
+}
+
+/// An agent that never answers.
+private struct Silent: AgentRunning {
+    func run(_ request: ClaudeAgentRequest) -> AsyncThrowingStream<ClaudeAgentUpdate, Error> { AsyncThrowingStream { _ in } }
 }
 
 private struct Replying: CorrectionBackend {

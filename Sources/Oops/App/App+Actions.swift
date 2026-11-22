@@ -11,11 +11,19 @@ extension AppDelegate {
         }
     }
 
-    /// Actions shares Fix's editor (one Chromium switch registry) and the drop.
+    /// Actions shares Fix's editor (one Chromium switch registry) and the drop; an agent run shows in it too, and in
+    /// the menu bar.
     func makeActions() -> ActionSession {
-        let editor = session.editor
-        let actions = ActionSession(editor: editor, providers: preferences.providers,
-                                    drop: ActionDropOwner(owner: drop) { await editor.geometry(of: $0) })
+        let editor = session.editor, providers = preferences.providers
+        let actions = ActionSession(editor: editor, providers: providers,
+                                    drop: ActionDropOwner(owner: drop) { await editor.geometry(of: $0) },
+                                    agentDrop: AgentDrop(owner: drop) { await editor.geometry(of: $0) },
+                                    agentRunner: { try providers.agentRunner() })
+        actions.agent.changed = { [weak self] in self?.menuBar?.agentChanged() }
+        actions.agent.escape = { [weak self] in self?.armEscape(.agent, $0 ? [0] : []) }
+        menuBar?.agent = { [weak actions] in actions?.agent }
+        actions.agent.refused = { [weak self] in self?.preferences.status = $0 }
+        actions.agent.othersBusy = { [weak self, weak actions] in self?.session.isBusy == true || actions?.isBusy == true }
         actions.forgetFix = { [weak self] in
             self?.session.remember(nil); self?.session.testEditor.restoreUnavailable()
         }
@@ -26,5 +34,20 @@ extension AppDelegate {
         actions.retryInTry = { ActionTryModel.shared.retry($0) }
         actions.tryDraftFocused = { ActionTryModel.shared.draftIsFocused }
         return actions
+    }
+
+    /// The Actions shortcut takes a ready agent result back to its draft before anything else; otherwise it opens the wheel.
+    func actionsShortcut() {
+        if actions.agent.isReady { actions.agent.act() } else { wheel.shortcut() }
+    }
+
+    /// Registers the union of every feature's Escape chords (Carbon modifiers; 0 is plain Escape).
+    func armEscape(_ feature: DropFeature, _ chords: [UInt32]) {
+        shortcuts.armCancel(escapes.arm(feature, chords))
+    }
+
+    /// Escape goes to Dictate whenever it armed it, else to the agent run whose drop is in front.
+    func escapePressed() {
+        if escapes.target == .agent { actions.agent.cancel() } else { dictation?.cancel() }
     }
 }

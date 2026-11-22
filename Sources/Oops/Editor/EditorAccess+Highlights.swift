@@ -53,10 +53,10 @@ extension EditorAccess {
         }
         return false
     }
-    /// Turns off the switch Oops set on `pid`, if any. Forgotten only once turned off, so a quit in
-    /// between still restores it.
+    /// Turns off the switch Oops set on `pid`, if any, unless a longer run still holds it (`holdFullAccessibility`).
+    /// Forgotten only once turned off, so a quit in between still restores it.
     nonisolated func restoreFullAccessibility(pid: pid_t) {
-        guard let attribute = switches.attribute(for: pid) else { return }
+        guard !switches.isHeld(pid), let attribute = switches.attribute(for: pid) else { return }
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetAttributeValue(app, attribute as CFString, kCFBooleanFalse)
         _ = switches.take(pid)

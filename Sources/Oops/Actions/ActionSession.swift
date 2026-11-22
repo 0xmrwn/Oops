@@ -4,7 +4,7 @@ import OopsCore
 /// Runs an action on the focused draft, or on its selection: captures it as Fix does, asks the action's model with
 /// Actions' own prompt, writes the answer over the whole span through Fix's guarded swap, and shows each step in the
 /// drop. One run at a time; a press while one holds the drop does nothing. What a run wrote can be put back while
-/// its result shows (`restore()`).
+/// its result shows (`restore()`). An action that runs as an agent goes to `agent`, which runs beside these.
 @MainActor final class ActionSession {
     /// Fix's limit (`CorrectionBackend.defaultDeadline`): past it the run fails and writes nothing.
     static let deadline: Duration = .seconds(40)
@@ -13,7 +13,7 @@ import OopsCore
     let drop: any ActionDrop
     let library: ActionLibraryModel
     /// Reads the focused draft; where the focused field is, without reading its text. The editor's own, or a test's.
-    private let capture: @MainActor () async throws -> EditorSnapshot
+    let capture: @MainActor () async throws -> EditorSnapshot
     let locate: @MainActor () async -> CapsulePlacement.Geometry?
     /// Fix forgets the correction it could restore: the draft an action leaves is a new one to Fix.
     var forgetFix: () -> Void = {}
@@ -22,7 +22,7 @@ import OopsCore
     /// Whether Settings' Try draft holds the keyboard. A Try run reads nothing unless it does.
     var tryDraftFocused: @MainActor () -> Bool = { false }
     /// The whole draft as the last write left it, for Try to guard its Restore with; nil until a run writes.
-    private(set) var committed: String?
+    var committed: String?
     /// Repeats a Try run: focuses Try's draft first.
     var retryInTry: (ActionInvocation) -> Void = { _ in }
 
@@ -33,21 +33,25 @@ import OopsCore
     /// An answer that couldn't be written, for the drop's Copy.
     private(set) var pending: String?
     /// The run the drop's Try again repeats, and why the last one failed (for its Settings button).
-    private(set) var last: ActionInvocation?
+    var last: ActionInvocation?
     /// The last run was Settings' Try, so Try again goes back through Try's own draft.
-    private(set) var lastInTry = false
+    var lastInTry = false
     private var failure: ActionFailure?
     /// What the last run wrote, while it can be restored.
     struct Written { var snapshot: EditorSnapshot; let applied: String }
     var written: Written?
     var editing = ActionEditing()
+    /// The one agent run, and whether its answer is being written through this session's swap.
+    let agent: AgentRun
+    var agentWriting = false
 
-    var isBusy: Bool { task != nil }
+    var isBusy: Bool { task != nil || agentWriting }
     var canRestore: Bool { !isBusy && written != nil }
 
     init(editor: EditorAccess, providers: ProviderStore, drop: any ActionDrop, library: ActionLibraryModel = .shared,
          capture: (@MainActor () async throws -> EditorSnapshot)? = nil,
-         locate: (@MainActor () async -> CapsulePlacement.Geometry?)? = nil) {
+         locate: (@MainActor () async -> CapsulePlacement.Geometry?)? = nil, agentDrop: AgentDrop? = nil,
+         agentRunner: @escaping @MainActor () throws -> any AgentRunning = { throw ClaudeAgentError.notInstalled }) {
         self.editor = editor; self.providers = providers; self.drop = drop; self.library = library
         self.capture = capture ?? {
             do { return try await editor.capture() } catch let opaque as OpaqueEditor {
@@ -56,6 +60,7 @@ import OopsCore
             }
         }
         self.locate = locate ?? { try? await editor.focusedGeometry() }
+        agent = AgentRun(drop: agentDrop ?? AgentDrop(owner: DropOwner()) { _ in nil }, editor: editor, runner: agentRunner)
         drop.controls = ActionDropControls(
             cancel: { [weak self] in self?.cancel() }, restore: { [weak self] in _ = self?.restore() },
             copy: { [weak self] in self?.copyPending() }, retry: { [weak self] in
@@ -80,29 +85,24 @@ import OopsCore
             geometry: { await editor.geometry(of: $0) },
             enableAccessibility: { await editor.enableFullAccessibility(for: $0) },
             disableAccessibility: { await editor.disableFullAccessibility(for: $0) })
+        agent.session = self
     }
 
     /// `inTry`: only Settings' Try draft may be read and written, never another app's field.
     @discardableResult func run(_ invocation: ActionInvocation, inTry: Bool = false) -> Task<ActionOutcome, Never>? {
-        guard !isBusy, drop.claim(busy: { [weak self] in self?.isBusy == true }) else { return nil }
-        forgetFix(); remember(nil); pending = nil; failure = nil; last = invocation; lastInTry = inTry; committed = nil
         let runsWith = switch invocation {
         case .saved(let action, _): action.runsWith
         case .typed: library.library.typed
         }
+        if runsWith.kind == .agent { return agent.start(invocation, providers.agentRun(runsWith.agent), inTry: inTry) }
+        guard !isBusy, drop.claim(busy: { [weak self] in self?.isBusy == true }) else { return nil }
+        forgetFix(); remember(nil); pending = nil; failure = nil; last = invocation; lastInTry = inTry; committed = nil
         let id = UUID(); generation = id
         let run = Task { [weak self] () -> ActionOutcome in
             guard let self else { return .cancelled }
             // A cancelled run keeps the session busy until it has finished, so a run begun meanwhile never meets its cleanup.
             defer { self.task = nil }
-            // Agent runs come later: long, in the background and cancellable, they get a run of their own beside
-            // `runModel`, sharing capture, write and restore.
-            switch runsWith.kind {
-            case .model: return await self.runModel(invocation, runsWith.model, id)
-            case .agent:
-                let geometry = await self.locate()
-                return self.fail(.agentRun, id, geometry: geometry)
-            }
+            return await self.runModel(invocation, runsWith.model, id)
         }
         task = run
         return run

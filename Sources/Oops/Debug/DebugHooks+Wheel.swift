@@ -145,9 +145,14 @@ import OopsCore
 
     private static func library(at url: URL) -> ActionLibrary? {
         struct Added: Decodable { var name: String, symbol: String, place: ActionPlace, values: [ActionPlace: String]? }
-        struct Spec: Decodable { var places: [ActionPlace]?, add: [Added]? }
+        // `agent`: the starters at these places run as agents.
+        struct Spec: Decodable { var places: [ActionPlace]?, add: [Added]?, agent: [ActionPlace]? }
         guard let data = try? Data(contentsOf: url), let spec = try? JSONDecoder().decode(Spec.self, from: data) else { return nil }
-        let kept = ActionLibrary.starters.actions.filter { spec.places?.contains($0.place) ?? true }
+        let kept = ActionLibrary.starters.actions.filter { spec.places?.contains($0.place) ?? true }.map { action in
+            var action = action
+            if spec.agent?.contains(action.place) == true { action.runsWith.kind = .agent }
+            return action
+        }
         let added = (spec.add ?? []).map { added in
             let choice = added.values.map { ActionChoice(name: added.name, values: $0) }
             return Action(symbol: added.symbol, name: added.name, instruction: added.name + (choice == nil ? "." : ": " + Action.choiceMark + "."),

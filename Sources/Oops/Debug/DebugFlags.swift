@@ -53,6 +53,10 @@ enum DebugFlags {
     static var labTriggers: Bool { bool("DiagnosticsRemoteTrigger") }
     /// A control file for the stub provider (`fixtures/e2e`); no model is called.
     static var stubProvider: URL? { string("StubProvider").map { URL(fileURLWithPath: $0) } }
+    /// A control file for the stub agent (`StubAgent`, `fixtures/e2e`): agent actions run without Claude Code.
+    static var stubAgent: URL? { string("StubAgent").map { URL(fileURLWithPath: $0) } }
+    /// `-AgentLimitMs <n>`: an agent run ends after n ms instead of five minutes, so a timeout can be seen quickly.
+    static var agentLimit: Duration? { number("AgentLimitMs") > 0 ? .milliseconds(Int(number("AgentLimitMs"))) : nil }
     /// Where `AppProbe` reports the focused field after each step (`fixtures/compat`).
     static var probeState: URL? { string("ProbeState").map { URL(fileURLWithPath: $0) } }
     /// Keeps an end-to-end run's debug log apart from the real one.

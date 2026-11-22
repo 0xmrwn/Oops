@@ -37,7 +37,7 @@ extension AppDelegate {
                                 language: { providers.dictationLanguageHint(local, override: DebugFlags.dictationModel) },
                                 mode: { DictationMode.saved }, insert: { await editor.insert($0) }, drop: drop, loudness: loudness,
                                 status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup,
-                                escape: { [weak self] in self?.shortcuts.armCancel($0) },
+                                escape: { [weak self] in self?.armEscape(.dictate, $0) },
                                 shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers },
                                 environment: DictationRecordingEnvironment(), history: history)
     }
