@@ -2,7 +2,7 @@
 import Foundation
 import OopsCore
 
-/// Launch-only Actions pages for captures (`-SettingsPreviewAction`, `-SettingsPreviewActionPage`, `-SettingsPreviewActionRuns`).
+/// Launch-only Actions pages for captures (`-SettingsPreviewAction`, `-SettingsPreviewActionPage`, `-SettingsPreviewActionRuns`, `-SettingsPreviewSkills`).
 @MainActor enum ActionsPreview {
     static func launch(_ navigation: ActionsNavigation) {
         let library = navigation.library
@@ -25,6 +25,8 @@ import OopsCore
             library.update(id) { $0.runsWith = .init(kind: .model, model: .init(choice: .init(providerID: "claude-code", modelID: "haiku"), effort: "low")) }
         case "agent":
             library.update(id) { $0.runsWith = .init(kind: .agent, agent: .init(model: "sonnet", effort: "high", searchWeb: true, runCommands: true)) }
+        case "agentSetup":
+            library.update(id) { $0.runsWith = .init(kind: .agent, agent: .init(model: "sonnet", effort: "high", searchWeb: false, usesSetup: true)) }
         default: break
         }
         switch DebugFlags.settingsActionPage {
@@ -35,6 +37,12 @@ import OopsCore
                     choice = choice.setting(value, at: place)
                 }
                 action.choice = choice
+            }
+        case "skills":
+            library.update(id) {
+                $0.instruction = "Run /review on the text, then $summarize it. Ignore /reviewer and $other. Make it \(Action.choiceMark) "
+                    + "/review and keep the notes the check flagged, then $summarize every paragraph before you send it back to me."
+                $0.choice = $0.choice ?? .empty
             }
         case "long":
             library.update(id) {

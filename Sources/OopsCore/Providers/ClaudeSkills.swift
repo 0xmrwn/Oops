@@ -26,7 +26,7 @@ public enum ClaudeSkills {
         return mentions
     }
 
-    private static func isAlphanumeric(_ character: Character) -> Bool {
+    static func isAlphanumeric(_ character: Character) -> Bool {
         character.isASCII && (character.isLetter || character.isNumber)
     }
 

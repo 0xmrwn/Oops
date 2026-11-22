@@ -104,6 +104,7 @@ import SwiftUI
         #endif
         backdrop?.orderOut(nil); backdrop = nil
         testEditor.presented = false
+        preferences.providers.skillCatalog.reset()
         if let window { NSApp.leaveDockUnlessOtherWindows(than: window) }
         DispatchQueue.main.async { [weak self] in self?.window?.contentViewController = nil; self?.window = nil }
     }

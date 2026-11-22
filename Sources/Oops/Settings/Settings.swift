@@ -85,7 +85,10 @@ struct SettingsView: View {
                 .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { old, y in
                     scrolled.y = y
                     // The choice panel points at a pill that moved.
-                    if abs(old - y) > 1, actionPages.choice != nil { actionPages.choice = nil }
+                    if abs(old - y) > 1 {
+                        if actionPages.choice != nil { actionPages.choice = nil }
+                        NotificationCenter.default.post(name: .settingsPageDidScroll, object: nil)
+                    }
                 }
                 .scrollIndicators(.automatic)
                 // The scroller starts below the fade, not under it.

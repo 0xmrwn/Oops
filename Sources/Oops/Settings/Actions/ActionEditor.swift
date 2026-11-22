@@ -17,6 +17,10 @@ struct ActionEditor: View {
 
     private var action: Action { library.action(id) ?? .blank(at: .up) }
 
+    /// An agent that loads the person's setup is the one that runs their skills, so only then does the instruction
+    /// know them.
+    private var usesSkills: Bool { action.runsWith.kind == .agent && action.runsWith.agent.usesSetup }
+
     private func bind<Value>(_ path: WritableKeyPath<Action, Value>) -> Binding<Value> {
         Binding(get: { action[keyPath: path] }, set: { value in library.update(id) { $0[keyPath: path] = value } })
     }
@@ -25,7 +29,8 @@ struct ActionEditor: View {
         VStack(alignment: .leading, spacing: 20) {
             header
             VStack(alignment: .leading, spacing: 12) {
-                InstructionEditor(library: library, navigation: navigation, id: id, controller: instruction)
+                InstructionEditor(library: library, navigation: navigation, id: id, controller: instruction,
+                                  skills: usesSkills ? store.skillCatalog.names ?? [] : [])
                 // One choice per action: once its pill is in the sentence, the pill is the control.
                 if action.choice == nil {
                     Button { instruction.insertChoice() } label: { Label("Insert a choice", systemImage: "plus") }
@@ -39,6 +44,10 @@ struct ActionEditor: View {
             delete
         }
         .task { await launchPage() }
+        // Asked once Claude Code works, and again when it comes to, for an action that can name skills.
+        .task(id: usesSkills && store.agentReady) {
+            if usesSkills, store.agentReady { store.skillCatalog.loadIfNeeded(runtime: store.claudeRuntime) }
+        }
     }
 
     /// Launch-only: `-SettingsPreviewActionPage icons|choice|insert|eight` opens that state once the page has settled.

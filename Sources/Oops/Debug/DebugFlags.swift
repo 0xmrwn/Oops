@@ -153,8 +153,11 @@ enum DebugFlags {
     /// A state inside an action's editor: `runs`, `picker` (Runs with, its model list open), `try`, `icons`, `delete`, `choice`, `insert`, `eight` or `long`.
     static var settingsActionPage: String? { string("SettingsPreviewActionPage") }
     /// With `-SettingsPreviewActions`, how the opened action runs: `model` (Haiku 5.5, Low) or `agent` (Claude Code,
-    /// Sonnet 5.5, High, with web and commands).
+    /// Sonnet 5.5, High, with web and commands), `agentSetup` (the same on Agent, no web, with the person's setup).
     static var actionRuns: String? { string("SettingsPreviewActionRuns") }
+    /// Skill names an Agent action's instruction knows without asking Claude Code, comma separated (`review,summarize,research`).
+    /// With `-SettingsPreviewActionRuns agentSetup`, the opened action runs with the person's setup.
+    static var skillNames: [String]? { string("SettingsPreviewSkills").map { $0.split(separator: ",").map(String.init) } }
     /// `notInstalled`, `signedOut` or `missing`: Runs with's Agent side as if Claude Code were so.
     static var claudeCodeState: String? { string("SettingsPreviewClaudeCode") }
     /// The model list opens with this search typed (Fix's and an action's).
