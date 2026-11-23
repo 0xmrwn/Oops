@@ -44,10 +44,20 @@ import OopsCore
         on("agent-act") { _ in agent.act() }
         on("agent-dismiss") { _ in agent.dismiss() }
         on("agent-cancel") { _ in agent.cancel() }
+        // Return or Escape as a person presses it: posted at the HID level, so it meets the ready drop's tap and, when
+        // the tap lets it through, the app in front.
+        on("agent-key") { info in
+            guard let code: CGKeyCode = ["return": 36, "escape": 53][info["key"] ?? ""] else { return }
+            for down in [true, false] {
+                let event = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down)
+                event?.flags = []
+                event?.post(tap: .cghidEventTap)
+            }
+        }
         on("agent-state") { [weak self] _ in
             guard let self else { return }
             var entry = ["phase": String(describing: agent.flow.phase), "mark": String(describing: agent.flow.mark),
-                         "escape": self.escapes.armed[.agent] == nil ? "no" : "yes", "copy": agent.copyable == nil ? "no" : "yes", "restorable": self.actions.canRestore ? "yes" : "no", "front": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
+                         "escape": self.escapes.armed[.agent] == nil ? "no" : "yes", "confirm": agent.confirming ? "yes" : "no", "copy": agent.copyable == nil ? "no" : "yes", "restorable": self.actions.canRestore ? "yes" : "no", "front": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
             entry.merge(agent.drop.state) { a, _ in a }
             Self.record(entry, to: "agent.jsonl")
         }

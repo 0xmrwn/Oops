@@ -47,6 +47,8 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     func clearRun() { startedAt = nil; lastActivity = nil; run += 1 }
     /// The widest the drop may draw, its panel's width less the insets: a longer label is cut to fit.
     var room = CGFloat.infinity
+    /// An agent run's drop parked at a screen's edge (`ParkedDropView`); nil at the caret.
+    @Published var parked: ParkedPill?
     enum Remedy { case retry, settings }
 }
 
@@ -105,6 +107,8 @@ private final class PassivePanel: NSPanel {
     func setContent(_ content: AnyView) {
         // An exit still playing belongs to the content it replaces.
         if let hiding { hiding.cancel(); remove() }
+        // Nor does its spot at a screen's edge.
+        fixedPosition = nil; fixedAnchor = nil
         // The initial icon-only phase has a smaller ideal width. Keep hosting
         // geometry stable so AppKit does not compress later status text away.
         panel.contentView = FirstClickHostingView(rootView: CapsuleRoot(model: model, size: size, content: content))
@@ -144,8 +148,9 @@ private final class PassivePanel: NSPanel {
         if let geometry { self.geometry = geometry; neutral = false }
         let entering = !panel.isVisible || hiding != nil
         // A new drop places itself afresh, even one that comes up before the last one's exit removed the
-        // panel; a state shown within the same drop keeps the spot it was given.
-        if entering || fixed != nil { fixedPosition = fixed }
+        // panel, unless `fly` placed it; a state shown within the same drop keeps the spot it was given.
+        if entering && !placedAhead || fixed != nil { fixedPosition = fixed }
+        placedAhead = false
         hiding?.cancel(); hiding = nil; lingering?.cancel(); lingering = nil
         position(); panel.orderFrontRegardless(); trackPointer()
         // One frame later, so the drop's small, transparent start state is rendered before it pops in.
@@ -189,11 +194,32 @@ private final class PassivePanel: NSPanel {
     func unanchor() {
         guard !neutral else { return }
         tracker.stop(); cancelResample(); neutral = true
-        guard panel.isVisible else { return }
+        if panel.isVisible { fadeAcross() }
+    }
+    /// Fixed to the edge of the screen this rect is on, not the draft's.
+    private var fixedAnchor: CGRect?
+    /// `fly` placed a drop not yet up: its first `present` keeps the spot.
+    private var placedAhead = false
+    private var flight: PanelFlight?, fading = false
+    /// Sends the drop to the draft (`geometry`) or a screen edge (`fixed`, on `anchor`'s screen): the panel and the
+    /// drop's corner on one spring, or a fade with Reduce Motion. A drop not up comes up there.
+    func fly(geometry: CapsulePlacement.Geometry?, fixed: DictationDropPosition?, anchor: CGRect? = nil) {
+        if let geometry { self.geometry = geometry }
+        neutral = false; fixedPosition = fixed; fixedAnchor = anchor
+        tracker.stop(); cancelResample()
+        guard isShown else { placedAhead = true; return }
+        if Self.reduceMotion { return fadeAcross() }
+        let flight = flight ?? PanelFlight(from: panel.frame.origin) { [weak panel] in panel?.setFrameOrigin($0) }
+        flight.landed = { [weak self] in self?.flight = nil }
+        self.flight = flight
+        position(flying: true)
+    }
+    private func fadeAcross() {
+        fading = true
         NSAnimationContext.runAnimationGroup({ $0.duration = 0.12; panel.animator().alphaValue = 0 }) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.position()
+                self.fading = false; self.position()
                 NSAnimationContext.runAnimationGroup { $0.duration = 0.18; self.panel.animator().alphaValue = 1 }
             }
         }
@@ -273,24 +299,26 @@ private final class PassivePanel: NSPanel {
     /// Takes the panel off screen, once its exit has played.
     private func remove() {
         panel.orderOut(nil); geometry = nil; hiding = nil; neutral = false; fixedPosition = nil; panel.alphaValue = 1
+        flight?.stop(); flight = nil; fixedAnchor = nil; placedAhead = false
         pointer?.invalidate(); pointer = nil; model.hovering = false; leftAt = nil
     }
     /// The engine works in AX coordinates (top-left, global, primary display); AppKit is bottom-left.
-    private func position() {
+    private func position(flying: Bool = false) {
+        guard !fading else { return } // Placed once faded out.
         let primary = NSScreen.screens.first?.frame.maxY ?? 900
         let screens = NSScreen.screens.map { s in CGRect(x: s.visibleFrame.minX, y: primary - s.visibleFrame.maxY,
                                                          width: s.visibleFrame.width, height: s.visibleFrame.height) }
         let envelope = CGSize(width: size.width - 2 * Self.inset, height: size.height - 2 * Self.inset)
         let placement = if let fixedPosition {
             CapsulePlacement.fixed(fixedPosition, envelope: envelope, screens: fixedScreens(primary: primary),
-                                   anchor: geometry?.window ?? geometry?.element)
+                                   anchor: fixedAnchor ?? geometry?.window ?? geometry?.element)
         } else if neutral {
             CapsulePlacement.place(nil, envelope: envelope, screens: draftScreen(in: screens).map { [$0] } ?? screens)
         } else {
             CapsulePlacement.place(geometry, envelope: envelope, screens: screens)
         }
         self.placement = placement
-        model.alignment = switch placement.corner {
+        let alignment: Alignment = switch placement.corner {
         case .bottomTrailing: .bottomTrailing
         case .topTrailing: .topTrailing
         case .bottomLeading: .bottomLeading
@@ -298,8 +326,13 @@ private final class PassivePanel: NSPanel {
         case .bottom: .bottom
         case .top: .top
         }
+        // In flight the drop crosses the panel on its spring: one move.
+        if flying { withAnimation(PanelFlight.animation) { model.alignment = alignment } } else { model.alignment = alignment }
         let rect = placement.envelope.insetBy(dx: -Self.inset, dy: -Self.inset)
-        panel.setFrame(NSRect(x: rect.minX, y: primary - rect.maxY, width: rect.width, height: rect.height), display: true)
+        let frame = NSRect(x: rect.minX, y: primary - rect.maxY, width: rect.width, height: rect.height)
+        if let flight, frame.size == panel.frame.size { return flight.target = frame.origin }
+        flight?.stop(); flight = nil
+        panel.setFrame(frame, display: true)
     }
     /// Every display in the engine's coordinates, the main one first, for a drop with no window to go by.
     private func fixedScreens(primary: CGFloat) -> [CapsulePlacement.Screen] {

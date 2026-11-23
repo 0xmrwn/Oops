@@ -6,7 +6,7 @@ import Foundation
 // `trigger correct-lab` (`restore-lab`) for a real correction (revert) of a lab's draft when it is in front,
 // `trigger action-lab <name> [value]` (`action-restore-lab`, `action-dismiss-lab`) to run a saved action on a lab's draft
 // when it is in front (Debug, `-DebugActions YES`), `trigger agent-lab <name> [value] [options]` to run it as an agent
-// (`options` as DebugHooks+Agent reads them), `agent-try <name>` in Settings' Try, and `agent-act`, `agent-dismiss`, `agent-cancel` or `agent-state`, wherever focus is,
+// (`options` as DebugHooks+Agent reads them), `agent-try <name>` in Settings' Try, and `agent-act`, `agent-dismiss`, `agent-cancel`, `agent-state` or `agent-key <return|escape>` (posted at the HID level), wherever focus is,
 // `trigger wheel-shortcut` (`wheel-key <key> [down|up|tap]`, `wheel-keys <spec>`, `wheel-type <text>`, `wheel-mouse <move|click> <place|centre|outside>`,
 // `wheel-state`, `wheel-tap-probe`) to drive the Actions wheel over a lab in front, `trigger wheel-library <json>` to set
 // the wheel's actions without touching the saved ones (Debug, `-DebugActions YES`),
@@ -25,7 +25,7 @@ case "insert-lab": "dev.0xmrwn.oops.insert-lab"
 case "action-lab": "dev.0xmrwn.oops.action-lab"
 case "action-restore-lab": "dev.0xmrwn.oops.action-restore-lab"
 case "action-dismiss-lab": "dev.0xmrwn.oops.action-dismiss-lab"
-case "agent-lab", "agent-try", "agent-act", "agent-dismiss", "agent-cancel", "agent-state": "dev.0xmrwn.oops." + arguments[0]
+case "agent-lab", "agent-try", "agent-act", "agent-dismiss", "agent-cancel", "agent-state", "agent-key": "dev.0xmrwn.oops." + arguments[0]
 case "wheel-shortcut", "wheel-key", "wheel-keys", "wheel-type", "wheel-mouse", "wheel-state", "wheel-tap-probe", "wheel-library":
     "dev.0xmrwn.oops." + arguments[0]
 case "menu": "dev.0xmrwn.oops.menu"
@@ -40,6 +40,7 @@ case "action-lab", "agent-lab", "agent-try":
     ["name": arguments.dropFirst().first ?? "", "value": arguments.count > 2 ? arguments[2] : "", "options": arguments.count > 3 ? arguments[3] : ""]
 case "probe": ["mode": arguments.dropFirst().first ?? "plain"]
 case "wheel-key": ["key": arguments.dropFirst().first ?? "", "phase": arguments.count > 2 ? arguments[2] : "tap"]
+case "agent-key": ["key": arguments.dropFirst().first ?? ""]
 case "wheel-keys": ["spec": arguments.dropFirst().first ?? ""]
 case "wheel-type": ["text": arguments.dropFirst().first ?? ""]
 case "wheel-mouse" where arguments.count >= 3: ["kind": arguments[1], "at": arguments[2]]

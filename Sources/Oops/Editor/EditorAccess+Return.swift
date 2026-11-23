@@ -11,6 +11,14 @@ extension EditorAccess {
         return (try? assertTarget(snapshot)) != nil
     }
 
+    /// Whether the field read at capture still reads as the draft it held then, in the order typed or, in Chromium, as
+    /// shown. A field that can't be read says nothing against it: the guarded write decides.
+    nonisolated func draftUnchanged(_ snapshot: EditorSnapshot) -> Bool {
+        guard let current = text(snapshot.element, snapshot.strategy) else { return true }
+        let before = snapshot.transaction.before
+        return sameDraft(current, before) || Self.displayOrdered(current, before, snapshot)
+    }
+
     /// Brings the field read at capture back to the front and focuses it; true once it holds focus, on the same page
     /// for a web editor. False when its window or app has gone, or it won't take focus within a second and a half.
     /// Oops's own fields (Settings' Try) are AppKit's, so their attributes are set on the main thread.

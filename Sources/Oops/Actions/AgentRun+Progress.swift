@@ -40,18 +40,19 @@ extension AgentRun {
         let label = Self.label(progress.status(at: time), name: name)
         if label != shown {
             shown = label
-            if flow.inField { show(label) }
+            // At the caret only while the run holds the drop; parked, the pill keeps the words for the pointer.
+            if flow.holdsDrop { show(label) } else if flow.place == .parked { drop.parkedStatus(label) }
             report()
         }
         schedule(progress.nextChange(after: time))
     }
 
-    /// The run's drop at the caret, saying what the run is doing now.
+    /// The run's drop at the caret, or `parked` in the pill, saying what the run is doing now.
     /// Wakes for the status's next change from here too: an opening note must go on time even if no update comes.
-    func showProgress() {
+    func showProgress(parked: Bool = false) {
         let now = ContinuousClock.now
         shown = progress.map { Self.label($0.status(at: now), name: name) } ?? name
-        show(shown)
+        if parked { drop.park(shown) } else { show(shown) }
         if flow.phase == .running, let progress { schedule(progress.nextChange(after: now)) }
     }
 

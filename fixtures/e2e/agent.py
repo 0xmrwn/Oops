@@ -6,9 +6,12 @@ each run ended in actions.jsonl: a ready result ends once it is written, held to
 A case's `steps` say what happens while it runs: ("wait", ms), ("away",) to bring Finder to the front, ("other", text)
 to move to a second field in the lab, ("append", text) to type into the run's field, ("fix", text) to run Fix there,
 ("model", action) to run a model action there, ("again",) to start a second agent run, ("until", field, value) to wait
-for an agent.jsonl line, and ("act",), ("dismiss",), ("cancel",) for the menu's items. Expectations: `outcome` of the
-run (`reason` when it failed), `seen` labels of the run's drop in order, `last` fields of the last agent.jsonl line,
-`final` text of the lab field, `ended` as the stub wrote it, and the stub's `calls`."""
+for an agent.jsonl line, ("back", field, value) to bring the lab and its field back and ("key", name, field, value) to
+press Return or Escape (posted at the HID level by `agent-key`), each then waiting for a line logged after it, and
+("act",), ("dismiss",), ("cancel",) for the
+menu's items. Expectations: `outcome` of the run (`reason` when it failed), `seen` labels of the run's drop in order,
+`last` fields of the last agent.jsonl line, `final` text of the lab field, `ended` as the stub wrote it, and the stub's
+`calls`."""
 
 import json
 import subprocess
@@ -43,7 +46,8 @@ AGENT = [
         final=ANSWER,
         ended="finished",
     ),
-    # Away when it ends: nothing is written, the result waits ready, and acting on it goes back and writes it.
+    # Away when it ends: the drop has parked at the screen's edge, nothing is written, the result waits ready in the
+    # pill, and acting on it goes back and writes it.
     dict(
         BASE,
         name="agent:away-ready-act",
@@ -56,10 +60,105 @@ AGENT = [
             ("until", "phase", "idle"),
         ],
         outcome="written",
-        away={"drop": "agent"},
-        ready={"label": "Shorten is ready", "dropPhase": "fixed"},
+        away={"parked": True},
+        ready={"label": "Shorten is ready", "dropPhase": "fixed", "parked": "yes"},
         last={"mark": "none", "drop": "agent", "dropPhase": "fixed"},
         final=ANSWER,
+        ended="finished",
+    ),
+    # Away a while, the drop parks; back in the field while it runs, it flies back and the answer is written in place.
+    dict(
+        BASE,
+        name="agent:away-park-back",
+        stub={"steps": SEARCH_READ, "stepMs": 3000, "answer": ANSWER},
+        steps=[
+            ("until", "step", "Searching “q”"),
+            ("away",),
+            ("until", "parked", "yes"),
+            ("back", "parked", "no"),
+        ],
+        outcome="written",
+        away={"parked": True},
+        last={"phase": "idle", "mark": "none", "drop": "agent", "dropPhase": "fixed", "parked": "no"},
+        final=ANSWER,
+        ended="finished",
+    ),
+    # Finished while away, then back in the field on their own: the ready drop waits at the caret, and Return puts it in.
+    dict(
+        BASE,
+        name="agent:ready-back-return",
+        stub={"steps": SEARCH_READ, "stepMs": 1500, "answer": ANSWER},
+        steps=[
+            ("until", "step", "Searching “q”"),
+            ("away",),
+            ("until", "mark", "ready"),
+            ("back", "confirm", "yes"),
+            ("key", "return", "phase", "idle"),
+        ],
+        outcome="written",
+        ready={"label": "Shorten is ready · Return puts it in", "dropPhase": "fixed", "parked": "no"},
+        last={"phase": "idle", "mark": "none", "drop": "agent", "dropPhase": "fixed", "confirm": "no"},
+        final=ANSWER,
+        ended="finished",
+    ),
+    # Escape sends the ready drop back to the pill, and Return is the field's again.
+    dict(
+        BASE,
+        name="agent:ready-back-escape",
+        stub={"steps": SEARCH_READ, "stepMs": 1500, "answer": ANSWER},
+        steps=[
+            ("until", "step", "Searching “q”"),
+            ("away",),
+            ("until", "mark", "ready"),
+            ("back", "confirm", "yes"),
+            ("key", "escape", "parked", "yes"),
+            ("dismiss",),
+        ],
+        outcome="cancelled",
+        last={"phase": "idle", "mark": "none", "confirm": "no"},
+        final=BASE["text"],
+        ended="finished",
+    ),
+    # Back in the field, the person types instead: the draft changed, so the drop offers the answer to copy.
+    dict(
+        BASE,
+        name="agent:ready-back-typed",
+        stub={"steps": SEARCH_READ, "stepMs": 1500, "answer": ANSWER},
+        steps=[
+            ("until", "step", "Searching “q”"),
+            ("away",),
+            ("until", "mark", "ready"),
+            ("back", "confirm", "yes"),
+            ("append", " please"),
+            # Return right after typing is the field's: the draft no longer reads as it was read.
+            ("key", "return"),
+            ("until", "dropPhase", "pending"),
+        ],
+        outcome="held",
+        last={"phase": "idle", "mark": "none", "dropPhase": "pending", "label": "Not written", "confirm": "no"},
+        final="summarise the thread for me please\n",
+        ended="finished",
+    ),
+    # Back in the field, then straight into another field in the same window: Return is that field's, and the answer
+    # stays ready.
+    dict(
+        BASE,
+        name="agent:ready-back-other-field",
+        stub={"steps": SEARCH_READ, "stepMs": 1500, "answer": ANSWER},
+        steps=[
+            ("until", "step", "Searching “q”"),
+            ("away",),
+            ("until", "mark", "ready"),
+            ("back", "confirm", "yes"),
+            ("other", "a second draft"),
+            ("key", "return"),
+            ("state",),
+            ("dismiss",),
+        ],
+        outcome="cancelled",
+        state={"phase": "ready", "mark": "ready"},
+        last={"phase": "idle", "mark": "none", "confirm": "no"},
+        final="a second draft\n",
         ended="finished",
     ),
     # The draft changed while the run was away: acting on it writes nothing and offers the answer to copy.
@@ -231,6 +330,24 @@ def step(run, case, action, before):
         done = len(actions.logged(run))
         run.trigger("agent-lab", case["action"])
         run.wait(lambda: len(actions.logged(run)) > done, 10, "the second run was never logged")
+    elif kind == "key" and len(action) == 2:
+        # A key that should reach the field: nothing to wait for but the field.
+        post("agent-key", action[1])
+        time.sleep(0.6)
+    elif kind in ("back", "key"):
+        # Waits for a line logged after it acts: the same value may have been logged before.
+        *_, field, value = action
+        count = len(logged(run))
+        if kind == "back":
+            run.trigger("agent-state")
+        else:
+            # Oops posts it at the HID level, where the ready drop's tap and the field in front meet it as a person's.
+            post("agent-key", action[1])
+        run.wait(
+            lambda: any(e.get(field) == value for e in logged(run)[count:]),
+            20,
+            f"agent {field} never {value} after {kind}",
+        )
     elif kind == "state":
         count = len(logged(run))
         post("agent-state")
@@ -268,7 +385,7 @@ def check(run, case):
         found.append((f"last {field}", lines[-1].get(field) if lines else None, wanted))
     if "away" in case:
         away = [e for e in lines if e.get("inField") == "no" and e.get("mark") == "running"]
-        found.append(("drop while away", any(e.get("drop") == case["away"]["drop"] for e in away), False))
+        found.append(("parked while away", any(e.get("parked") == "yes" for e in away), case["away"]["parked"]))
     if "ready" in case:
         ready = [e for e in lines if e.get("mark") == "ready" and e.get("drop") == "agent"]
         found.append(("ready drop", ready and {k: ready[-1].get(k) for k in case["ready"]}, case["ready"]))

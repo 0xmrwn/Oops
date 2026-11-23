@@ -20,13 +20,13 @@ extension AgentRun {
         defer { handle(.settled) }
         guard let session, let snapshot, let answer = held else { return .cancelled }
         held = nil
-        drop.showWorking("Returning to the draft", geometry: await session.locate())
+        // In the pill until the draft is back: never at the caret of whatever field has focus now.
+        drop.showWorking("Returning to the draft", geometry: nil)
         // A dormant Chromium tree can't be focused, read or written: wake it for the return, as capture did.
         let woke = await session.editing.enableAccessibility(snapshot)
         let outcome: ActionOutcome
         if await session.editor.bringBack(snapshot) {
-            drop.showWriting(Self.placing)
-            outcome = await write(answer, over: snapshot, session, inPlace: false)
+            outcome = await putBack(answer, over: snapshot, session)
         } else {
             copyable = answer
             drop.showHeld("The draft’s window or field is gone. The answer is ready to copy.", geometry: nil)
@@ -34,6 +34,23 @@ extension AgentRun {
         }
         if woke { await session.editing.disableAccessibility(snapshot) }
         return outcome
+    }
+
+    /// Return, a click or the cap, with the ready drop at the caret of its field, which the person came back to.
+    func putIn() async -> ActionOutcome {
+        defer { handle(.settled) }
+        guard let session, let snapshot, let answer = held else { return .cancelled }
+        held = nil
+        return await putBack(answer, over: snapshot, session)
+    }
+
+    /// The drop flies to the caret, and the answer is written there. A click elsewhere in an unchanged draft moved the
+    /// selection the write checks: it goes back to where it was read first.
+    private func putBack(_ answer: String, over snapshot: EditorSnapshot, _ session: ActionSession) async -> ActionOutcome {
+        drop.showWorking(Self.placing, geometry: await session.editing.geometry(snapshot.element) ?? snapshot.geometry)
+        let unchanged = draftUnchanged
+        if await Task.detached(operation: { unchanged(snapshot) }).value { _ = await session.editor.refocus(snapshot) }
+        return await write(answer, over: snapshot, session, inPlace: false)
     }
 
     /// `inPlace`: the person watched the timer run to the write, so the done drop's time goes on from it; a run taken
