@@ -60,8 +60,9 @@ struct DropFeature: Hashable, Sendable {
             shown = feature
         }
         claimed = (feature, busy, passive, released)
-        // Only an agent's drop opens anything or narrates its work: no other feature's drop inherits either.
-        panel.model.open = nil; panel.model.narrates = false
+        // Only an agent's drop opens anything or narrates its work: no other feature's drop inherits either, nor a
+        // run's timer or progress.
+        panel.model.open = nil; panel.model.narrates = false; panel.model.clearRun()
         return true
     }
 
@@ -80,7 +81,7 @@ struct DropFeature: Hashable, Sendable {
         guard holder == nil else { return false }
         if panel.isShown { panel.hide() }
         claimed = (feature, busy, { false }, {})
-        panel.model.open = nil; panel.model.narrates = false
+        panel.model.open = nil; panel.model.narrates = false; panel.model.clearRun()
         return true
     }
 }

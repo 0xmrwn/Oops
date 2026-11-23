@@ -33,6 +33,15 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     var open: (() -> Void)?
     /// The working drop says what it is doing (an agent's step), where Fix's shows only its eyes.
     var narrates = false
+    /// When the narrating drop's work began: while it works, an elapsed timer counts from here. Nil shows none.
+    @Published var startedAt: Date?
+    /// Signs that the work is getting somewhere, which quicken the drop's light; after a quiet spell the light calms
+    /// and the eyes look around. A drop that never reports any, Fix's, keeps a steady pace.
+    private(set) var activities = 0
+    private(set) var lastActivity: Date?
+    func activity() { activities += 1; lastActivity = Date() }
+    /// A new feature's drop starts with no timer and no progress of the last one's.
+    func clearRun() { startedAt = nil; lastActivity = nil }
     enum Remedy { case retry, settings }
 }
 
