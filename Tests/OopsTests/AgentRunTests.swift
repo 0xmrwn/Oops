@@ -74,8 +74,7 @@ import Testing
         #expect(!agent.isReady)
     }
 
-    @Test func `a draft changed in part keeps its own words in the held drop`() {
-        #expect(AgentRun.held(ActionFailure.partlyWritten) == ("Partly written", ActionFailure.partlyWritten.message))
+    @Test func `an answer not written is held in the drop`() {
         #expect(AgentRun.held(ActionDraftChanged()).label == "Not written")
         #expect(AgentRun.held(ActionFailure(.model, "busy")) == ("Not written", "busy"))
     }

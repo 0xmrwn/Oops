@@ -5,7 +5,7 @@ import OopsCore
 /// message its tooltip shows.
 struct ActionFailure: Error, Equatable {
     enum Reason: String, Sendable {
-        case empty, tooLong, secure, capture, agentBusy, sandbox, noModel, offline, slow, signIn, limit, setup, model, output, restore, partial
+        case empty, tooLong, secure, capture, agentBusy, sandbox, noModel, offline, slow, signIn, limit, setup, model, output, restore, attachment
     }
     let reason: Reason
     let message: String
@@ -16,7 +16,7 @@ struct ActionFailure: Error, Equatable {
     static let nothingToRestore = ActionFailure(.restore, "There’s no recent action to restore.")
     static let changedSince = ActionFailure(.restore, "The draft changed after the action, so restoring it would overwrite newer work.")
 
-    static let partlyWritten = ActionFailure(.partial, "The draft was changed in part and could not be put back. Check it; the answer is ready to copy.")
+    static let attachment = ActionFailure(.attachment, "An action replaces all the text it reads, which would remove the attachment in it. Select the text around it.")
 
     /// Why the draft couldn't be read.
     static func capture(_ error: Error) -> ActionFailure {

@@ -45,6 +45,13 @@ import OopsCore
 }
 
 extension ActionSession {
+    /// The draft, if an action can rewrite it: one paste replaces all of it, so an attachment in it would be lost.
+    /// Refused as it is read, before any run.
+    nonisolated static func rewritable(_ snapshot: EditorSnapshot) throws -> EditorSnapshot {
+        guard !snapshot.transaction.source.contains("\u{FFFC}") else { throw ActionFailure.attachment }
+        return snapshot
+    }
+
     /// Starts reading the focused draft now. Only what Accessibility reads: copy and paste waits for a run.
     func prepare() -> PreparedDraft {
         let editor = editor

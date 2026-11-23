@@ -5,21 +5,15 @@ import OopsCore
 /// couldn't start.
 extension ActionSession {
     /// Writes an agent's answer over the span `snapshot` read, through the swap a model run uses, while no model run
-    /// holds the session. Refuses a draft that changed since it was read; a write the editor confirmed only in part is
-    /// put back first, so the answer is still true to call not written.
+    /// holds the session. Refuses a draft that changed since it was read.
     func writeAgentAnswer(_ answer: String, over snapshot: EditorSnapshot) async throws -> EditorSnapshot {
         guard !isBusy else { throw ActionFailure(.model, "Another action was writing, so the answer wasn’t written. It’s ready to copy.") }
         agentWriting = true
         defer { agentWriting = false }
         let id = UUID(); generation = id
-        do {
-            let applied = try await editing.write(answer, snapshot, id)
-            committed = snapshot.transaction.replacement(answer)
-            return applied
-        } catch let partial as PartialReplacement {
-            do { _ = try await editing.restore(partial.snapshot, partial.applied, id) } catch { throw ActionFailure.partlyWritten }
-            throw ActionFailure(.model, "The editor didn’t confirm every change, so the draft was put back as it was. The answer is ready to copy.")
-        }
+        let applied = try await editing.write(answer, snapshot, id)
+        committed = snapshot.transaction.replacement(answer)
+        return applied
     }
 
     /// Says in Actions' drop why `invocation`, an agent run, didn't start: at `geometry`, else where the person is. The

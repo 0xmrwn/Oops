@@ -114,6 +114,19 @@ import Testing
         #expect(await calls.items.count == 1)
     }
 
+    @Test func `a draft with an attachment is refused before any run, since one paste replaces all of it`() async throws {
+        let fixture = try Fixture(reply: #"{"text":"new"}"#)
+        fixture.capture = { try Self.snapshotValue("see \u{FFFC} for the plan") }
+        let wrote = Recorder<String>()
+        fixture.session.editing.write = { answer, snapshot, _ in await wrote.add(answer); return snapshot }
+        let outcome = await fixture.session.run(.typed("x"))?.value
+        #expect(outcome == .failed(.attachment))
+        #expect(fixture.drop.states.last == .failed(.attachment))
+        #expect(ActionFailure.attachment.label.text == "Has an attachment")
+        #expect(await wrote.items.isEmpty)
+        #expect(fixture.session.pending == nil, "the model was never asked")
+    }
+
     @Test func `a run in Try refuses another app's field`() async throws {
         let fixture = try Fixture()
         fixture.capture = { try Self.snapshotValue("old") }
@@ -160,35 +173,6 @@ import Testing
     @Test func `restore with nothing written fails with a reason`() async throws {
         let fixture = try Fixture()
         #expect(await fixture.session.restore()?.value == .failed(.nothingToRestore))
-    }
-
-    @Test func `a partial write is put back at once and the answer is held`() async throws {
-        let fixture = try Fixture(reply: #"{"text":"new"}"#)
-        let original = try snapshot("old")
-        fixture.capture = { original }
-        let restored = Recorder<String>()
-        fixture.session.editing.write = { _, snapshot, _ in throw PartialReplacement(applied: "half", done: 1, total: 3, snapshot: snapshot) }
-        fixture.session.editing.restore = { snapshot, applied, _ in await restored.add(applied); return snapshot }
-        let outcome = await fixture.session.run(.typed("x"))?.value
-        #expect(outcome == .held)
-        #expect(await restored.items == ["half"])
-        #expect(fixture.session.written == nil)
-        #expect(fixture.session.pending == "new")
-        guard case .held? = fixture.drop.states.last else { Issue.record("expected the held state"); return }
-    }
-
-    @Test func `a partial write that can't be put back says so and keeps the answer`() async throws {
-        let fixture = try Fixture(reply: #"{"text":"new"}"#)
-        let original = try snapshot("old")
-        fixture.capture = { original }
-        fixture.session.editing.write = { _, snapshot, _ in throw PartialReplacement(applied: "half", done: 1, total: 3, snapshot: snapshot) }
-        fixture.session.editing.restore = { _, _, _ in throw ActionDraftChanged() }
-        let outcome = await fixture.session.run(.typed("x"))?.value
-        #expect(outcome == .failed(.partlyWritten))
-        #expect(fixture.drop.states.last == .failed(.partlyWritten))
-        #expect(ActionFailure.partlyWritten.label.text == "Partly written")
-        #expect(ActionFailure.partlyWritten.message.contains("changed in part and could not be put back"))
-        #expect(fixture.session.pending == "new")
     }
 
     @Test func `a run cancelled while its drop is looked up leaves the drop alone`() async throws {

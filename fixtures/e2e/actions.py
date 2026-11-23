@@ -6,6 +6,18 @@ import time
 
 import inserts
 
+# An action rewrites: its answer is pasted over the whole span in one go, at any length. Written word by word, a
+# rewrite this size runs out the swap guard's 2 seconds and is put back.
+LONG_ANSWER = "\n\n".join(
+    " ".join(
+        f"Paragraph {p} sentence {s} says the launch moves to Thursday so the team can finish the review."
+        for s in range(1, 9)
+    )
+    for p in range(1, 9)
+)
+LONG_DRAFT = "\n".join(f"line {n} of the old plan needs another pass before we send it" for n in range(1, 41))
+LONG_REWRITE = "\n".join(f"Step {n}: the new plan is ready to send" for n in range(1, 41))
+
 ACTIONS = [
     # The whole draft, its mention and code included: none of Fix's checks apply to an action's answer.
     dict(
@@ -49,6 +61,28 @@ ACTIONS = [
         outcome="written",
         drop="fixed",
         final="let's meet next week",
+        restore=True,
+    ),
+    # Ten words become about a thousand, then the original comes back the same way.
+    dict(
+        name="action:long-answer",
+        text="tell the team the launch moves to thursday for the review",
+        action="Shorten",
+        stub={"answer": LONG_ANSWER},
+        outcome="written",
+        drop="fixed",
+        final=LONG_ANSWER,
+        restore=True,
+    ),
+    # Forty lines, every one rewritten.
+    dict(
+        name="action:long-rewrite",
+        text=LONG_DRAFT,
+        action="Shorten",
+        stub={"answer": LONG_REWRITE},
+        outcome="written",
+        drop="fixed",
+        final=LONG_REWRITE,
         restore=True,
     ),
     dict(

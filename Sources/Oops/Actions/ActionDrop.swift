@@ -86,9 +86,6 @@ struct ActionDropControls {
         case .restored:
             panel.show(.reverted, label: "Restored", geometry: geometry)
             panel.hide(after: ResultTiming.seconds)
-        case .failed(let failure) where failure.reason == .partial:
-            // Part of the draft changed and stayed: the drop keeps the answer to copy, as a held one does.
-            panel.show(.pending, label: failure.label.text, detail: failure.message, geometry: geometry)
         case .failed(let failure):
             panel.show(.failed, label: failure.label.text, detail: failure.message, remedy: failure.label.remedy, geometry: geometry)
             panel.hide(after: 8)
@@ -132,7 +129,7 @@ extension ActionFailure {
         case .model: ("Couldn’t run", .retry)
         case .output: ("No answer", .retry)
         case .restore: ("Couldn’t restore", nil)
-        case .partial: ("Partly written", nil)
+        case .attachment: ("Has an attachment", nil)
         }
     }
 }

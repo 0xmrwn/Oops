@@ -51,12 +51,9 @@ extension AgentRun {
         }
     }
 
-    /// What the drop says of an answer that wasn't written: a draft changed in part keeps its own words, as a model
-    /// run's does; the answer is offered to copy either way.
+    /// What the drop says of an answer that wasn't written; the answer is offered to copy.
     static func held(_ error: Error) -> (label: String, reason: String) {
-        if let failure = error as? ActionFailure {
-            return (failure.reason == .partial ? failure.label.text : "Not written", failure.message)
-        }
+        if let failure = error as? ActionFailure { return ("Not written", failure.message) }
         if error is ActionDraftChanged { return ("Not written", "The draft changed while the agent ran. The answer is ready to copy.") }
         return ("Not written", error.localizedDescription)
     }
