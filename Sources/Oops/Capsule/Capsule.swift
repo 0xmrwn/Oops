@@ -39,7 +39,8 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     /// and the eyes look around. A drop that never reports any, Fix's, keeps a steady pace.
     private(set) var activities = 0
     private(set) var lastActivity: Date?
-    func activity() { activities += 1; lastActivity = Date() }
+    /// `date`: when it happened, for a drop that comes back to work already under way.
+    func activity(at date: Date = Date()) { activities += 1; lastActivity = date }
     /// Counts `clearRun()`s, so the drop forgets the last run's width and pace even when it never left `.working`.
     @Published private(set) var run = 0
     /// A new feature's drop starts with no timer and no progress of the last one's.

@@ -24,13 +24,21 @@ SEARCH_READ = [{"search": "q"}, {"read": "https://example.com/x"}]
 BASE = dict(text="summarise the thread for me", action="Shorten")
 
 AGENT = [
-    # The person stays: the status follows each step at the caret, and the answer is written like a slow Fix.
+    # The person stays: the status follows each step at the caret, and the answer is written like a slow Fix. Steps
+    # come further apart than a label holds (1.5 s), or the later one would stand in for the earlier.
     dict(
         BASE,
         name="agent:in-field",
-        stub={"steps": SEARCH_READ, "stepMs": 600, "answer": ANSWER},
+        stub={
+            "steps": SEARCH_READ,
+            "stepMs": 1600,
+            "delayMs": 1600,
+            "activityMs": 300,
+            "summary": "Cut it to one line",
+            "answer": ANSWER,
+        },
         outcome="written",
-        seen=["Searching “q”", "Reading example.com…"],
+        seen=["Searching “q”", "Reading example.com", "Putting it in place"],
         last={"phase": "idle", "mark": "none", "drop": "agent", "dropPhase": "fixed"},
         final=ANSWER,
         ended="finished",
@@ -253,7 +261,9 @@ def check(run, case):
     found = [("outcome", entry.get("outcome"), case["outcome"]), ("reason", entry.get("reason"), case.get("reason"))]
     labels = [e.get("label") for e in lines if e.get("drop") == "agent" and e.get("dropPhase") == "working"]
     seen = [label for label in case.get("seen", []) if label in labels]
-    found.append(("seen in order", [label for label in labels if label in seen], case.get("seen", [])))
+    # A label stays up while other things are logged: each counts once each time it comes up.
+    shown = [label for i, label in enumerate(labels) if label in seen and (i == 0 or labels[i - 1] != label)]
+    found.append(("seen in order", shown, case.get("seen", [])))
     for field, wanted in case.get("last", {}).items():
         found.append((f"last {field}", lines[-1].get(field) if lines else None, wanted))
     if "away" in case:

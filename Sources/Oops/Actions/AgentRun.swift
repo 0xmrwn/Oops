@@ -30,6 +30,15 @@ import OopsCore
     /// From the press until the draft is read: the drop is held, and the run can be cancelled, before it has a phase.
     private var starting = false
     private(set) var elapsed = Duration.zero
+    /// How the run is getting on, from its start: what its drop and the menu say while it works.
+    var progress: AgentProgress?
+    /// The action whose recent times the run's own joins once it answers: none for typed instructions.
+    var timedAs: UUID?
+    /// Answered runs' times, for the opening's sense of how long the action takes.
+    let history: AgentRunHistory
+    /// The working drop's words now, and the one wake that changes them when no update does.
+    var shown = ""
+    var wake: (at: ContinuousClock.Instant, task: Task<Void, Never>)?
     private var task: Task<ActionOutcome, Never>?
     /// The write the run ends with, which the run's own task waits for.
     private var finishing: Task<ActionOutcome, Never>?
@@ -64,8 +73,8 @@ import OopsCore
     #endif
 
     init(drop: AgentDrop, editor: EditorAccess, runner: @escaping @MainActor () throws -> any AgentRunning,
-         holdsFocus: (@Sendable (EditorSnapshot) -> Bool)? = nil) {
-        self.drop = drop; makeRunner = runner
+         holdsFocus: (@Sendable (EditorSnapshot) -> Bool)? = nil, history: AgentRunHistory = AgentRunHistory()) {
+        self.drop = drop; makeRunner = runner; self.history = history
         let holds = holdsFocus ?? { editor.holdsFocus($0) }
         self.holdsFocus = holds
         watch = AgentFocusWatch(holds: holds)
@@ -85,8 +94,8 @@ import OopsCore
 
     var isReady: Bool { flow.phase == .ready }
     var isRunning: Bool { starting || flow.phase == .running }
-    /// What the run is doing, for the menu.
-    var stepLabel: String { flow.step.label }
+    /// What the run is doing, for the menu: the status its drop shows, without the action's name.
+    var stepLabel: String { progress?.status(at: .now).label ?? flow.step.label }
 
     /// Starts `invocation` as an agent run on the focused draft, or refuses while another run is under way or ready.
     func start(_ invocation: ActionInvocation, _ run: ActionAgentRun, inTry: Bool) -> Task<ActionOutcome, Never>? {
@@ -99,6 +108,7 @@ import OopsCore
         symbol = if case let .saved(action, _) = invocation { action.symbol } else { "sparkles" }
         self.inTry = inTry
         held = nil; copyable = nil; kept = nil; failure = nil; snapshot = nil; finishing = nil; announced = false; readyResult = nil
+        progress = nil; drop.startedAt = nil
         session.forgetFix()
         let task = Task { [weak self] () -> ActionOutcome in
             guard let self else { return .cancelled }
@@ -129,12 +139,15 @@ import OopsCore
             try Task.checkCancellation()
             let source = snapshot.transaction.source, request = ActionPrompt.request(for: invocation, draft: source)
             let started = ContinuousClock.now
+            let timed: UUID? = if case let .saved(action, _) = invocation { action.id } else { nil }
+            begin(timed, at: started)
             starting = false
             handle(.started)
             watch.start(snapshot)
             var raw: String?
             do {
                 for try await update in runner.run(ClaudeAgentRequest(run: run, instructions: request.instructions, input: request.input)) {
+                    heard(update)
                     switch update {
                     case let .step(step): handle(.step(step))
                     case let .answer(answer): raw = answer
@@ -211,11 +224,8 @@ import OopsCore
         guard !effects.isEmpty || flow != before else { return }
         for effect in effects {
             switch effect {
-            case let .showStatus(step):
-                guard let snapshot else { continue }
-                // A quoted query already ends the label; an ellipsis after its closing quote reads as a stray mark.
-                let text = step == .starting ? name : step.label
-                drop.showStatus(text.hasSuffix("”") ? text : text + "…", element: snapshot.element, fallback: snapshot.geometry)
+            // The run's progress, not the bare step: it holds each label long enough to read.
+            case .showStatus: showProgress()
             case .yieldDrop: drop.yield()
             case .menu: break
             case .writeInPlace: finishing = Task { await self.writeInPlace() }
@@ -232,6 +242,7 @@ import OopsCore
                 resolve(.cancelled)
             }
         }
+        if flow.phase != .running { stopWaking() }
         report()
     }
 
