@@ -28,8 +28,8 @@ import SwiftUI
     /// The working label the status shows, kept while the drop is placed so the latest step wins.
     private var label = ""
 
-    /// Wider than Fix's panel: a step names its query, host or skill.
-    static let size = CGSize(width: 360, height: CapsulePanel.standard.height)
+    /// Wider than Fix's panel: a step names its query, host or skill, with the run's timer after it.
+    static let size = CGSize(width: 468, height: CapsulePanel.standard.height)
 
     init(owner: DropOwner, locate: @escaping @MainActor (AXUIElement) async -> CapsulePlacement.Geometry?) {
         self.owner = owner; self.locate = locate

@@ -40,8 +40,12 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     private(set) var activities = 0
     private(set) var lastActivity: Date?
     func activity() { activities += 1; lastActivity = Date() }
+    /// Counts `clearRun()`s, so the drop forgets the last run's width and pace even when it never left `.working`.
+    @Published private(set) var run = 0
     /// A new feature's drop starts with no timer and no progress of the last one's.
-    func clearRun() { startedAt = nil; lastActivity = nil }
+    func clearRun() { startedAt = nil; lastActivity = nil; run += 1 }
+    /// The widest the drop may draw, its panel's width less the insets: a longer label is cut to fit.
+    var room = CGFloat.infinity
     enum Remedy { case retry, settings }
 }
 
@@ -87,6 +91,7 @@ private final class PassivePanel: NSPanel {
                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.title = "Oops Capsule"
+        model.room = Self.standard.width - 2 * Self.inset
         panel.level = .floating; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         // Debug-only, for design recordings: force the capsule's appearance.
@@ -108,6 +113,7 @@ private final class PassivePanel: NSPanel {
         self.centred = centred
         guard size != self.size else { return }
         self.size = size
+        model.room = size.width - 2 * Self.inset
         if let root = panel.contentView as? FirstClickHostingView<CapsuleRoot> {
             root.rootView = CapsuleRoot(model: model, size: size, content: root.rootView.content)
         }

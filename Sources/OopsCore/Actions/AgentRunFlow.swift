@@ -108,6 +108,9 @@ public extension ClaudeAgentStep {
         }
     }
 
-    /// Short enough for the drop at the caret: a long query is cut with an ellipsis.
-    private static func short(_ text: String) -> String { text.count > 28 ? String(text.prefix(27)) + "…" : text }
+    /// Short enough that a typical query fits the agent's drop whole: a longer one is cut with an ellipsis, and the
+    /// drop cuts anything still too wide for it at a word.
+    private static func short(_ text: String) -> String {
+        text.count > 36 ? text.prefix(35).trimmingCharacters(in: .whitespaces) + "…" : text
+    }
 }

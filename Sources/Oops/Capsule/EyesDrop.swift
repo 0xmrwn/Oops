@@ -73,12 +73,11 @@ struct EyesDropView: View {
     /// Target width, computed rather than measured so every layer animates to the same value.
     private var width: CGFloat {
         guard expanded else { return drop }
-        let text = parts.map { Self.measure($0, font) }.reduce(0, +) + CGFloat(parts.count - 1) * Self.divider * scale
-        let clock = timed ? Self.clockGap * scale + clockWidth : 0
-        return lead + text + clock + (actionCount > 0 ? Self.gap * scale + drop : 16 * scale)
+        return min(lead + DropLabel.width(parts, font: font, divider: Self.divider * scale) + framing, model.room)
     }
-    private static func measure(_ text: String, _ font: NSFont) -> CGFloat {
-        (text as NSString).size(withAttributes: [.font: font]).width.rounded(.up)
+    /// Everything across the expanded drop but the label: the timer while working, then the action's cap or an end margin.
+    private var framing: CGFloat {
+        (timed ? Self.clockGap * scale + clockWidth : 0) + (actionCount > 0 ? Self.gap * scale + drop : 16 * scale)
     }
     /// Breathing room either side of the label: after the eye slot, and before the action's cap.
     private static let gap: CGFloat = 6
@@ -146,6 +145,8 @@ struct EyesDropView: View {
         .onChange(of: model.phase) { _, phase in if phase == .working { start = Date() }; widest = 0; morph() }
         .onChange(of: model.label) { morph() }
         .onChange(of: model.startedAt) { morph() }
+        // A new run can take over a drop that never left `.working`: it starts from its own width.
+        .onChange(of: model.run) { widest = 0; morph() }
         .onChange(of: model.presented) { _, presented in
             if presented { shown = drop; slot = 0; widest = 0; morph() } else { morph(collapse: true) }
         }
@@ -174,7 +175,7 @@ struct EyesDropView: View {
     /// Stretching unveils the label as the glass grows; shrinking narrows back into the drop.
     private func morph(collapse: Bool = false) {
         var target = collapse ? drop : width
-        if working, !collapse { target = max(target, widest); widest = target }
+        if working, !collapse { target = min(max(target, widest), model.room); widest = target }
         model.width = target
         // A working drop already wide grows quickly to take a longer step, so the step reads as it arrives.
         let stepping = working && !collapse && shown > drop && target > shown
@@ -191,7 +192,7 @@ struct EyesDropView: View {
 
     /// The light's and the eyes' pace at `date`, stepped once a frame by whichever draws first.
     private func advanced(_ date: Date) -> DropMotion {
-        motion.advance(to: date, start: start, activities: model.activities, lastActivity: model.lastActivity, toward: towardText)
+        motion.advance(to: date, start: start, run: model.run, activities: model.activities, lastActivity: model.lastActivity, toward: towardText)
         return motion
     }
 
@@ -245,7 +246,9 @@ struct EyesDropView: View {
 
     /// A count and a timing (`6 fixes · 5.7s`) are drawn apart by a short hairline, quieter than
     /// any glyph between them: a dot read as a typo's leftover at this size.
-    private var parts: [String] { model.label.components(separatedBy: " · ") }
+    private var parts: [String] {
+        DropLabel.fitted(model.label.components(separatedBy: " · "), room: model.room - lead - framing, font: font, divider: Self.divider * scale)
+    }
     private static let divider: CGFloat = 15
 
     /// Close, as on a macOS notification: a small glass disc while the pointer is over a finished

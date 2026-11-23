@@ -8,7 +8,7 @@ import SwiftUI
     private(set) var angle = 0.0
     /// The eyes once the run has reported progress; nil before, for the drop's own reading pose.
     private(set) var pose: (look: CGSize, lid: Double)?
-    private var start: Date?, last = Date.distantPast, seen = 0
+    private var start: Date?, last = Date.distantPast, seen = 0, run: Int?
     /// Extra speed (radians a second) and brightness, each sign's share halving every 1.5 s.
     private var boost = 0.0, flare = 0.0
     /// 0 busy … 1 quiet, eased so the light settles rather than switches.
@@ -23,11 +23,10 @@ import SwiftUI
     private static let glances = [CGSize(width: -0.9, height: 0), CGSize(width: 0.9, height: 0), CGSize(width: 0, height: -0.9)]
 
     /// Steps to `date`, from the working phase's `start`. Idempotent for a frame: the light and the eyes both call it.
-    func advance(to date: Date, start: Date, activities: Int, lastActivity: Date?, toward: CGSize) {
-        if start != self.start {
-            self.start = start; last = start; seen = activities
-            angle = 0; boost = 0; flare = 0; calm = 0; calmVelocity = 0; calmSince = nil; pose = nil
-        }
+    /// A new `run` (`CapsuleModel.clearRun()`) forgets the last one's progress; the light carries on where it is.
+    func advance(to date: Date, start: Date, run: Int, activities: Int, lastActivity: Date?, toward: CGSize) {
+        if start != self.start { self.start = start; last = start; angle = 0; self.run = nil }
+        if run != self.run { self.run = run; seen = activities; boost = 0; flare = 0; calm = 0; calmVelocity = 0; calmSince = nil; pose = nil }
         let dt = date.timeIntervalSince(last)
         guard dt > 0 else { return }
         last = date

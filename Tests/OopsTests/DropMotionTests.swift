@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 @testable import Oops
 import Testing
 
@@ -12,7 +12,7 @@ import Testing
         while t < to {
             t = min(to, t + 1.0 / 60)
             for sign in signs where sign > t - 1.0 / 60 && sign <= t { counted += 1; last = start.addingTimeInterval(sign) }
-            motion.advance(to: start.addingTimeInterval(t), start: start, activities: counted, lastActivity: last, toward: toward)
+            motion.advance(to: start.addingTimeInterval(t), start: start, run: 0, activities: counted, lastActivity: last, toward: toward)
         }
     }
 
@@ -62,8 +62,44 @@ import Testing
         var counted = 0, last: Date?
         run(motion, to: 3, signs: [1], counted: &counted, last: &last)
         let later = start.addingTimeInterval(60)
-        motion.advance(to: later.addingTimeInterval(1), start: later, activities: counted, lastActivity: nil, toward: toward)
+        motion.advance(to: later.addingTimeInterval(1), start: later, run: 0, activities: counted, lastActivity: nil, toward: toward)
         #expect(abs(motion.angle - DropMotion.pace) < 1e-9)
         #expect(motion.pose == nil)
+    }
+
+    @Test func `a run replaced while working drops its progress but not the light's place`() {
+        let motion = DropMotion()
+        var counted = 0, last: Date?
+        run(motion, to: 12, signs: [0.5], counted: &counted, last: &last)
+        let angle = motion.angle
+        // Fix takes the drop over without it leaving `.working`: steady pace, its own reading eyes, no jump.
+        let next = start.addingTimeInterval(12 + 1.0 / 60)
+        motion.advance(to: next, start: start, run: 1, activities: counted, lastActivity: nil, toward: toward)
+        #expect(motion.pose == nil)
+        #expect(abs(motion.angle - angle - DropMotion.pace / 60) < 1e-6)
+        #expect(motion.brightness(dark: true) == 0.75)
+    }
+}
+
+@MainActor struct DropLabelTests {
+    private let font = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
+
+    @Test func `a label that fits is left whole`() {
+        let parts = ["Rewrite", "1.2s"]
+        #expect(DropLabel.fitted(parts, room: 500, font: font, divider: 15) == parts)
+    }
+
+    @Test func `a long step loses words from its end and keeps the timing`() {
+        let parts = ["Searching “how to write a cover letter that stands out”", "0:12"]
+        let room = DropLabel.width(["Searching “how to write a…", "0:12"], font: font, divider: 15) + 2
+        let fitted = DropLabel.fitted(parts, room: room, font: font, divider: 15)
+        #expect(fitted == ["Searching “how to write a…", "0:12"])
+        #expect(DropLabel.width(fitted, font: font, divider: 15) <= room)
+    }
+
+    @Test func `one word too wide is cut by its letters`() {
+        let fitted = DropLabel.fitted(["developer.mozilla.org"], room: 80, font: font, divider: 15)
+        #expect(fitted.first?.hasPrefix("dev") == true && fitted.first?.hasSuffix("…") == true)
+        #expect(DropLabel.width(fitted, font: font, divider: 15) <= 80)
     }
 }
