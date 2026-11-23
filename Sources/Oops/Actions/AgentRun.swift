@@ -26,7 +26,7 @@ import OopsCore
     var copyable: String?
     /// What the run wrote, for the done drop's undo.
     var kept: ActionSession.Written?
-    private var failure: ActionFailure?
+    private(set) var failure: ActionFailure?
     /// From the press until the draft is read: the drop is held, and the run can be cancelled, before it has a phase.
     private var starting = false
     private(set) var elapsed = Duration.zero
@@ -42,8 +42,12 @@ import OopsCore
     private var task: Task<ActionOutcome, Never>?
     /// The write the run ends with, which the run's own task waits for.
     private var finishing: Task<ActionOutcome, Never>?
-    /// The ready result has been announced once, with its sound.
-    private var announced = false
+    /// The ready result has been announced once, with its sound; and has opened once in the pill to say so.
+    var announced = false, unfolded = false
+    /// The wait for `parkDue` after the person left the field.
+    private var parking: Task<Void, Never>?
+    /// Whether the field read at capture still holds the draft as read; called off the main thread.
+    let draftUnchanged: @Sendable (EditorSnapshot) -> Bool
     /// The run's task waits here while its result is ready, so whoever started it (Try) hears how it ended: written,
     /// held to copy, or dismissed.
     var waiting: CheckedContinuation<ActionOutcome, Never>?
@@ -65,21 +69,31 @@ import OopsCore
     private var escapeExpiry: Task<Void, Never>?
     /// The menu bar shows the run's state.
     var changed: () -> Void = {}
-    /// Plain Escape cancels while the run's working drop is in front, and only then.
+    /// Plain Escape cancels while the run's working drop is in front, and parks the ready drop at the caret.
     var escape: (Bool) -> Void = { _ in }
+    /// Plain Return puts the answer in while the ready drop is at the caret of its field, and only then.
+    var confirmKey: (Bool) -> Void = { _ in }
+    private(set) var confirming = false
+    /// A Return taken for the drop that turned out to be the field's after all, sent on to it.
+    var passReturn: () -> Void = { AgentRun.pressReturn() }
     #if DEBUG
     /// Every change of phase, field or drop, for agent.jsonl.
     var onEvent: (([String: String]) -> Void)?
     #endif
 
     init(drop: AgentDrop, editor: EditorAccess, runner: @escaping @MainActor () throws -> any AgentRunning,
-         holdsFocus: (@Sendable (EditorSnapshot) -> Bool)? = nil, history: AgentRunHistory = AgentRunHistory()) {
+         holdsFocus: (@Sendable (EditorSnapshot) -> Bool)? = nil, draftUnchanged: (@Sendable (EditorSnapshot) -> Bool)? = nil,
+         fullScreen: @escaping @Sendable (pid_t) -> Bool = AgentFocusWatch.showsFullScreen, history: AgentRunHistory = AgentRunHistory()) {
         self.drop = drop; makeRunner = runner; self.history = history
-        let holds = holdsFocus ?? { editor.holdsFocus($0) }
-        self.holdsFocus = holds
-        watch = AgentFocusWatch(holds: holds)
+        let holds = holdsFocus ?? { editor.holdsFocus($0) }, unchanged = draftUnchanged ?? { editor.draftUnchanged($0) }
+        self.holdsFocus = holds; self.draftUnchanged = unchanged
+        watch = AgentFocusWatch(holds: holds, unchanged: unchanged, fullScreen: fullScreen)
         watch.changed = { [weak self] in self?.handle(.focus($0)) }
-        drop.busy = { [weak self] in self.map { $0.starting || $0.flow.phase == .running && $0.flow.inField } ?? false }
+        watch.edited = { [weak self] in self?.handle(.edited) }
+        watch.screenChanged = { [weak self] in self?.handle(.fullScreen($0)) }
+        watch.ticked = { [weak drop] in drop?.followScreen() }
+        drop.busy = { [weak self] in self.map { $0.starting || $0.flow.holdsDrop } ?? false }
+        drop.away = { [weak self] in self.map { $0.flow.phase == .ready || $0.flow.phase == .running && !$0.flow.holdsDrop } ?? false }
         drop.cancel = { [weak self] in self?.cancel() }
         drop.open = { [weak self] in self?.act() }
         drop.discard = { [weak self] in self?.dismiss() }
@@ -107,8 +121,8 @@ import OopsCore
         name = ActionSession.name(invocation)
         symbol = if case let .saved(action, _) = invocation { action.symbol } else { "sparkles" }
         self.inTry = inTry
-        held = nil; copyable = nil; kept = nil; failure = nil; snapshot = nil; finishing = nil; announced = false; readyResult = nil
-        progress = nil; drop.startedAt = nil
+        held = nil; copyable = nil; kept = nil; failure = nil; snapshot = nil; finishing = nil; announced = false; unfolded = false; readyResult = nil
+        progress = nil; drop.startedAt = nil; drop.name = name
         session.forgetFix()
         let task = Task { [weak self] () -> ActionOutcome in
             guard let self else { return .cancelled }
@@ -167,8 +181,13 @@ import OopsCore
             keepTime()
             handle(.answered)
             if flow.phase == .ready {
+                // The person may come back to the field on their own: the watch goes on, and so does a Chromium
+                // app's accessibility switch, without which the field can't be found again.
+                watch.start(snapshot, inside: flow.inField)
+                follow()
+                let outcome = await readyOutcome()
                 await settle()
-                return await readyOutcome()
+                return outcome
             }
             let outcome = await finishing?.value ?? .held
             await settle()
@@ -227,29 +246,52 @@ import OopsCore
             switch effect {
             // The run's progress, not the bare step: it holds each label long enough to read.
             case .showStatus: showProgress()
+            case .park: showProgress(parked: true)
+            case .parkSoon:
+                parking?.cancel()
+                parking = Task { [weak self] in
+                    try? await Task.sleep(for: AgentRunFlow.parkDelay)
+                    if !Task.isCancelled { self?.handle(.parkDue) }
+                }
             case .yieldDrop: drop.yield()
             case .menu: break
             case .writeInPlace: finishing = Task { await self.writeInPlace() }
-            case .announceReady: Task { await self.announceReady() }
-            case let .showFailure(here): Task { await self.showFailure(here: here) }
-            case .returnToDraft:
-                finishing = Task {
-                    let outcome = await self.returnToDraft()
-                    self.resolve(outcome)
-                    return outcome
-                }
+            case .announceReady: announceReady()
+            case .chime: chime()
+            case .readyAtCaret: showReadyHere()
+            case let .showFailure(parked): showFailure(parked: parked)
+            case .returnToDraft: finish { await $0.returnToDraft() }
+            case .putIn: finish { await $0.putIn() }
+            case .offerCopy: offerCopy()
             case .discard:
                 held = nil
                 resolve(.cancelled)
             }
         }
         if flow.phase != .running { stopWaking() }
+        follow()
         report()
     }
 
-    /// The menu, the Escape hotkey and the lab log follow the run.
+    /// The ready result's write, which the run's task and whoever started it wait for.
+    private func finish(_ write: @escaping (AgentRun) async -> ActionOutcome) {
+        finishing = Task {
+            let outcome = await write(self)
+            self.resolve(outcome)
+            return outcome
+        }
+    }
+
+    /// The watch looks at the draft while the ready drop waits at its caret, and at the screen while the person is away.
+    func follow() {
+        let live = flow.phase == .running || flow.phase == .ready
+        watch.watchesDraft = flow.readyHere
+        watch.watchesScreen = live && (!flow.inField || flow.place == .parked)
+    }
+
+    /// The menu, the Escape and Return hotkeys and the lab log follow the run.
     func report() {
-        let working = flow.phase == .running && drop.working
+        let working = flow.holdsDrop && drop.working
         if working, !wasWorking {
             escapeUntil = .now + Self.escapeHold
             escapeExpiry?.cancel()
@@ -259,29 +301,16 @@ import OopsCore
             }
         }
         wasWorking = working
-        let arm = working && ContinuousClock.now < escapeUntil
+        let here = flow.readyHere && drop.readyAtCaret
+        let arm = working && ContinuousClock.now < escapeUntil || here
         if arm != armed { armed = arm; escape(arm) }
+        if here != confirming { confirming = here; confirmKey(here) }
         changed()
         #if DEBUG
         var entry = ["phase": String(describing: flow.phase), "inField": flow.inField ? "yes" : "no", "step": flow.step.label,
-                     "mark": String(describing: flow.mark)]
+                     "mark": String(describing: flow.mark), "place": String(describing: flow.place), "confirm": confirming ? "yes" : "no"]
         entry.merge(drop.state) { a, _ in a }
         onEvent?(entry)
         #endif
-    }
-
-    private func announceReady() async {
-        guard flow.phase == .ready else { return }
-        let geometry = await session?.locate()
-        guard flow.phase == .ready, !drop.inFront else { return }
-        // Another feature holds the drop: the sound alone says it's ready, once, and the drop follows when it's free.
-        if !drop.showReady(name, geometry: geometry, cue: !announced), !announced { cue(.success) }
-        announced = true
-    }
-
-    private func showFailure(here: Bool) async {
-        guard let failure else { return }
-        let geometry = here ? await session?.locate() : snapshot?.geometry
-        if !drop.showFailure(failure, geometry: geometry) { cue(.failure) }
     }
 }

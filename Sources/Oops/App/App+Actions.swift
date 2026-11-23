@@ -21,6 +21,8 @@ extension AppDelegate {
                                     agentRunner: { try providers.agentRunner() })
         actions.agent.changed = { [weak self] in self?.menuBar?.agentChanged() }
         actions.agent.escape = { [weak self] in self?.armEscape(.agent, $0 ? [0] : []) }
+        actions.agent.confirmKey = { [weak self] in self?.shortcuts.armConfirm($0) }
+        shortcuts.confirm = { [weak actions] in actions?.agent.confirmed() }
         menuBar?.agent = { [weak actions] in actions?.agent }
         actions.agent.refused = { [weak self] in self?.preferences.status = $0 }
         actions.agent.othersBusy = { [weak self, weak actions] in self?.session.isBusy == true || actions?.isBusy == true }
@@ -48,6 +50,6 @@ extension AppDelegate {
 
     /// Escape goes to Dictate whenever it armed it, else to the agent run whose drop is in front.
     func escapePressed() {
-        if escapes.target == .agent { actions.agent.cancel() } else { dictation?.cancel() }
+        if escapes.target == .agent { actions.agent.escaped() } else { dictation?.cancel() }
     }
 }

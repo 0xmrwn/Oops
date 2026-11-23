@@ -150,6 +150,8 @@ struct EyesDropView: View {
         .onChange(of: model.presented) { _, presented in
             if presented { shown = drop; slot = 0; widest = 0; morph() } else { morph(collapse: true) }
         }
+        // Back from the parked pill (`AgentDropView`), already up: it grows from the drop.
+        .onAppear { if model.presented { morph() } }
         // The timer gains a digit at ten minutes, and again at a hundred: the drop makes room for it then.
         .task(id: model.startedAt) {
             guard let startedAt = model.startedAt else { return }

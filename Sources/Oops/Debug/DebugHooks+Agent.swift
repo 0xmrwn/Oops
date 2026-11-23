@@ -47,7 +47,7 @@ import OopsCore
         on("agent-state") { [weak self] _ in
             guard let self else { return }
             var entry = ["phase": String(describing: agent.flow.phase), "mark": String(describing: agent.flow.mark),
-                         "escape": self.escapes.armed[.agent] == nil ? "no" : "yes", "copy": agent.copyable == nil ? "no" : "yes", "restorable": self.actions.canRestore ? "yes" : "no", "front": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
+                         "escape": self.escapes.armed[.agent] == nil ? "no" : "yes", "confirm": agent.confirming ? "yes" : "no", "copy": agent.copyable == nil ? "no" : "yes", "restorable": self.actions.canRestore ? "yes" : "no", "front": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
             entry.merge(agent.drop.state) { a, _ in a }
             Self.record(entry, to: "agent.jsonl")
         }
