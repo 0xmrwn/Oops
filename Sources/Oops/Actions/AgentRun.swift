@@ -15,7 +15,7 @@ import OopsCore
     private let makeRunner: @MainActor () throws -> any AgentRunning
     private let watch: AgentFocusWatch
     /// Whether the field read at capture has focus now; called off the main thread.
-    private let holdsFocus: @Sendable (EditorSnapshot) -> Bool
+    let holdsFocus: @Sendable (EditorSnapshot) -> Bool
     var snapshot: EditorSnapshot?
     /// What the run was started with, and whether from Settings' Try, whose draft alone a retry may read.
     private(set) var invocation: ActionInvocation?
@@ -69,13 +69,11 @@ import OopsCore
     private var escapeExpiry: Task<Void, Never>?
     /// The menu bar shows the run's state.
     var changed: () -> Void = {}
-    /// Plain Escape cancels while the run's working drop is in front, and parks the ready drop at the caret.
+    /// Plain Escape cancels while the run's working drop is in front, and only then.
     var escape: (Bool) -> Void = { _ in }
-    /// Plain Return puts the answer in while the ready drop is at the caret of its field, and only then.
-    var confirmKey: (Bool) -> Void = { _ in }
-    private(set) var confirming = false
-    /// A Return taken for the drop that turned out to be the field's after all, sent on to it.
-    var passReturn: () -> Void = { AgentRun.pressReturn() }
+    /// Return and Escape for the ready drop at the caret, while it is up there (`AgentReadyKeys`).
+    private var readyKeys: AgentReadyKeys?
+    var confirming: Bool { readyKeys != nil }
     #if DEBUG
     /// Every change of phase, field or drop, for agent.jsonl.
     var onEvent: (([String: String]) -> Void)?
@@ -100,7 +98,11 @@ import OopsCore
         drop.copy = { [weak self] in self?.copy() }
         drop.restore = { [weak self] in self?.restore() }
         drop.retry = { [weak self] in self?.retry() }
-        drop.released = { [weak self] in self?.dropEnded() }
+        drop.released = { [weak self] in
+            self?.dropEnded()
+            // Once the feature taking the drop holds it: the ready keys go with the drop.
+            Task { self?.report() }
+        }
         drop.openSettings = { [weak self] in self?.session?.openSettings(self?.failure?.reason != .capture) }
         drop.changed = { [weak self] in self?.report() }
         drop.idle = { [weak self] in self?.handle(.dropFree) }
@@ -242,6 +244,7 @@ import OopsCore
     func handle(_ event: AgentRunFlow.Event) {
         let before = flow, effects = flow.handle(event)
         guard !effects.isEmpty || flow != before else { return }
+        var offered = false
         for effect in effects {
             switch effect {
             // The run's progress, not the bare step: it holds each label long enough to read.
@@ -257,12 +260,12 @@ import OopsCore
             case .menu: break
             case .writeInPlace: finishing = Task { await self.writeInPlace() }
             case .announceReady: announceReady()
-            case .chime: chime()
+            case let .chime(failed): if failed { cue(.failure) } else { chime() }
             case .readyAtCaret: showReadyHere()
             case let .showFailure(parked): showFailure(parked: parked)
             case .returnToDraft: finish { await $0.returnToDraft() }
             case .putIn: finish { await $0.putIn() }
-            case .offerCopy: offerCopy()
+            case .offerCopy: if offerCopy() { offered = true }
             case .discard:
                 held = nil
                 resolve(.cancelled)
@@ -271,6 +274,7 @@ import OopsCore
         if flow.phase != .running { stopWaking() }
         follow()
         report()
+        if offered { handle(.offered) }
     }
 
     /// The ready result's write, which the run's task and whoever started it wait for.
@@ -301,10 +305,14 @@ import OopsCore
             }
         }
         wasWorking = working
-        let here = flow.readyHere && drop.readyAtCaret
-        let arm = working && ContinuousClock.now < escapeUntil || here
+        let arm = working && ContinuousClock.now < escapeUntil
         if arm != armed { armed = arm; escape(arm) }
-        if here != confirming { confirming = here; confirmKey(here) }
+        if flow.readyHere, drop.readyAtCaret {
+            if readyKeys == nil { readyKeys = AgentReadyKeys(takes: { [weak self] in self?.takes($0) ?? false }, pressed: { [weak self] in self?.pressed($0) }) }
+        } else if let readyKeys {
+            readyKeys.stop()
+            self.readyKeys = nil
+        }
         changed()
         #if DEBUG
         var entry = ["phase": String(describing: flow.phase), "inField": flow.inField ? "yes" : "no", "step": flow.step.label,

@@ -107,7 +107,7 @@ private final class PassivePanel: NSPanel {
     func setContent(_ content: AnyView) {
         // An exit still playing belongs to the content it replaces.
         if let hiding { hiding.cancel(); remove() }
-        // Nor does its spot at a screen's edge: the new feature places itself.
+        // Nor does its spot at a screen's edge.
         fixedPosition = nil; fixedAnchor = nil
         // The initial icon-only phase has a smaller ideal width. Keep hosting
         // geometry stable so AppKit does not compress later status text away.
@@ -196,13 +196,13 @@ private final class PassivePanel: NSPanel {
         tracker.stop(); cancelResample(); neutral = true
         if panel.isVisible { fadeAcross() }
     }
-    /// Fixed to a screen's edge, on the screen this rect is on rather than the draft's.
+    /// Fixed to the edge of the screen this rect is on, not the draft's.
     private var fixedAnchor: CGRect?
-    /// `fly` placed a drop that wasn't up: its first `present` keeps that spot.
+    /// `fly` placed a drop not yet up: its first `present` keeps the spot.
     private var placedAhead = false
-    private var flight: PanelFlight?
-    /// Sends the drop to the draft (`geometry`) or a screen's edge (`fixed`, on the screen `anchor` is on): the panel
-    /// and the drop's corner on one spring, or fading across with Reduce Motion. A drop not up comes up there.
+    private var flight: PanelFlight?, fading = false
+    /// Sends the drop to the draft (`geometry`) or a screen edge (`fixed`, on `anchor`'s screen): the panel and the
+    /// drop's corner on one spring, or a fade with Reduce Motion. A drop not up comes up there.
     func fly(geometry: CapsulePlacement.Geometry?, fixed: DictationDropPosition?, anchor: CGRect? = nil) {
         if let geometry { self.geometry = geometry }
         neutral = false; fixedPosition = fixed; fixedAnchor = anchor
@@ -215,10 +215,11 @@ private final class PassivePanel: NSPanel {
         position(flying: true)
     }
     private func fadeAcross() {
+        fading = true
         NSAnimationContext.runAnimationGroup({ $0.duration = 0.12; panel.animator().alphaValue = 0 }) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.position()
+                self.fading = false; self.position()
                 NSAnimationContext.runAnimationGroup { $0.duration = 0.18; self.panel.animator().alphaValue = 1 }
             }
         }
@@ -303,6 +304,7 @@ private final class PassivePanel: NSPanel {
     }
     /// The engine works in AX coordinates (top-left, global, primary display); AppKit is bottom-left.
     private func position(flying: Bool = false) {
+        guard !fading else { return } // Placed once faded out.
         let primary = NSScreen.screens.first?.frame.maxY ?? 900
         let screens = NSScreen.screens.map { s in CGRect(x: s.visibleFrame.minX, y: primary - s.visibleFrame.maxY,
                                                          width: s.visibleFrame.width, height: s.visibleFrame.height) }
@@ -324,7 +326,7 @@ private final class PassivePanel: NSPanel {
         case .bottom: .bottom
         case .top: .top
         }
-        // In flight the drop crosses the panel on the panel's spring: the two add up to one move.
+        // In flight the drop crosses the panel on its spring: one move.
         if flying { withAnimation(PanelFlight.animation) { model.alignment = alignment } } else { model.alignment = alignment }
         let rect = placement.envelope.insetBy(dx: -Self.inset, dy: -Self.inset)
         let frame = NSRect(x: rect.minX, y: primary - rect.maxY, width: rect.width, height: rect.height)

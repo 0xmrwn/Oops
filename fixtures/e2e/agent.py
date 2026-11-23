@@ -7,7 +7,8 @@ A case's `steps` say what happens while it runs: ("wait", ms), ("away",) to brin
 to move to a second field in the lab, ("append", text) to type into the run's field, ("fix", text) to run Fix there,
 ("model", action) to run a model action there, ("again",) to start a second agent run, ("until", field, value) to wait
 for an agent.jsonl line, ("back", field, value) to bring the lab and its field back and ("key", name, field, value) to
-press Return or Escape, each then waiting for a line logged after it, and ("act",), ("dismiss",), ("cancel",) for the
+press Return or Escape (posted at the HID level by `agent-key`), each then waiting for a line logged after it, and
+("act",), ("dismiss",), ("cancel",) for the
 menu's items. Expectations: `outcome` of the run (`reason` when it failed), `seen` labels of the run's drop in order,
 `last` fields of the last agent.jsonl line, `final` text of the lab field, `ended` as the stub wrote it, and the stub's
 `calls`."""
@@ -23,7 +24,6 @@ TRIGGER = Path(__file__).resolve().parents[2] / ".build/lab-tools/trigger"
 
 ANSWER = "Here is the summary you asked for."
 SEARCH_READ = [{"search": "q"}, {"read": "https://example.com/x"}]
-KEY_CODES = {"return": 36, "escape": 53}
 BASE = dict(text="summarise the thread for me", action="Shorten")
 
 AGENT = [
@@ -130,11 +130,35 @@ AGENT = [
             ("until", "mark", "ready"),
             ("back", "confirm", "yes"),
             ("append", " please"),
+            # Return right after typing is the field's: the draft no longer reads as it was read.
+            ("key", "return"),
             ("until", "dropPhase", "pending"),
         ],
         outcome="held",
         last={"phase": "idle", "mark": "none", "dropPhase": "pending", "label": "Not written", "confirm": "no"},
-        final="summarise the thread for me please",
+        final="summarise the thread for me please\n",
+        ended="finished",
+    ),
+    # Back in the field, then straight into another field in the same window: Return is that field's, and the answer
+    # stays ready.
+    dict(
+        BASE,
+        name="agent:ready-back-other-field",
+        stub={"steps": SEARCH_READ, "stepMs": 1500, "answer": ANSWER},
+        steps=[
+            ("until", "step", "Searching “q”"),
+            ("away",),
+            ("until", "mark", "ready"),
+            ("back", "confirm", "yes"),
+            ("other", "a second draft"),
+            ("key", "return"),
+            ("state",),
+            ("dismiss",),
+        ],
+        outcome="cancelled",
+        state={"phase": "ready", "mark": "ready"},
+        last={"phase": "idle", "mark": "none", "confirm": "no"},
+        final="a second draft\n",
         ended="finished",
     ),
     # The draft changed while the run was away: acting on it writes nothing and offers the answer to copy.
@@ -306,6 +330,10 @@ def step(run, case, action, before):
         done = len(actions.logged(run))
         run.trigger("agent-lab", case["action"])
         run.wait(lambda: len(actions.logged(run)) > done, 10, "the second run was never logged")
+    elif kind == "key" and len(action) == 2:
+        # A key that should reach the field: nothing to wait for but the field.
+        post("agent-key", action[1])
+        time.sleep(0.6)
     elif kind in ("back", "key"):
         # Waits for a line logged after it acts: the same value may have been logged before.
         *_, field, value = action
@@ -313,8 +341,8 @@ def step(run, case, action, before):
         if kind == "back":
             run.trigger("agent-state")
         else:
-            code = KEY_CODES[action[1]]
-            subprocess.run(["osascript", "-e", f'tell application "System Events" to key code {code}'], check=True)
+            # Oops posts it at the HID level, where the ready drop's tap and the field in front meet it as a person's.
+            post("agent-key", action[1])
         run.wait(
             lambda: any(e.get(field) == value for e in logged(run)[count:]),
             20,

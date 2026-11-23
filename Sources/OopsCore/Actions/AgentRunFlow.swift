@@ -25,6 +25,8 @@ public struct AgentRunFlow: Equatable, Sendable {
         case act, dismiss
         /// Return, Escape, or a change to the draft, while the ready drop is at the caret of its field.
         case confirm, escape, edited
+        /// The copy offer for a changed draft is up: the run is over.
+        case offered
         /// The write the run ended with has finished, whatever it did.
         case settled
         /// Another feature's drop went away.
@@ -44,13 +46,14 @@ public struct AgentRunFlow: Equatable, Sendable {
         case writeInPlace
         /// The ready drop in the parked pill, or the cue alone while another feature holds the drop.
         case announceReady
-        /// Ready while the pill can't show (full screen): the sound alone says so.
-        case chime
+        /// Ready, or failed, while the pill can't show (full screen): the sound alone says so.
+        case chime(failed: Bool)
         /// The ready drop at the caret of its field, where Return puts it in.
         case readyAtCaret
         /// Written at the caret the person is already at.
         case putIn
-        /// The draft changed under the ready drop: the answer is offered to copy.
+        /// The draft changed under the ready drop: the answer is offered to copy, there or in the pill. The run stays
+        /// ready until the offer is up (`offered`), so another feature holding the drop meanwhile loses nothing.
         case offerCopy
         /// At the parked spot, or at the run's caret.
         case showFailure(parked: Bool)
@@ -65,19 +68,21 @@ public struct AgentRunFlow: Equatable, Sendable {
 
     public private(set) var phase = Phase.idle, inField = false, step = ClaudeAgentStep.starting
     public private(set) var place = Place.caret, fullScreen = false
+    /// The draft changed under the ready drop: only a copy is left to offer.
+    public private(set) var stale = false
     public var mark: MenuMark { phase == .running ? .running : phase == .ready ? .ready : .none }
     public var canStart: Bool { phase == .idle }
     /// At work at the caret with the person there: the run holds the drop.
     public var holdsDrop: Bool { phase == .running && inField && place == .caret }
     /// The ready drop is at the caret with the person in its field: Return puts it in, Escape parks it.
-    public var readyHere: Bool { phase == .ready && inField && place == .caret }
+    public var readyHere: Bool { phase == .ready && inField && place == .caret && !stale }
 
     public init() {}
 
     public mutating func handle(_ event: Event) -> [Effect] {
         switch (phase, event) {
         case (.idle, .started):
-            phase = .running; inField = true; step = .starting; place = .caret; fullScreen = false
+            phase = .running; inField = true; step = .starting; place = .caret; fullScreen = false; stale = false
             return [.menu(.running), .showStatus(.starting)]
         case let (.running, .focus(now)), let (.ready, .focus(now)):
             guard now != inField else { return [] }
@@ -86,7 +91,7 @@ public struct AgentRunFlow: Equatable, Sendable {
             // Back within `parkDelay`: the drop never left.
             guard place == .parked else { return [] }
             place = .caret
-            return phase == .running ? [.showStatus(step)] : [.readyAtCaret]
+            return phase == .running ? [.showStatus(step)] : [readyDrop()]
         case (.running, .parkDue), (.ready, .parkDue):
             guard !inField, place == .caret else { return [] }
             place = .parked
@@ -109,16 +114,17 @@ public struct AgentRunFlow: Equatable, Sendable {
             }
             // Gone, or on the way out: the result waits in the pill, never at the caret of another field.
             phase = .ready; place = .parked
-            return [.menu(.ready)] + (fullScreen ? [.yieldDrop, .chime] : [.announceReady])
+            return [.menu(.ready)] + (fullScreen ? [.yieldDrop, .chime(failed: false)] : [.announceReady])
         case (.running, .failed):
             phase = .idle
-            return [.menu(.none), .showFailure(parked: place == .parked)]
+            // Not over a full-screen app: the failure cue alone.
+            return [.menu(.none), place == .parked && fullScreen ? .chime(failed: true) : .showFailure(parked: place == .parked)]
         case (.running, .cancelled):
             phase = .idle
             return [.menu(.none), .yieldDrop]
         case (.ready, .dropFree):
-            if place == .parked { return fullScreen ? [] : [.announceReady] }
-            return inField ? [.readyAtCaret] : []
+            if place == .parked { return fullScreen ? [] : [readyDrop()] }
+            return inField ? [readyDrop()] : []
         case (.ready, .act):
             let here = readyHere
             phase = .returning
@@ -133,8 +139,12 @@ public struct AgentRunFlow: Equatable, Sendable {
             return pill()
         case (.ready, .edited):
             guard readyHere else { return [] }
+            stale = true
+            return [.offerCopy]
+        case (.ready, .offered):
+            guard stale else { return [] }
             phase = .idle
-            return [.menu(.none), .offerCopy]
+            return [.menu(.none)]
         case (.ready, .dismiss):
             phase = .idle
             return [.menu(.none), .discard, .yieldDrop]
@@ -148,7 +158,12 @@ public struct AgentRunFlow: Equatable, Sendable {
 
     /// The run's drop at the parked spot, unless full screen keeps it hidden there.
     private func pill() -> [Effect] {
-        fullScreen ? [.yieldDrop] : [phase == .running ? .park : .announceReady]
+        fullScreen ? [.yieldDrop] : [phase == .running ? .park : readyDrop()]
+    }
+
+    /// What a ready result shows where its drop is now: the result, or the copy offer once the draft changed.
+    private func readyDrop() -> Effect {
+        stale ? .offerCopy : place == .parked ? .announceReady : .readyAtCaret
     }
 }
 

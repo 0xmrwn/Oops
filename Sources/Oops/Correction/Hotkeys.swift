@@ -19,12 +19,6 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
     nonisolated static let cancelIdentity: UInt32 = 0xE5C
     /// Told when Escape is pressed while it is registered.
     var cancel: (() -> Void)?
-    /// Plain Return while an agent run's ready drop is at its caret (`armConfirm`), and its identity.
-    private var confirmRef: EventHotKeyRef?
-    private var confirmArmed = false
-    nonisolated static let confirmIdentity: UInt32 = 0xE7E
-    /// Told when that Return is pressed.
-    var confirm: (() -> Void)?
     private var layoutObserver: NSObjectProtocol?
     /// Each action under its own hotkey identity, so the handler knows which one fired.
     private var router = HotkeyRouter(ShortcutSettings.Action.allCases)
@@ -59,8 +53,8 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
             let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed), identity = id.id
             let instant: HotkeyInstant = (CaptureInstant.now(), ContinuousClock.now)
             let owner = Unmanaged<HyperShortcuts>.fromOpaque(userData).takeUnretainedValue()
-            if identity == HyperShortcuts.cancelIdentity || identity == HyperShortcuts.confirmIdentity {
-                if pressed { DispatchQueue.main.async { identity == HyperShortcuts.cancelIdentity ? owner.cancel?() : owner.confirm?() } }
+            if identity == HyperShortcuts.cancelIdentity {
+                if pressed { DispatchQueue.main.async { owner.cancel?() } }
                 return noErr
             }
             KeyboardGate.heldShortcuts.withLock { held in
@@ -103,7 +97,6 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
     }
 
     private func registerCancel() {
-        registerConfirm()
         for modifiers in cancelChords {
             var ref: EventHotKeyRef?
             let status = RegisterEventHotKey(DictationEscape.keyCode, modifiers, EventHotKeyID(signature: 0x53545854, id: Self.cancelIdentity),
@@ -115,25 +108,6 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
     private func unregisterCancel() {
         cancelRefs.forEach { UnregisterEventHotKey($0) }
         cancelRefs = []
-        if let confirmRef { UnregisterEventHotKey(confirmRef) }
-        confirmRef = nil
-    }
-
-    /// Registers plain Return, or removes it, kept across re-registration as Escape's chords are. Only while the
-    /// shortcuts are registered.
-    func armConfirm(_ armed: Bool) {
-        confirmArmed = armed
-        if let confirmRef { UnregisterEventHotKey(confirmRef) }
-        confirmRef = nil
-        if handler != nil { registerConfirm() }
-    }
-
-    private func registerConfirm() {
-        guard confirmArmed, confirmRef == nil else { return }
-        var ref: EventHotKeyRef?
-        let status = RegisterEventHotKey(UInt32(kVK_Return), 0, EventHotKeyID(signature: 0x53545854, id: Self.confirmIdentity),
-                                         GetEventDispatcherTarget(), 0, &ref)
-        if status == noErr { confirmRef = ref }
     }
     /// One hotkey event, on the main thread: the action it belongs to, pressed or released.
     private func deliver(identity: UInt32, pressed: Bool, at instant: HotkeyInstant) {

@@ -2,6 +2,7 @@ import ApplicationServices
 import Foundation
 @testable import Oops
 import OopsCore
+import os
 import SwiftUI
 import Testing
 
@@ -37,68 +38,69 @@ import Testing
         #expect(agent.flow.place == .caret && agent.flow.holdsDrop)
     }
 
-    @Test func `Return with the draft as read puts the answer in`() async throws {
-        var passed = 0
-        let agent = try Self.readyHere(unchanged: true) { passed += 1 }
-        agent.confirmed()
+    @Test func `Return taken for the ready drop puts the answer in`() async throws {
+        let agent = try Self.readyHere()
+        agent.pressed(.confirm)
         for _ in 0 ..< 200 where agent.flow.phase != .idle { await Task.yield() }
         #expect(agent.flow.phase == .idle)
-        #expect(passed == 0, "Return was the drop's")
     }
 
-    @Test func `Return after the draft changed goes on to the field and offers the answer to copy`() async throws {
-        var passed = 0
-        let agent = try Self.readyHere(unchanged: false) { passed += 1 }
-        let waiting = Task { await agent.readyOutcome() }
-        agent.confirmed()
-        #expect(await waiting.value == .held)
-        #expect(passed == 1)
-        #expect(agent.copyable == "answer" && agent.held == nil)
-        #expect(agent.flow.phase == .idle)
+    @Test func `no key is taken while another feature holds the drop`() throws {
+        let agent = try Self.readyHere()
+        #expect(!agent.takes(.confirm))
+        #expect(!agent.takes(.escape))
+        #expect(!agent.confirming, "no tap is armed for a drop that isn't up")
     }
 
-    @Test func `Return with no ready drop at the caret goes on to the field`() {
-        var passed = 0
+    @Test func `no key is taken with no ready drop at the caret`() {
         let agent = Self.agent()
-        agent.passReturn = { passed += 1 }
-        agent.confirmed()
-        #expect(passed == 1)
+        agent.handle(.started)
+        #expect(!agent.takes(.confirm))
     }
 
-    @Test func `Escape at the caret parks the ready drop rather than cancelling anything`() throws {
-        let agent = try Self.readyHere(unchanged: true) {}
-        agent.escaped()
+    @Test func `Escape taken for the ready drop parks it rather than cancelling anything`() throws {
+        let agent = try Self.readyHere()
+        agent.pressed(.escape)
         #expect(agent.isReady && agent.flow.place == .parked)
         #expect(agent.held == "answer")
     }
 
-    @Test func `a draft changed under the ready drop offers the answer to copy`() async throws {
-        let agent = try Self.readyHere(unchanged: true) {}
-        let waiting = Task { await agent.readyOutcome() }
-        for _ in 0 ..< 10 { await Task.yield() }
+    @Test func `a draft changed while another feature holds the drop keeps the answer ready`() throws {
+        let agent = try Self.readyHere()
         agent.handle(.edited)
-        #expect(await waiting.value == .held)
-        #expect(agent.copyable == "answer")
+        // The copy offer couldn't claim the drop: nothing is lost, and the menu still offers the result.
+        #expect(agent.isReady && agent.flow.stale && agent.flow.mark == .ready)
+        #expect(agent.held == "answer" && agent.copyable == nil)
+        agent.dismiss()
+        #expect(!agent.isReady)
     }
 
-    @Test func `the watch tells when the app in front goes full screen, only while asked to`() async throws {
-        let front = try #require(NSWorkspace.shared.frontmostApplication?.processIdentifier)
-        var told: [Bool] = []
-        let watch = AgentFocusWatch(holds: { _ in false }, fullScreen: { $0 == front })
-        watch.screenChanged = { told.append($0) }
+    @Test func `a check that doesn't answer in time decides nothing`() {
+        #expect(AgentRun.bounded(.milliseconds(20)) { () -> Bool in Thread.sleep(forTimeInterval: 0.3); return true } == nil)
+        #expect(AgentRun.bounded(.seconds(2)) { true } == true)
+    }
+
+    @Test func `the watch tells the full screen of the app in front, once asked and as it changes`() async throws {
+        let full = OSAllocatedUnfairLock(initialState: true)
+        let watch = AgentFocusWatch(holds: { _ in false }, fullScreen: { pid in pid == 42 && full.withLock { $0 } }, frontmost: { 42 })
         watch.start(try Self.snapshot("draft"))
-        for _ in 0 ..< 20 { await Task.yield() }
-        #expect(told.isEmpty)
-        watch.watchesScreen = true
-        for _ in 0 ..< 400 where told.isEmpty { await Task.yield() }
-        watch.stop()
-        #expect(told == [true])
+        defer { watch.stop() }
+        let first = await withCheckedContinuation { told in
+            watch.screenChanged = { watch.screenChanged = { _ in }; told.resume(returning: $0) }
+            watch.watchesScreen = true
+        }
+        #expect(first)
+        full.withLock { $0 = false }
+        let second = await withCheckedContinuation { told in
+            watch.screenChanged = { watch.screenChanged = { _ in }; told.resume(returning: $0) }
+            watch.tick()
+        }
+        #expect(!second)
     }
 
     /// A run whose answer came while the person was away, now back in its field with the ready drop at the caret.
-    private static func readyHere(unchanged: Bool, passReturn: @escaping () -> Void) throws -> AgentRun {
-        let agent = agent(unchanged: unchanged)
-        agent.passReturn = passReturn
+    private static func readyHere() throws -> AgentRun {
+        let agent = agent()
         agent.snapshot = try snapshot("draft")
         agent.handle(.started); agent.handle(.focus(false)); agent.handle(.parkDue)
         agent.held = "answer"

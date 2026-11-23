@@ -177,13 +177,16 @@ import SwiftUI
         changed()
     }
 
-    /// The answer wasn't written: it waits in the drop to be copied, where the drop is (open, if parked).
-    func showHeld(_ reason: String, label: String = "Not written", geometry: CapsulePlacement.Geometry?) {
-        guard claim() else { return }
+    /// The answer wasn't written: it waits in the drop to be copied, at `geometry`, in the pill when `park`, else where
+    /// the drop is (open, if parked). False while another feature holds the drop.
+    @discardableResult
+    func showHeld(_ reason: String, label: String = "Not written", geometry: CapsulePlacement.Geometry?, park: Bool = false) -> Bool {
+        guard claim() else { return false }
         panel.cancelTimedHide()
-        if let geometry { toCaret(geometry) } else { model.parked?.open = true }
+        if let geometry { toCaret(geometry) } else if park { model.parked = ParkedPill(name: name, open: true); toPark() } else { model.parked?.open = true }
         panel.show(.pending, label: label, detail: reason, geometry: geometry)
         changed()
+        return true
     }
 
     /// The ready result in the pill. `open`: the first time it shows, it opens to say so, with one glow, and folds

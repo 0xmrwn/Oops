@@ -10,6 +10,8 @@ import AppKit
     private let holds: @Sendable (EditorSnapshot) -> Bool
     private let unchanged: @Sendable (EditorSnapshot) -> Bool
     private let fullScreen: @Sendable (pid_t) -> Bool
+    /// The app in front's pid.
+    private let frontmost: () -> pid_t?
     var changed: (Bool) -> Void = { _ in }
     /// The draft changed while `watchesDraft`: told once, and the draft is watched no more until it is set again.
     var edited: () -> Void = {}
@@ -29,8 +31,9 @@ import AppKit
     private var observer: NSObjectProtocol?
 
     init(holds: @escaping @Sendable (EditorSnapshot) -> Bool, unchanged: @escaping @Sendable (EditorSnapshot) -> Bool = { _ in true },
-         fullScreen: @escaping @Sendable (pid_t) -> Bool = AgentFocusWatch.showsFullScreen) {
-        self.holds = holds; self.unchanged = unchanged; self.fullScreen = fullScreen
+         fullScreen: @escaping @Sendable (pid_t) -> Bool = AgentFocusWatch.showsFullScreen,
+         frontmost: @escaping () -> pid_t? = { NSWorkspace.shared.frontmostApplication?.processIdentifier }) {
+        self.holds = holds; self.unchanged = unchanged; self.fullScreen = fullScreen; self.frontmost = frontmost
     }
 
     /// Starts watching the field `snapshot` read, with the person in it or, for a ready result, `inside` it or not.
@@ -52,7 +55,7 @@ import AppKit
         let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.sample(); self.sampleScreen(); self.ticked()
+                self.tick()
             }
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -67,7 +70,7 @@ import AppKit
 
     private func sample() {
         guard let snapshot, !sampling else { return }
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == snapshot.hostPID ?? snapshot.pid else { return report(false) }
+        guard frontmost() == snapshot.hostPID ?? snapshot.pid else { return report(false) }
         sampling = true
         let holds = holds, unchanged = unchanged, draft = watchesDraft
         Task { [weak self] in
@@ -89,8 +92,13 @@ import AppKit
         }
     }
 
+    /// One look at the field and the screen, twice a second.
+    func tick() {
+        sample(); sampleScreen(); ticked()
+    }
+
     private func sampleScreen() {
-        guard snapshot != nil, watchesScreen, !screenSampling, let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return }
+        guard snapshot != nil, watchesScreen, !screenSampling, let pid = frontmost() else { return }
         screenSampling = true
         let fullScreen = fullScreen
         Task { [weak self] in

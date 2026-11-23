@@ -95,7 +95,7 @@ struct AgentRunFlowTests {
 
     @Test func `finishing in full screen chimes and shows the ready pill once it ends`() {
         var flow = Self.flow(Self.parked, then: .fullScreen(true))
-        #expect(flow.handle(.answered) == [.menu(.ready), .yieldDrop, .chime])
+        #expect(flow.handle(.answered) == [.menu(.ready), .yieldDrop, .chime(failed: false)])
         #expect(flow.handle(.fullScreen(false)) == [.announceReady])
     }
 
@@ -187,9 +187,42 @@ struct AgentRunFlowTests {
         #expect(flow.handle(.focus(true)) == [.readyAtCaret])
     }
 
-    @Test func `a changed draft offers the answer to copy`() {
+    @Test func `a changed draft offers the answer to copy, and the run ends once the offer is up`() {
         var flow = Self.flow(Self.readyHere)
-        #expect(flow.handle(.edited) == [.menu(.none), .offerCopy])
+        #expect(flow.handle(.edited) == [.offerCopy])
+        #expect(flow.phase == .ready && flow.mark == .ready && flow.stale && !flow.readyHere)
+        #expect(flow.handle(.offered) == [.menu(.none)])
+        #expect(flow.phase == .idle)
+    }
+
+    @Test func `a changed draft keeps the answer ready while another feature holds the drop`() {
+        var flow = Self.flow(Self.readyHere, then: .edited)
+        // The offer couldn't show: the menu still offers the result, and the next free drop offers the copy.
+        #expect(flow.mark == .ready)
+        #expect(flow.handle(.dropFree) == [.offerCopy])
+        #expect(flow.handle(.confirm).isEmpty && flow.handle(.escape).isEmpty && flow.handle(.edited).isEmpty)
+        #expect(flow.handle(.offered) == [.menu(.none)])
+        #expect(flow.canStart)
+    }
+
+    @Test func `a changed draft left behind offers its copy in the pill`() {
+        var flow = Self.flow(Self.readyHere, then: .edited)
+        #expect(flow.handle(.focus(false)) == [.parkSoon])
+        #expect(flow.handle(.parkDue) == [.offerCopy])
+        #expect(flow.place == .parked)
+        #expect(flow.handle(.focus(true)) == [.offerCopy])
+    }
+
+    @Test func `a changed draft can still be taken back or discarded`() {
+        var taken = Self.flow(Self.readyHere, then: .edited)
+        #expect(taken.handle(.act) == [.menu(.none), .returnToDraft])
+        var discarded = Self.flow(Self.readyHere, then: .edited)
+        #expect(discarded.handle(.dismiss) == [.menu(.none), .discard, .yieldDrop])
+    }
+
+    @Test func `a parked failure in full screen is the failure cue alone`() {
+        var flow = Self.flow(Self.parked, then: .fullScreen(true))
+        #expect(flow.handle(.failed) == [.menu(.none), .chime(failed: true)])
         #expect(flow.phase == .idle)
     }
 
@@ -231,14 +264,14 @@ struct AgentRunFlowTests {
 
     @Test(arguments: [
         ("idle", [AgentRunFlow.Event.focus(true), .focus(false), .parkDue, .fullScreen(true), .step(.thinking), .answered, .failed,
-                                       .cancelled, .act, .dismiss, .confirm, .escape, .edited, .settled, .dropFree]),
-        ("running", [.started, .act, .dismiss, .settled, .focus(true), .parkDue, .confirm, .escape, .edited]),
-        ("parked", [.started, .focus(false), .parkDue, .act, .dismiss, .settled, .confirm, .escape, .edited, .fullScreen(false)]),
+                                       .cancelled, .act, .dismiss, .confirm, .escape, .edited, .offered, .settled, .dropFree]),
+        ("running", [.started, .act, .dismiss, .settled, .focus(true), .parkDue, .confirm, .escape, .edited, .offered]),
+        ("parked", [.started, .focus(false), .parkDue, .act, .dismiss, .settled, .confirm, .escape, .edited, .offered, .fullScreen(false)]),
         ("ready", [.started, .focus(false), .parkDue, .step(.thinking), .answered, .failed, .cancelled, .confirm, .escape, .edited,
-                   .settled, .fullScreen(false)]),
-        ("readyHere", [.started, .focus(true), .parkDue, .step(.thinking), .answered, .failed, .cancelled, .settled]),
+                   .offered, .settled, .fullScreen(false)]),
+        ("readyHere", [.started, .focus(true), .parkDue, .step(.thinking), .answered, .failed, .cancelled, .offered, .settled]),
         ("returning", [.started, .focus(true), .focus(false), .parkDue, .fullScreen(true), .step(.thinking), .answered, .failed,
-                       .cancelled, .act, .dismiss, .confirm, .escape, .edited, .dropFree]),
+                       .cancelled, .act, .dismiss, .confirm, .escape, .edited, .offered, .dropFree]),
     ])
     func `other pairs change nothing`(state: String, events: [AgentRunFlow.Event]) {
         let start: AgentRunFlow = switch state {
@@ -297,5 +330,27 @@ struct AgentRunFlowTests {
             == "Searching “how many moons does each planet of…”")
         // A typical query fits whole.
         #expect(ClaudeAgentStep.searching("prompt engineering best practices").label == "Searching “prompt engineering best practices”")
+    }
+}
+
+/// Which Return and Escape presses the ready drop takes from the app.
+struct AgentReadyKeyTests {
+    @Test func `only plain Return and Escape count`() {
+        #expect(AgentReadyKey(keyCode: 36, modifiers: false, repeating: false) == .confirm)
+        #expect(AgentReadyKey(keyCode: 53, modifiers: false, repeating: false) == .escape)
+        #expect(AgentReadyKey(keyCode: 36, modifiers: true, repeating: false) == nil, "⇧Return, ⌘Return: the app's")
+        #expect(AgentReadyKey(keyCode: 36, modifiers: false, repeating: true) == nil)
+        #expect(AgentReadyKey(keyCode: 76, modifiers: false, repeating: false) == nil, "keypad Enter")
+        #expect(AgentReadyKey(keyCode: 0, modifiers: false, repeating: false) == nil)
+    }
+
+    @Test func `a press is taken only when every check passed in time`() {
+        #expect(AgentReadyKey.takes(inFront: true, atCaret: true, focused: true, unchanged: true))
+        #expect(!AgentReadyKey.takes(inFront: false, atCaret: true, focused: true, unchanged: true), "another feature's drop is up")
+        #expect(!AgentReadyKey.takes(inFront: true, atCaret: false, focused: true, unchanged: true), "parked, or the person left")
+        #expect(!AgentReadyKey.takes(inFront: true, atCaret: true, focused: false, unchanged: true), "a click into another field")
+        #expect(!AgentReadyKey.takes(inFront: true, atCaret: true, focused: true, unchanged: false), "a word typed")
+        #expect(!AgentReadyKey.takes(inFront: true, atCaret: true, focused: nil, unchanged: nil), "the field didn't answer in time")
+        #expect(!AgentReadyKey.takes(inFront: true, atCaret: true, focused: true, unchanged: nil))
     }
 }
