@@ -138,6 +138,7 @@ import OopsCore
                     switch update {
                     case let .step(step): handle(.step(step))
                     case let .answer(answer): raw = answer
+                    case .activity, .summary: break
                     }
                 }
             } catch let error where !(error is CancellationError) { throw ActionFailure.agent(error) }

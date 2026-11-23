@@ -2,21 +2,28 @@ import XCTest
 @testable import OopsCore
 
 final class ClaudeAgentEventsTests: XCTestCase {
-    private func event(_ json: String) -> ClaudeAgentEvent { ClaudeAgentEvents.decode(Data(json.utf8)) }
+    private func event(_ json: String) -> ClaudeAgentEvent {
+        var events = ClaudeAgentEvents()
+        return events.read(Data(json.utf8), at: .now)
+    }
+
+    private func steps(_ json: String) -> [ClaudeAgentStep]? {
+        guard case .updates(let updates) = event(json) else { return nil }
+        return updates.compactMap { if case .step(let step) = $0 { step } else { nil } }
+    }
 
     func testProgress() {
         let cases: [(String, ClaudeAgentStep)] = [
             (#"{"type":"system","subtype":"thinking_tokens","estimated_tokens":50}"#, .thinking),
             (#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":""}]}}"#, .thinking),
+            (#"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"thinking","thinking":""}}}"#, .thinking),
+            (#"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"tool_use","name":"StructuredOutput","input":{}}}}"#, .writing),
             (tool("WebSearch", #"{"query":" query "}"#), .searching("query")),
             (tool("WebSearch", #"{"query":""# + String(repeating: "x", count: 81) + #""}"#), .searching(String(repeating: "x", count: 79) + "…")),
             (tool("WebFetch", #"{"url":"https://www.example.com/path"}"#), .reading("example.com")),
             (tool("Bash", "{}"), .running), (tool("Skill", #"{"skill":"review","args":"brief"}"#), .usingSkill("review")),
         ]
-        for (json, expected) in cases {
-            guard case .steps(let steps) = event(json) else { XCTFail(json); continue }
-            XCTAssertEqual(steps, [expected])
-        }
+        for (json, expected) in cases { XCTAssertEqual(steps(json), [expected], json) }
     }
 
     func testMixedContentReportsEachStepInOrder() {
@@ -26,8 +33,7 @@ final class ClaudeAgentEventsTests: XCTestCase {
         {"type":"tool_use","name":"WebFetch","input":{"url":"https://example.org"}},
         {"type":"tool_use","name":"Skill","input":{"skill":"review"}}]}}
         """
-        guard case .steps(let steps) = event(json) else { return XCTFail("Missing steps") }
-        XCTAssertEqual(steps, [.thinking, .running, .searching("query"), .reading("example.org"), .usingSkill("review")])
+        XCTAssertEqual(steps(json), [.thinking, .running, .searching("query"), .reading("example.org"), .usingSkill("review")])
     }
 
     private func tool(_ name: String, _ input: String) -> String {
@@ -45,7 +51,12 @@ final class ClaudeAgentEventsTests: XCTestCase {
 
     func testUnrelatedEvents() {
         let ignored = ["not json", #"{"type":"system","subtype":"init"}"#, #"{"type":"system","subtype":"task_summary"}"#,
-                       #"{"type":"rate_limit_event"}"#] + ["Read", "Write", "Edit", "StructuredOutput"].map { tool($0, "{}") }
+                       #"{"type":"system","subtype":"status","status":"requesting"}"#, #"{"type":"rate_limit_event"}"#,
+                       #"{"type":"system","subtype":"post_turn_summary","status_detail":" "}"#,
+                       #"{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":""}}}"#,
+                       #"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"tool_use","name":"WebSearch","input":{}}}}"#,
+                       #"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"text","text":""}}}"#,
+                       #"{"type":"stream_event","event":{"type":"message_stop"}}"#] + ["Read", "Write", "Edit", "StructuredOutput"].map { tool($0, "{}") }
         for json in ignored {
             guard case .ignored = event(json) else { XCTFail(json); continue }
         }

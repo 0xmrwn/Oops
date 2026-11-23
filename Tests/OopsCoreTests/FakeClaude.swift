@@ -47,13 +47,16 @@ enum FakeClaude {
         source += #"""
         echo '{"type":"system","subtype":"init"}'
         echo '{"type":"system","subtype":"thinking_tokens"}'
-        echo '{"type":"assistant","message":{"content":[{"type":"thinking"},{"type":"tool_use","name":"WebSearch","input":{"query":"iana example domain"}}]}}'
+        echo '{"type":"assistant","message":{"content":[{"type":"thinking"},{"type":"tool_use","id":"s1","name":"WebSearch","input":{"query":"iana example domain"}}]}}'
+        echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"s1","content":"results"}]}}'
         echo '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"WebFetch","input":{"url":"https://www.example.com/page"}}]}}'
         echo '{"type":"system","subtype":"permission_denied","tool_name":"Write"}'
 
         """#
         switch mode {
         case .answer:
+            source += #"echo '{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"tool_use","name":"StructuredOutput","input":{}}}}'"# + "\n"
+            source += #"echo '{"type":"system","subtype":"post_turn_summary","status_detail":"answered from the page"}'"# + "\n"
             source += #"echo '{"type":"result","subtype":"success","structured_output":{"text":"answer"},"permission_denials":[{"tool_name":"Write"}]}'"# + "\nexec /usr/bin/perl -e 'sleep 600'"
         case .orphan:
             source += #"""

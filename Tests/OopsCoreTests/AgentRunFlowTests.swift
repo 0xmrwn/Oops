@@ -147,7 +147,12 @@ struct AgentRunFlowTests {
     }
 
     @Test func `each step reads as what the agent is doing`() {
-        #expect(ClaudeAgentStep.thinking.label == "Thinking")
+        #expect(ClaudeAgentStep.starting.label == "Starting")
+        #expect(ClaudeAgentStep.thinking.label == "Thinking it through")
+        #expect(ClaudeAgentStep.readingResults.label == "Reading what it found")
+        #expect(ClaudeAgentStep.summary("Searching for moon counts per planet…").label == "Searching for moon counts per planet…")
+        #expect(ClaudeAgentStep.writing.label == "Writing the new draft")
+        #expect(ClaudeAgentStep.done.label == "Finishing")
         #expect(ClaudeAgentStep.searching("q").label == "Searching “q”")
         #expect(ClaudeAgentStep.reading("example.com").label == "Reading example.com")
         #expect(ClaudeAgentStep.running.label == "Running a command")

@@ -12,7 +12,12 @@ public struct ClaudeAgentRequest: Equatable, Sendable {
 }
 
 public enum ClaudeAgentUpdate: Equatable, Sendable {
-    case step(ClaudeAgentStep), answer(String)
+    case step(ClaudeAgentStep)
+    /// Tokens are flowing: reasoning, or the answer being written. At most about 6 a second.
+    case activity
+    /// What the run did, in Claude Code's words, just before its answer.
+    case summary(String)
+    case answer(String)
 }
 
 public protocol AgentRunning: Sendable {
@@ -88,7 +93,7 @@ public struct ClaudeAgentRunner: AgentRunning {
         try Task.checkCancellation()
         let process = try ClaudeAgentProcess(executable: executable, arguments: flags, folder: folder.url, environment: environment.hostEnvironment)
         process.send(request.input)
-        updates.yield(.step(.starting))
+        Self.report(.starting, updates)
         do {
             try await withDeadline(limit, orThrow: ClaudeAgentError.timedOut, sleep: environment.sleep) {
                 try await read(process, folder: folder.url, updates: updates)
@@ -101,17 +106,19 @@ public struct ClaudeAgentRunner: AgentRunning {
     }
 
     private func read(_ process: ClaudeAgentProcess, folder: URL, updates: Updates) async throws {
-        var last = ClaudeAgentStep.starting
+        var events = ClaudeAgentEvents()
         for try await line in process.lines {
             try Task.checkCancellation()
-            switch ClaudeAgentEvents.decode(line) {
-            case .steps(let steps):
-                for step in steps where step != last { updates.yield(.step(step)); last = step }
+            switch events.read(line, at: .now) {
+            case .updates(let list):
+                for update in list {
+                    if case .step(let step) = update { Self.report(step, updates) } else { updates.yield(update) }
+                }
             case .result(let object):
                 let (raw, refused) = try ClaudeAgent.decodeResult(object)
                 environment.observeResult?(folder, refused)
                 for refusal in refused { Self.log.info("Claude Code refused \(refusal.tool, privacy: .public)") }
-                updates.yield(.step(.done))
+                Self.report(.done, updates)
                 updates.yield(.answer(raw))
                 return
             case .denied, .ignored: break
@@ -119,5 +126,11 @@ public struct ClaudeAgentRunner: AgentRunning {
         }
         try Task.checkCancellation()
         throw try await process.exitError()
+    }
+
+    /// The kind alone goes to the log, never what a step names: enough to check what a run showed.
+    private static func report(_ step: ClaudeAgentStep, _ updates: Updates) {
+        log.info("Agent step \(step.kind, privacy: .public)")
+        updates.yield(.step(step))
     }
 }
