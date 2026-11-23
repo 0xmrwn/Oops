@@ -164,6 +164,7 @@ import OopsCore
             let holds = holdsFocus
             handle(.focus(await Task.detached { holds(snapshot) }.value))
             try Task.checkCancellation()
+            keepTime()
             handle(.answered)
             if flow.phase == .ready {
                 await settle()

@@ -18,14 +18,20 @@ extension AgentRun {
         drop.startedAt = Date(); drop.heard = nil
     }
 
-    /// An update from the agent, as it arrives. Only an answer adds the run's time to the action's history.
+    /// An update from the agent, as it arrives. An answer's time is noted here but kept only by `keepTime()`.
     func heard(_ update: ClaudeAgentUpdate, at time: ContinuousClock.Instant = .now) {
         guard progress != nil else { return }
         progress?.handle(update, at: time)
-        if case .answer = update, let progress, let timedAs { history.record(progress, for: timedAs) }
         // Every update, as every update keeps the progress from calming: the drop's light and the label agree.
         drop.activity()
         refresh(at: time)
+    }
+
+    /// The run's answer was usable and the run wasn't cancelled: its time joins the action's history. An answer that
+    /// couldn't be read says nothing about how long the action takes.
+    func keepTime() {
+        guard let progress, let timedAs else { return }
+        history.record(progress, for: timedAs)
     }
 
     /// Shows the status at `time` where it changed, and wakes again when it next changes by itself.
@@ -41,9 +47,12 @@ extension AgentRun {
     }
 
     /// The run's drop at the caret, saying what the run is doing now.
+    /// Wakes for the status's next change from here too: an opening note must go on time even if no update comes.
     func showProgress() {
-        shown = progress.map { Self.label($0.status(at: .now), name: name) } ?? name
+        let now = ContinuousClock.now
+        shown = progress.map { Self.label($0.status(at: now), name: name) } ?? name
         show(shown)
+        if flow.phase == .running, let progress { schedule(progress.nextChange(after: now)) }
     }
 
     func stopWaking() {

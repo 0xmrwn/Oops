@@ -40,7 +40,7 @@ import Testing
         #expect(AgentRun.short(String(repeating: "x", count: 60)).count == AgentRun.summaryLength)
     }
 
-    @Test func `only an answered run joins the action's history`() throws {
+    @Test func `only a usable answer joins the action's history`() throws {
         let suite = "oops-agent-progress-" + UUID().uuidString
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -48,23 +48,56 @@ import Testing
         let agent = AgentRun(drop: AgentDrop(owner: DropOwner()) { _ in nil }, editor: EditorAccess(),
                              runner: { throw ClaudeAgentError.notInstalled }, history: history)
 
+        // An answer that can't be read: its time is noted on arrival, and the run fails before keeping it.
+        let rejected = #"{"text":""}"#
         agent.begin(action, at: Self.at(0))
-        agent.heard(.step(.thinking), at: Self.at(1))
-        agent.heard(.activity, at: Self.at(2))
-        agent.heard(.summary("Cut it to one line"), at: Self.at(3))
-        agent.heard(.answer("{}"), at: Self.at(4))
+        agent.heard(.answer(rejected), at: Self.at(3))
+        #expect(throws: ActionOutputError.empty) { try ActionPrompt.decode(rejected, draft: "draft") }
+        #expect(history.durations(for: action).isEmpty)
+
+        agent.begin(action, at: Self.at(10))
+        agent.heard(.step(.thinking), at: Self.at(11))
+        agent.heard(.activity, at: Self.at(12))
+        agent.heard(.summary("Cut it to one line"), at: Self.at(13))
+        agent.heard(.answer(#"{"text":"new"}"#), at: Self.at(14))
+        #expect(history.durations(for: action).isEmpty, "kept only once the answer is read")
+        agent.keepTime()
         #expect(history.durations(for: action) == [.seconds(4)])
         #expect(agent.progress?.summary == "Cut it to one line")
 
         // Cancelled or failed before answering: nothing about how long the action takes.
-        agent.begin(action, at: Self.at(10))
-        agent.heard(.step(.thinking), at: Self.at(11))
+        agent.begin(action, at: Self.at(20))
+        agent.heard(.step(.thinking), at: Self.at(21))
+        agent.keepTime()
         #expect(history.durations(for: action) == [.seconds(4)])
 
         // Typed instructions have no action to remember.
-        agent.begin(nil, at: Self.at(20))
-        agent.heard(.answer("{}"), at: Self.at(25))
+        agent.begin(nil, at: Self.at(30))
+        agent.heard(.answer("{}"), at: Self.at(35))
+        agent.keepTime()
         #expect(defaults.dictionary(forKey: AgentRunHistory.key)?.count == 1)
+    }
+
+    @Test func `the opening note goes on time even when no update arrives`() async throws {
+        let suite = "oops-agent-progress-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = AgentRunHistory(defaults: defaults), action = UUID()
+        for seconds in [60, 62, 58] {
+            var past = AgentProgress(start: Self.start)
+            past.handle(.answer("{}"), at: Self.start + .seconds(seconds))
+            history.record(past, for: action)
+        }
+        let agent = AgentRun(drop: AgentDrop(owner: DropOwner()) { _ in nil }, editor: EditorAccess(),
+                             runner: { throw ClaudeAgentError.notInstalled }, history: history)
+        let begun = ContinuousClock.now - .milliseconds(1800)
+        agent.begin(action, at: begun)
+        agent.handle(.started)
+        defer { agent.cancel() }
+        #expect(agent.shown.hasSuffix("usually about 1 min"))
+        #expect(agent.wake?.at == begun + AgentProgress.opening, "presenting the status schedules its next change")
+        for _ in 0 ..< 100 where agent.shown.hasSuffix("usually about 1 min") { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(!agent.shown.contains("usually"))
     }
 
     @Test func `a run's timer starts once, at its beginning`() {
