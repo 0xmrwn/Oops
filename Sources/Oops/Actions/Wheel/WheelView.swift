@@ -55,7 +55,7 @@ struct WheelView: View {
                 // Each petal gets the drop's own edge light once it has pinched off; before that the rims would cross
                 // the neck.
                 ForEach(pieces.filter { $0.light > 0.01 }) { piece in
-                    GlassLight(t: 0, travelling: false, dark: !ink.dark)
+                    GlassLight(dark: !ink.dark)
                         .frame(width: piece.size.width, height: piece.size.height)
                         .opacity(piece.light * (fades?[piece.id] ?? 1))
                         .position(piece.centre)
@@ -126,7 +126,7 @@ struct WheelView: View {
             let face = CGPoint(x: point.x - size.width / 2 + size.height / 2, y: point.y)
             let tone = ink.dark ? Self.darkInk : Color.white
             if !frame.increaseContrast {
-                GlassLight(t: 0, travelling: false, dark: !ink.dark)
+                GlassLight(dark: !ink.dark)
                     .frame(width: size.width, height: size.height).opacity(motion.reduceMotion ? shown : 1).position(point)
             }
             DashEyes(look: Self.look(motion.live), lid: 0.15, check: motion.check.x, ink: tone,

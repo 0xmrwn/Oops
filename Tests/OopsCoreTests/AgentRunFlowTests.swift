@@ -158,6 +158,8 @@ struct AgentRunFlowTests {
         #expect(ClaudeAgentStep.running.label == "Running a command")
         #expect(ClaudeAgentStep.usingSkill("style").label == "Using style")
         #expect(ClaudeAgentStep.searching("how many moons does each planet of the solar system have").label
-            == "Searching “how many moons does each pl…”")
+            == "Searching “how many moons does each planet of…”")
+        // A typical query fits whole.
+        #expect(ClaudeAgentStep.searching("prompt engineering best practices").label == "Searching “prompt engineering best practices”")
     }
 }

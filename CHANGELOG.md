@@ -5,6 +5,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 ## 0.3.0 (unreleased)
 
 - In Settings → Fix, the model list has a search field: type part of a model's or a provider's name to find it.
+- The drop's words, such as a fix's count and time, are in slightly larger, easier-to-read type, with a little more room after the eyes.
 
 ## 0.2.0
 

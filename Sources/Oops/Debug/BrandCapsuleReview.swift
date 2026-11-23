@@ -41,9 +41,11 @@ private struct CapsuleReviewBoard: View {
                 Toggle("Dark", isOn: $dark).toggleStyle(.switch)
             }
             HStack(spacing: 8) {
-                ForEach(["Working", "Fixed", "Clear", "Failed", "Pending", "Copied", "Reverted"], id: \.self) { state in
+                ForEach(["Working", "Fixed", "Clear", "Failed", "Pending", "Copied", "Reverted", "Agent"], id: \.self) { state in
                     Button(state) { show(state) }
                 }
+                // An agent's progress: each step quickens the light; five quiet seconds and the eyes look around.
+                Button("Step") { step() }.disabled(!model.narrates || model.phase != .working)
             }
             EyesDropView(model: model, previewAccessibility: Set([
                 reduceMotion ? "reduce-motion" : nil,
@@ -75,7 +77,16 @@ private struct CapsuleReviewBoard: View {
         }
     }
 
+    private static let steps = ["Reading the draft", "Searching “prompt engineering best practices”", "Thinking", "Writing"]
+    private func step() {
+        model.label = Self.steps[((Self.steps.firstIndex(of: model.label) ?? -1) + 1) % Self.steps.count]
+        model.activity()
+    }
+
     private func show(_ state: String) {
+        model.narrates = state == "Agent"
+        model.clearRun()
+        if state == "Agent" { model.startedAt = Date() }
         model.canRevert = state == "Fixed"
         model.remedy = state == "Failed" ? .retry : nil
         model.copied = state == "Copied"
@@ -86,6 +97,7 @@ private struct CapsuleReviewBoard: View {
         case "Pending": "Couldn’t paste"
         case "Copied": "Copied"
         case "Reverted": "Reverted"
+        case "Agent": Self.steps[0]
         default: "Fixing…"
         }
         model.phase = switch state {

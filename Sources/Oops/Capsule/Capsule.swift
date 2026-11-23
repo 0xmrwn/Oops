@@ -33,6 +33,19 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     var open: (() -> Void)?
     /// The working drop says what it is doing (an agent's step), where Fix's shows only its eyes.
     var narrates = false
+    /// When the narrating drop's work began: while it works, an elapsed timer counts from here. Nil shows none.
+    @Published var startedAt: Date?
+    /// Signs that the work is getting somewhere, which quicken the drop's light; after a quiet spell the light calms
+    /// and the eyes look around. A drop that never reports any, Fix's, keeps a steady pace.
+    private(set) var activities = 0
+    private(set) var lastActivity: Date?
+    func activity() { activities += 1; lastActivity = Date() }
+    /// Counts `clearRun()`s, so the drop forgets the last run's width and pace even when it never left `.working`.
+    @Published private(set) var run = 0
+    /// A new feature's drop starts with no timer and no progress of the last one's.
+    func clearRun() { startedAt = nil; lastActivity = nil; run += 1 }
+    /// The widest the drop may draw, its panel's width less the insets: a longer label is cut to fit.
+    var room = CGFloat.infinity
     enum Remedy { case retry, settings }
 }
 
@@ -78,6 +91,7 @@ private final class PassivePanel: NSPanel {
                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
         panel.title = "Oops Capsule"
+        model.room = Self.standard.width - 2 * Self.inset
         panel.level = .floating; panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         // Debug-only, for design recordings: force the capsule's appearance.
@@ -99,6 +113,7 @@ private final class PassivePanel: NSPanel {
         self.centred = centred
         guard size != self.size else { return }
         self.size = size
+        model.room = size.width - 2 * Self.inset
         if let root = panel.contentView as? FirstClickHostingView<CapsuleRoot> {
             root.rootView = CapsuleRoot(model: model, size: size, content: root.rootView.content)
         }
