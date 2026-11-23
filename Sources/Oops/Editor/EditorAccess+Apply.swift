@@ -81,11 +81,18 @@ extension EditorAccess {
         return (applied, corrected)
     }
 
-    /// `keepsTokens` false lets an action rewrite code and mentions; an attachment is never pasted over.
+    /// A fix goes in word by word, so the text between its changes is never pasted over. An action rewrites: `rewriting`
+    /// is the span of `before` it read, pasted over whole in one go, whatever its length, code and mentions included.
+    /// An attachment is never pasted over.
     func replace(_ snapshot: EditorSnapshot, from before: String, to after: String, caret: NSRange, clipboard: ClipboardLease,
-                 protected: () -> Bool, keepsTokens: Bool = true) throws -> EditorSnapshot {
+                 protected: () -> Bool, rewriting span: NSRange? = nil) throws -> EditorSnapshot {
         if sameText(before, after) { return snapshot }
-        let edits = TextEdits.between(before, after)
+        let keepsTokens = span == nil
+        let edits = span.map { span in
+            let replaced = NSRange(location: span.location, length: span.length + after.utf16.count - before.utf16.count)
+            return [TextChange(location: span.location, original: (before as NSString).substring(with: span),
+                               replacement: (after as NSString).substring(with: replaced))]
+        } ?? TextEdits.between(before, after)
         guard !edits.contains(where: { keepsTokens && Self.containsMentionOrCode($0.original) || $0.original.contains("\u{FFFC}") }) else {
             throw CorrectionError.message("The edited span crosses code, a mention or an attachment. Select a smaller text span to preserve it.")
         }

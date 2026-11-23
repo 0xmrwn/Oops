@@ -450,6 +450,20 @@ SCENARIOS += [
     for case in WEB_CASES
 ]
 
+# An action's long rewrite and its restore, each one paste, in the web editors too: Chromium pastes slowest.
+WEB_ACTIONS = ["action:long-answer", "action:long-rewrite"]
+SCENARIOS += [
+    dict(
+        next(c for c in SCENARIOS if c["name"] == case),
+        name=f"{host}:{editor}:{case}",
+        host=host,
+        scenario=f"web-{editor}",
+    )
+    for host in WEB_HOSTS
+    for editor in ("contenteditable", "textarea")
+    for case in WEB_ACTIONS
+]
+
 # The default run: every native case, WebKit's composer and textarea, and the bake-off classes above.
 # `--full` adds every web case in Chrome and Zen.
 QUICK = [

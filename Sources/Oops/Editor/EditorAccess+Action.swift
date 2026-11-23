@@ -7,10 +7,10 @@ struct ActionDraftChanged: LocalizedError {
     var errorDescription: String? { "The draft changed while the action ran. Nothing was replaced." }
 }
 
-/// An action's answer written over the span it read, and taken back out, through Fix's guarded swap (`replace`: focus
-/// and remount checks, the selection proved before each paste, each paste confirmed). Unlike Fix's `apply` and
-/// `revert`, nothing is moved onto a draft that changed meanwhile, and the answer may rewrite code and mentions; an
-/// attachment is still never pasted over, since nothing could bring it back.
+/// An action's answer written over the span it read, and taken back out, in one paste through Fix's guarded swap
+/// (`replace`: focus and remount checks, the selection proved before the paste, the paste confirmed). An action
+/// rewrites, so unlike Fix it never goes in word by word: any length, code and mentions included. Nothing is moved onto
+/// a draft that changed meanwhile, and an attachment is never pasted over, since nothing could bring it back.
 extension EditorAccess {
     /// Replaces the selection, or the whole draft, with `answer`, while the editor holds exactly the draft and
     /// selection captured. Returns the snapshot the swap ended on (the app may have remounted the editor).
@@ -32,7 +32,8 @@ extension EditorAccess {
             else { throw ActionDraftChanged() }
         }
         return try replace(snapshot, from: transaction.before, to: transaction.replacement(answer),
-                           caret: transaction.caret(after: answer), clipboard: clipboard, protected: protected, keepsTokens: false)
+                           caret: transaction.caret(after: answer), clipboard: clipboard, protected: protected,
+                           rewriting: transaction.range)
     }
 
     /// Puts the draft read at capture back, from `applied`, what the action left: only while the field still holds it.
@@ -42,16 +43,17 @@ extension EditorAccess {
         let transaction = snapshot.transaction
         try follow(&snapshot, holding: applied)
         guard let current = text(snapshot.element, snapshot.strategy) else { throw ActionDraftChanged() }
+        // What the action wrote, in the draft it left.
+        let span = NSRange(location: transaction.range.location,
+                           length: transaction.range.length + applied.utf16.count - transaction.before.utf16.count)
         if !sameDraft(current, applied) {
-            let span = NSRange(location: transaction.range.location,
-                               length: transaction.range.length + applied.utf16.count - transaction.before.utf16.count)
             guard Self.displayOrdered(current, applied, snapshot),
                   try copyProves(applied, around: span, in: snapshot, restore: NSRange(location: NSMaxRange(span), length: 0),
                                  clipboard: clipboard, protected: protected)
             else { throw ActionDraftChanged() }
         }
         return try replace(snapshot, from: applied, to: transaction.before, caret: transaction.selection,
-                           clipboard: clipboard, protected: protected, keepsTokens: false)
+                           clipboard: clipboard, protected: protected, rewriting: span)
     }
 
     /// Whether a copy shows the editor still holds `draft`; an editor that won't copy can't prove it.

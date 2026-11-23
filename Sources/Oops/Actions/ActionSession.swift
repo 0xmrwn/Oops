@@ -149,7 +149,9 @@ import OopsCore
             if lastInTry, !tryDraftFocused() { throw ActionFailure(.capture, "Click into the draft, then press Run.") }
             let backend = try providers.actionBackend(model)
             let snapshot: EditorSnapshot
-            do { snapshot = try await read(draft) } catch let error where !(error is CancellationError) { throw ActionFailure.capture(error) }
+            do { snapshot = try Self.rewritable(await read(draft)) } catch let error where !(error is CancellationError) {
+                throw ActionFailure.capture(error)
+            }
             shown = snapshot.geometry
             woken = snapshot
             if lastInTry, snapshot.pid != getpid() { throw ActionFailure(.capture, "Click into the draft, then press Run.") }
@@ -183,28 +185,10 @@ import OopsCore
         } catch {
             guard pending != nil else { return fail(.model(error), id, geometry: shown) }
             guard generation == id else { return .cancelled }
-            if let partial = error as? PartialReplacement { return await takeBack(partial, id) }
             // The answer is in but couldn't be written, so the field is as it was: the drop keeps it to copy.
             drop.show(.held(error.localizedDescription), geometry: nil, element: nil)
             return .held
         }
-    }
-
-    /// A partial write left part of the draft changed: the original goes back at once, through the guarded restore, so
-    /// the held answer is true to say "not written". When it can't, the drop says the draft was changed in part.
-    private func takeBack(_ partial: PartialReplacement, _ id: UUID) async -> ActionOutcome {
-        // Past the point of cancelling: stopping now would leave the draft as it is.
-        committing = true; drop.canCancel = false
-        defer { committing = false; drop.canCancel = true }
-        do {
-            _ = try await editing.restore(partial.snapshot, partial.applied, id)
-        } catch {
-            return fail(.partlyWritten, id, geometry: nil)
-        }
-        guard generation == id else { return .cancelled }
-        drop.show(.held("The editor didn’t confirm every change, so the draft was put back as it was. The answer is ready to copy."),
-                  geometry: nil, element: nil)
-        return .held
     }
 
     /// The draft the wheel read as it opened, or a read now when there is none. A field only copy and paste reach is

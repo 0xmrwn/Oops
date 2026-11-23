@@ -119,7 +119,9 @@ import OopsCore
             let runner: any AgentRunning
             do { runner = try makeRunner() } catch { throw ActionFailure.agent(error) }
             let snapshot: EditorSnapshot
-            do { snapshot = try await session.capture() } catch let error where !(error is CancellationError) { throw ActionFailure.capture(error) }
+            do { snapshot = try ActionSession.rewritable(await session.capture()) } catch let error where !(error is CancellationError) {
+                throw ActionFailure.capture(error)
+            }
             self.snapshot = snapshot
             // Capture may have switched on a Chromium app's accessibility: the run shares it until it ends.
             if await session.editor.holdFullAccessibility(for: snapshot) { heldSwitch = snapshot }
