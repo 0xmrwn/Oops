@@ -26,7 +26,7 @@ final class ClaudeAgentArgumentsTests: XCTestCase {
             XCTAssertEqual(try JSONSerialization.jsonObject(with: Data(settings.utf8)) as? NSDictionary, expected)
             let prefix = setup ? ["-p"] : ["-p", "--safe-mode"]
             let flags = prefix + ["--setting-sources=project", "--strict-mcp-config", "--permission-mode=dontAsk", "--no-session-persistence",
-                                  "--output-format=stream-json", "--verbose", "--model=haiku", "--effort=low", "--tools=" + tools,
+                                  "--output-format=stream-json", "--verbose", "--include-partial-messages", "--model=haiku", "--effort=low", "--tools=" + tools,
                                   "--allowedTools=" + allowed, "--settings=" + settings, "--system-prompt=instruction", "--json-schema=" + ClaudeCode.schema]
             XCTAssertEqual(ClaudeAgent.arguments(run, instructions: "instruction", settings: settings, skillDirectories: dirs), flags)
         }

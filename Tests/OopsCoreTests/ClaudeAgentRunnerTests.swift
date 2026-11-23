@@ -45,8 +45,9 @@ final class ClaudeAgentRunnerTests: XCTestCase {
 
     func testAnswerArrivesBeforeExit() async throws {
         let updates = try await collect(runner(.answer))
-        XCTAssertEqual(updates, [.step(.starting), .step(.thinking), .step(.searching("iana example domain")), .step(.reading("example.com")),
-                                 .step(.done), .answer(#"{"text":"answer"}"#)])
+        XCTAssertEqual(updates, [.step(.starting), .step(.thinking), .activity, .step(.searching("iana example domain")), .step(.readingResults),
+                                 .step(.reading("example.com")), .step(.writing), .summary("Answered from the page"), .step(.done),
+                                 .answer(#"{"text":"answer"}"#)])
         let cwd = try XCTUnwrap(String(contentsOf: record, encoding: .utf8).split(separator: "\n").first)
         XCTAssertEqual(URL(fileURLWithPath: String(cwd)).deletingLastPathComponent().path, ClaudeAgentFolder.realPath(runs))
         try assertClean(count: 1)

@@ -94,12 +94,16 @@ public extension ClaudeAgentStep {
     var label: String {
         switch self {
         case .starting: "Starting"
-        case .thinking: "Thinking"
+        case .thinking: "Thinking it through"
         case let .searching(query): "Searching “\(Self.short(query))”"
         case let .reading(host): "Reading \(Self.short(host))"
+        case .readingResults: "Reading what it found"
         case .running: "Running a command"
         case let .usingSkill(skill): "Using \(Self.short(skill))"
-        case .done: "Finishing"
+        // Claude Code already cut it to fit, with its own ellipsis.
+        case let .summary(text): text
+        case .writing: "Writing the new draft"
+        case .done: "Putting it in place"
         }
     }
 

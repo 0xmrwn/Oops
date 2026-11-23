@@ -18,7 +18,7 @@ public enum ClaudeAgent {
         var flags = ["-p"]
         if !run.usesSetup { flags.append("--safe-mode") }
         flags += ["--setting-sources=project", "--strict-mcp-config", "--permission-mode=dontAsk",
-                  "--no-session-persistence", "--output-format=stream-json", "--verbose"]
+                  "--no-session-persistence", "--output-format=stream-json", "--verbose", "--include-partial-messages"]
         if let model = run.model { flags.append("--model=" + model) }
         if let effort = run.effort { flags.append("--effort=" + effort) }
         var extras = [String]()
