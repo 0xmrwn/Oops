@@ -80,14 +80,14 @@ struct ClaudeAgentEvents {
     }
 
     /// Partial messages: a block's start says what comes next before the block is done, and its deltas show tokens
-    /// flowing. Thinking deltas carry nothing in headless runs; `thinking_tokens` stand for them.
+    /// flowing. Thinking deltas carry nothing in headless runs; `thinking_tokens` stand for them. Runs answer through
+    /// StructuredOutput, so only its start is the new draft being written: a text block may be a preamble to a tool.
     private mutating func stream(_ event: [String: Any], at time: ContinuousClock.Instant, _ updates: inout [ClaudeAgentUpdate]) {
         switch event["type"] as? String {
         case "content_block_start":
             let block = event["content_block"] as? [String: Any]
             switch block?["type"] as? String {
             case "thinking": move(.thinking, &updates)
-            case "text": move(.writing, &updates)
             case "tool_use" where block?["name"] as? String == "StructuredOutput": move(.writing, &updates)
             default: break
             }

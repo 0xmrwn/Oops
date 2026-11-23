@@ -69,6 +69,21 @@ struct ClaudeAgentStreamTests {
         #expect(events.step == .summary("Reading the page"))
     }
 
+    @Test func `a text preamble before a search is activity, not the draft being written`() {
+        let start = ContinuousClock.now
+        var events = ClaudeAgentEvents(), updates = [ClaudeAgentUpdate]()
+        let lines = [
+            #"{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}}"#,
+            #"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Let me look that up."}}}"#,
+            #"{"type":"assistant","message":{"content":[{"type":"text","text":"Let me look that up."}]}}"#,
+            #"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"s1","name":"WebSearch","input":{"query":"iana example domain"}}]}}"#,
+        ]
+        for line in lines {
+            if case .updates(let list) = events.read(Data(line.utf8), at: start) { updates += list }
+        }
+        #expect(updates == [.activity, .step(.searching("iana example domain"))])
+    }
+
     @Test func `answer deltas report activity about six times a second`() {
         let start = ContinuousClock.now
         var events = ClaudeAgentEvents(), count = 0

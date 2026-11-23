@@ -84,7 +84,8 @@ public struct AgentProgress: Equatable, Sendable {
     /// Past the longest of the action's recent runs, with some room: never said without enough of them.
     public func longerThanUsual(at time: Instant) -> Bool {
         guard let longest else { return false }
-        return start.duration(to: time) > longest * 1.25
+        // From the very moment `nextChange` names, so a consumer woken then sees it.
+        return start.duration(to: time) >= longest * 1.25
     }
 
     /// How long the action usually takes, from the median of its recent answered runs, to the nearest minute.

@@ -17,7 +17,6 @@ final class ClaudeAgentEventsTests: XCTestCase {
             (#"{"type":"system","subtype":"thinking_tokens","estimated_tokens":50}"#, .thinking),
             (#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":""}]}}"#, .thinking),
             (#"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"thinking","thinking":""}}}"#, .thinking),
-            (#"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"text","text":""}}}"#, .writing),
             (#"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"tool_use","name":"StructuredOutput","input":{}}}}"#, .writing),
             (tool("WebSearch", #"{"query":" query "}"#), .searching("query")),
             (tool("WebSearch", #"{"query":""# + String(repeating: "x", count: 81) + #""}"#), .searching(String(repeating: "x", count: 79) + "…")),
@@ -56,6 +55,7 @@ final class ClaudeAgentEventsTests: XCTestCase {
                        #"{"type":"system","subtype":"post_turn_summary","status_detail":" "}"#,
                        #"{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":""}}}"#,
                        #"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"tool_use","name":"WebSearch","input":{}}}}"#,
+                       #"{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"text","text":""}}}"#,
                        #"{"type":"stream_event","event":{"type":"message_stop"}}"#] + ["Read", "Write", "Edit", "StructuredOutput"].map { tool($0, "{}") }
         for json in ignored {
             guard case .ignored = event(json) else { XCTFail(json); continue }

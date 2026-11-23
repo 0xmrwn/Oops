@@ -103,7 +103,8 @@ public extension ClaudeAgentStep {
         // Claude Code already cut it to fit, with its own ellipsis.
         case let .summary(text): text
         case .writing: "Writing the new draft"
-        case .done: "Putting it in place"
+        // The answer is in, but whether it is written depends on where the person is now.
+        case .done: "Finishing"
         }
     }
 

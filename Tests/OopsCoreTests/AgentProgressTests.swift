@@ -69,13 +69,37 @@ struct AgentProgressTests {
 
     @Test func `a long quiet past the usual length says it is taking longer`() {
         let progress = Self.progress(usual: Self.runs(40, 50, 60), (0, .step(.starting)), (50, .activity))
-        #expect(!progress.longerThanUsual(at: Self.at(75)))
-        #expect(progress.longerThanUsual(at: Self.at(75.001)))
+        #expect(!progress.longerThanUsual(at: Self.at(74.999)))
+        #expect(progress.longerThanUsual(at: Self.at(75)))
         #expect(progress.status(at: Self.at(74)).label == "Still working…")
         #expect(progress.status(at: Self.at(76)).label == "Taking longer than usual")
         let unknown = Self.progress(usual: Self.runs(40, 50), (0, .step(.starting)), (50, .activity))
         #expect(!unknown.longerThanUsual(at: Self.at(600)))
         #expect(unknown.status(at: Self.at(600)).label == "Still working…")
+    }
+
+    @Test func `every moment nextChange names shows the change it promised`() {
+        func seen(_ progress: AgentProgress, _ time: ContinuousClock.Instant) -> [String] {
+            let status = progress.status(at: time)
+            return [status.label, String(status.calm)]
+        }
+        /// Each wake from `time` on, checked against the moment just before it.
+        func wakes(_ progress: AgentProgress, from time: Double) -> [Double] {
+            var now = Self.at(time), times = [Double]()
+            while let next = progress.nextChange(after: now) {
+                #expect(seen(progress, next - .milliseconds(1)) != seen(progress, next), "nothing changed at \(next)")
+                times.append(Self.start.duration(to: next) / .seconds(1))
+                now = next
+            }
+            return times
+        }
+        // Opening end and the first hold end together; then a hold end, calm, still working, and overdue.
+        var progress = Self.progress(usual: Self.runs(40, 50, 60), (0, .step(.starting)), (0.5, .step(.thinking)))
+        #expect(progress.nextChange(after: Self.at(0.5)) == Self.at(2))
+        #expect(seen(progress, Self.at(1.999)) != seen(progress, Self.at(2)))
+        progress.handle(.step(.searching("q")), at: Self.at(3))
+        #expect(wakes(progress, from: 3) == [3.5, 8, 23, 75])
+        #expect(seen(progress, Self.at(75)) == ["Taking longer than usual", "true"])
     }
 
     @Test func `the run keeps its summary and how long it took to answer`() {

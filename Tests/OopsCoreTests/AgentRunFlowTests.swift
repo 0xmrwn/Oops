@@ -152,7 +152,7 @@ struct AgentRunFlowTests {
         #expect(ClaudeAgentStep.readingResults.label == "Reading what it found")
         #expect(ClaudeAgentStep.summary("Searching for moon counts per planet…").label == "Searching for moon counts per planet…")
         #expect(ClaudeAgentStep.writing.label == "Writing the new draft")
-        #expect(ClaudeAgentStep.done.label == "Putting it in place")
+        #expect(ClaudeAgentStep.done.label == "Finishing")
         #expect(ClaudeAgentStep.searching("q").label == "Searching “q”")
         #expect(ClaudeAgentStep.reading("example.com").label == "Reading example.com")
         #expect(ClaudeAgentStep.running.label == "Running a command")
