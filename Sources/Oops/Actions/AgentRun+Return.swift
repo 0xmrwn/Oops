@@ -10,8 +10,8 @@ extension AgentRun {
         defer { handle(.settled) }
         guard let session, let snapshot, let answer = held else { return .cancelled }
         held = nil
-        drop.stopCancelling()
-        return await write(answer, over: snapshot, session)
+        drop.showWriting(Self.placing)
+        return await write(answer, over: snapshot, session, inPlace: true)
     }
 
     /// The ready result, taken back to its draft: the app, window and field come back, then the answer is written
@@ -20,12 +20,13 @@ extension AgentRun {
         defer { handle(.settled) }
         guard let session, let snapshot, let answer = held else { return .cancelled }
         held = nil
-        drop.showWorking("Returning…", geometry: await session.locate())
+        drop.showWorking("Returning to the draft", geometry: await session.locate())
         // A dormant Chromium tree can't be focused, read or written: wake it for the return, as capture did.
         let woke = await session.editing.enableAccessibility(snapshot)
         let outcome: ActionOutcome
         if await session.editor.bringBack(snapshot) {
-            outcome = await write(answer, over: snapshot, session)
+            drop.showWriting(Self.placing)
+            outcome = await write(answer, over: snapshot, session, inPlace: false)
         } else {
             copyable = answer
             drop.showHeld("The draft’s window or field is gone. The answer is ready to copy.", geometry: nil)
@@ -35,13 +36,17 @@ extension AgentRun {
         return outcome
     }
 
-    private func write(_ answer: String, over snapshot: EditorSnapshot, _ session: ActionSession) async -> ActionOutcome {
+    /// `inPlace`: the person watched the timer run to the write, so the done drop's time goes on from it; a run taken
+    /// back later shows the time it took to answer.
+    private func write(_ answer: String, over snapshot: EditorSnapshot, _ session: ActionSession, inPlace: Bool) async -> ActionOutcome {
         do {
             let applied = try await session.writeAgentAnswer(answer, over: snapshot)
             let restorable = snapshot.strategy != .copy
             if restorable { keep(.init(snapshot: applied, applied: snapshot.transaction.replacement(answer))) }
             let geometry = await session.editing.geometry(applied.element) ?? snapshot.geometry
-            drop.showDone(name, elapsed: elapsed, canRestore: restorable, geometry: geometry, element: applied.element)
+            let time = inPlace ? progress.map { $0.start.duration(to: .now) } ?? elapsed : elapsed
+            drop.showDone(Self.done(name, summary: progress?.summary, elapsed: time), spoken: name + " done", canRestore: restorable,
+                          geometry: geometry, element: applied.element)
             return .written
         } catch {
             copyable = answer

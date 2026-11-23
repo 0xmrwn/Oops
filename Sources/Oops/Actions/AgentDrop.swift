@@ -27,6 +27,10 @@ import SwiftUI
     private var model: CapsuleModel { owner.panel.model }
     /// The working label the status shows, kept while the drop is placed so the latest step wins.
     private var label = ""
+    /// When the run began: its working drop's timer counts from here each time the drop comes back to it.
+    var startedAt: Date?
+    /// When the run last reported anything, so a drop that comes back to a quiet run comes back calm.
+    var heard: Date?
 
     /// Wider than Fix's panel: a step names its query, host or skill, with the run's timer after it.
     static let size = CGSize(width: 468, height: CapsulePanel.standard.height)
@@ -77,6 +81,9 @@ import SwiftUI
             guard owner.claimant == .agent, busy() else { return }
             panel.cancelTimedHide()
             model.canRevert = false; model.canCancel = true
+            // A claim starts the drop afresh; the run hasn't, so its timer and pace carry on.
+            model.startedAt = startedAt
+            if let heard { model.activity(at: heard) }
             panel.show(.working, label: self.label, geometry: geometry)
             panel.follow(element) { [locate] in await locate($0) ?? geometry }
             changed()
@@ -92,15 +99,25 @@ import SwiftUI
         changed()
     }
 
-    /// The write is under way: the working drop at the caret no longer cancels.
-    func stopCancelling() { if inFront { model.canCancel = false } }
+    /// A sign of progress: the run's working drop quickens if it is up.
+    func activity() {
+        heard = Date()
+        if working { model.activity() }
+    }
 
-    func showDone(_ name: String, elapsed: Duration, canRestore: Bool, geometry: CapsulePlacement.Geometry?, element: AXUIElement) {
+    /// The write is under way: the working drop at the caret says so, and no longer cancels.
+    func showWriting(_ label: String) {
+        guard inFront else { return }
+        model.canCancel = false
+        if model.phase == .working { panel.show(.working, label: label) }
+        changed()
+    }
+
+    func showDone(_ label: String, spoken: String, canRestore: Bool, geometry: CapsulePlacement.Geometry?, element: AXUIElement) {
         guard claim() else { return }
         panel.cancelTimedHide()
         model.canRevert = canRestore
-        let time = elapsed.formatted(.time(pattern: .minuteSecond))
-        panel.show(.fixed, label: name + " · " + time, detail: canRestore ? "Undo puts the original back" : "", spoken: name + " done", geometry: geometry)
+        panel.show(.fixed, label: label, detail: canRestore ? "Undo puts the original back" : "", spoken: spoken, geometry: geometry)
         panel.hide(after: ResultTiming.seconds)
         if let geometry { panel.follow(element) { [locate] in await locate($0) ?? geometry } }
         changed()

@@ -7,7 +7,8 @@ import OopsCore
 /// or any model. The file holds `steps` (`{"think":true}`, `{"search":"q"}`, `{"read":"https://example.com/x"}`,
 /// `{"run":true}`, `{"skill":"name"}`), `stepMs` between them (400 by default), then `answer` (returned as the schema
 /// object) or `raw` (verbatim), or `fail` (timeout, sandbox, signIn, limit, stopped, output); `delayMs` waits before the
-/// answer, and `limitMs` ends the run as the real limit would (`-AgentLimitMs`, else five minutes). `unavailable`
+/// answer, and `limitMs` ends the run as the real limit would (`-AgentLimitMs`, else five minutes). `activityMs` reports
+/// tokens flowing that often through every wait, and `summary` is said just before the answer. `unavailable`
 /// (notInstalled, signedOut) refuses to start, as a missing or signed-out Claude Code does. Each run counts itself in
 /// `<control>.calls`, and writes how it ended (finished, failed, timedOut or cancelled) to `<control>.ended`.
 struct StubAgent: AgentRunning {
@@ -53,12 +54,23 @@ struct StubAgent: AgentRunning {
 
     private static func perform(_ script: [String: Any], input: String, yield: @Sendable (ClaudeAgentUpdate) -> Void) async throws {
         let pause = Duration.milliseconds(script["stepMs"] as? Int ?? 400)
+        let activity = (script["activityMs"] as? Int).map { Duration.milliseconds(max($0, 10)) }
+        // Waits as a real run does: quiet, or with tokens flowing every `activityMs`.
+        func wait(_ duration: Duration) async throws {
+            guard let activity else { return try await Task.sleep(for: duration) }
+            var left = duration
+            while left > .zero {
+                try await Task.sleep(for: min(left, activity))
+                left -= activity
+                yield(.activity)
+            }
+        }
         yield(.step(.starting))
         for entry in script["steps"] as? [[String: Any]] ?? [] {
-            try await Task.sleep(for: pause)
+            try await wait(pause)
             if let step = step(entry) { yield(.step(step)) }
         }
-        if let delay = script["delayMs"] as? Int { try await Task.sleep(for: .milliseconds(delay)) }
+        if let delay = script["delayMs"] as? Int { try await wait(.milliseconds(delay)) }
         try Task.checkCancellation()
         switch script["fail"] as? String {
         case "timeout": throw ClaudeAgentError.timedOut
@@ -69,6 +81,7 @@ struct StubAgent: AgentRunning {
         case "output": throw ActionOutputError.malformed
         default: break
         }
+        if let summary = script["summary"] as? String { yield(.summary(summary)) }
         yield(.step(.done))
         if let raw = script["raw"] as? String { return yield(.answer(raw)) }
         let answer = script["answer"] as? String ?? input
