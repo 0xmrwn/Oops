@@ -61,7 +61,10 @@ extension DictationSession {
         if outcome != .refused(.cancelled) {
             lastTranscript = polished
             // Words refused at a password field or in an app kept from writing never reach the disk.
-            if ![.refused(.secureField), .refused(.appDenied), .refused(.appTurnedOff)].contains(outcome) {
+            let kept = if case .turnedOff = outcome { false } else {
+                ![.refused(.secureField), .refused(.appDenied), .refused(.appTurnedOff)].contains(outcome)
+            }
+            if kept {
                 history.record(polished, language, historyModel, Int(seconds * 1_000))
             }
         }
@@ -84,7 +87,7 @@ extension DictationSession {
         case .refused(.noEditor): .kept
         case .refused(.secureField): .failed(.secureField)
         case .refused(.appDenied): .failed(.appDenied)
-        case .refused(.appTurnedOff): .failed(.turnedOff)
+        case .turnedOff(let app): .failed(.turnedOff(app))
         case .refused: .failed(.cannotWrite)
         }
     }

@@ -13,11 +13,23 @@ public enum CorrectionError: LocalizedError, Equatable {
     case message(String)
     /// A failure the capsule can name in a few words; the message stays for its tooltip and Settings.
     case failure(Reason, String)
+    /// The person turned Oops off in this app: the drop names it and offers to turn it back on.
+    case turnedOff(TurnedOffApp)
     public enum Reason: Equatable, Sendable { case offline, slow, signIn, limit, setup, tooLong, empty }
     public var errorDescription: String? {
-        switch self { case let .message(text), let .failure(_, text): text }
+        switch self {
+        case let .message(text), let .failure(_, text): text
+        case let .turnedOff(app): "Oops is off in \(app.name)."
+        }
     }
     public var reason: Reason? { if case let .failure(reason, _) = self { return reason }; return nil }
+}
+
+/// An app Oops is turned off in, as Settings and the menu bar name it; thrown by a write refused there.
+public struct TurnedOffApp: Error, Equatable, Sendable {
+    public let name: String
+    public let bundleID: String
+    public init(name: String, bundleID: String) { self.name = name; self.bundleID = bundleID }
 }
 
 public enum CorrectionPolicy {

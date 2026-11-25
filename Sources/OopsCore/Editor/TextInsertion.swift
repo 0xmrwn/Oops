@@ -33,6 +33,8 @@ public enum InsertOutcome: Equatable, Sendable {
     case unconfirmed
     /// Nothing was written.
     case refused(InsertRefusal)
+    /// Nothing was written: the person turned Oops off in `app`, the field's app as the policy reads it.
+    case turnedOff(TurnedOffApp)
 }
 
 /// The rules of writing text at the caret that need no editor to check.

@@ -98,6 +98,21 @@ import XCTest
         XCTAssertFalse(run.session.holdsDrop)
     }
 
+    func testPastingInAnAppOopsIsOffInOffersToTurnItOn() async throws {
+        let run = try DictationSessionRun(self, mode: .holdOnly, history: history.value)
+        try await dictate(run)
+        let notes = TurnedOffApp(name: "Notes", bundleID: "com.apple.Notes")
+        run.inserts.outcome = .turnedOff(notes)
+        run.session.paste("An entry")
+        try await run.until { run.drop.states.last == .failed(.turnedOff(notes)) }
+        XCTAssertEqual(run.drop.action?.label, "Turn on in Notes")
+        run.session.pasteLast()
+        try await run.until { run.inserts.texts.count == 3 }
+        try await run.until { run.drop.states.filter { $0 == .failed(.turnedOff(notes)) }.count == 2 }
+        XCTAssertEqual(run.drop.action?.label, "Turn on in Notes")
+        XCTAssertEqual(history.recorded, ["Hello auto"])
+    }
+
     func testPastingAnEntryWaitsForNoDictation() async throws {
         let run = try DictationSessionRun(self, mode: .holdOnly, history: history.value)
         run.press(0)

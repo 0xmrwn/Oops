@@ -144,7 +144,7 @@ import XCTest
 
     func testARefusedInsertSaysWhy() async throws {
         let refusals: [(InsertRefusal, DictationFailure)] = [
-            (.secureField, .secureField), (.appDenied, .appDenied), (.appTurnedOff, .turnedOff), (.readOnly, .cannotWrite),
+            (.secureField, .secureField), (.appDenied, .appDenied), (.readOnly, .cannotWrite),
             (.focusMoved, .cannotWrite),
         ]
         for (refusal, failure) in refusals {
@@ -214,6 +214,8 @@ import XCTest
     var status: [String] = []
     /// The Dictate shortcut's modifiers, and each set of Escape chords the session registered.
     var shortcutModifiers: UInt32?
+    /// The app Oops is turned off in that a press would dictate into; nil while it is on.
+    var turnedOff: TurnedOffApp?
     private(set) var escapes: [[UInt32]] = []
     /// A clipboard of the run's own: the real one is never touched.
     let board = NSPasteboard.withUniqueName()
@@ -242,7 +244,8 @@ import XCTest
                                        await withCheckedContinuation { self?.asks += 1; self?.prompt = $0 }
                                    },
                                    escape: { [weak self] in self?.escapes.append($0) }, shortcutModifiers: { [weak self] _ in self?.shortcutModifiers },
-                                   copy: { DictationSession.copyToClipboard($0, on: board) }, environment: environment, history: history)
+                                   copy: { DictationSession.copyToClipboard($0, on: board) }, environment: environment, history: history,
+                                   appTurnedOff: { [weak self] in self?.turnedOff })
     }
 
     /// Answers the microphone prompt the session is waiting on.

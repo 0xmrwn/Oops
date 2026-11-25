@@ -11,6 +11,18 @@ extension EditorAccess {
         let verdict: EditorApplicationPolicy.Verdict
         /// The app as the person knows it: the frontmost app for a helper nested in it.
         let name: String
+        /// The app the person turned Oops off in, when the verdict says so.
+        var turnedOff: TurnedOffApp? {
+            guard case .turnedOff(let id) = verdict else { return nil }
+            return TurnedOffApp(name: AppScope.name(id), bundleID: id)
+        }
+    }
+
+    /// The app Oops is turned off in that `feature` would write in now, by the scope its write is refused under:
+    /// the focused element's app, or the app in front when nothing reports focus. Nil when Oops is on there.
+    func turnedOff(for feature: EditorApplicationPolicy.Feature) -> TurnedOffApp? {
+        let pid = (try? focused()).map { self.pid(of: $0) } ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
+        return pid.flatMap { scope(of: $0, for: feature) }?.turnedOff
     }
 
     /// The app that owns `pid`'s focused element, under the application policy for `feature`; nil when it

@@ -70,6 +70,8 @@ import OSLog
     var plan = CleanupPlan()
     let status: @MainActor (String) -> Void
     private let askMicrophone: @MainActor () async -> Bool
+    /// The app Oops is turned off in that a dictation would write in now, by the write's own scope; read at each press.
+    private let appTurnedOff: @MainActor () async -> TurnedOffApp?
     /// The system's microphone prompt is up, or its answer is on its way to the drop.
     private var asking = false
     let events: AsyncStream<Event>.Continuation
@@ -129,11 +131,12 @@ import OSLog
          askMicrophone: @escaping @MainActor () async -> Bool = { await DictationMicrophoneAccess.requestAccess() },
          escape: @escaping @MainActor ([UInt32]) -> Void = { _ in }, shortcutModifiers: @escaping @MainActor (_ cleanUp: Bool) -> UInt32? = { _ in nil },
          copy: @escaping @MainActor (String) -> Void = { DictationSession.copyToClipboard($0) },
-         environment: DictationRecordingEnvironment? = nil, history: History = .none) {
+         environment: DictationRecordingEnvironment? = nil, history: History = .none,
+         appTurnedOff: @escaping @MainActor () async -> TurnedOffApp? = { nil }) {
         self.recorder = recorder; self.engine = engine; self.hostedEngine = hostedEngine; self.modelPath = modelPath; self.languageHint = language; self.mode = mode
         self.insert = insert; self.drop = drop; self.loudness = loudness; self.status = status; self.cleanup = cleanup
         self.askMicrophone = askMicrophone; self.escape = escape; self.shortcutModifiers = shortcutModifiers; self.copy = copy
-        self.environment = environment; self.history = history
+        self.environment = environment; self.history = history; self.appTurnedOff = appTurnedOff
         let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
         events = continuation
         consumer = Task { [weak self] in
@@ -257,7 +260,10 @@ import OSLog
             Self.log.notice("start refused=dropHeld")
             return
         }
-        holdsDrop = true; turn += 1; lastWritten = nil
+        holdsDrop = true; turn += 1
+        // Never listens in an app the person turned Oops off in: no microphone, transcription or history.
+        if let app = await appTurnedOff() { return refuse(.turnedOff(app)) }
+        lastWritten = nil
         let hosted = hostedEngine()
         guard let engine = hosted ?? self.engine, let recorder else { return refuse(.notInBuild) }
         if hosted == nil {
@@ -327,6 +333,12 @@ import OSLog
         switch ending {
         case .done: drop.leave()
         case .offer(let text): offer(text)
+        // Turn on, as Fix's drop offers it; the refused words stay for Paste last dictation, and the drop leaves.
+        case .failed(.turnedOff(let app)):
+            drop.show(.failed(.turnedOff(app)), action: DropAction(symbol: "power", label: "Turn on in " + app.name) { [weak self] in
+                AppScope.shared.set(app.bundleID, on: true)
+                self?.drop.leave()
+            })
         case .failed(let failure): drop.show(.failed(failure))
         case .kept: drop.show(.kept, action: DropAction(symbol: "doc.on.doc", label: "Copy dictation") { [weak self] in self?.copyLast(copying) })
         }

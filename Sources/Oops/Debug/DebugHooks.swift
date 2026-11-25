@@ -43,6 +43,21 @@ import OopsCore
         on("forget") { [weak self] _ in self?.session.remember(nil); self?.session.capsule.model.canRevert = false }
         on("correct-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.correct() } }
         on("restore-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.revert() } }
+        // Turns Oops off in the lab in front (`off`), or presses the drop's Turn on (`on`), logging the drop before and
+        // after the press and the lab's switch in turn-on.jsonl. With nothing to press, `on` still turns the lab back on.
+        on("turned-off-lab") { [weak self] info in
+            guard let self, Self.labIsInFront(), let lab = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return }
+            guard info["state"] == "on" else { AppScope.shared.set(lab, on: false); return }
+            let model = self.session.capsule.model, shown = model.label
+            // The shared drop can still hold another app's remedy: only the lab's own is pressed.
+            guard case .turnOn(let app)? = model.remedy, app.bundleID == lab, let press = model.turnOn else {
+                AppScope.shared.set(lab, on: true)
+                return Self.record(["pressed": "false", "shown": shown], to: "turn-on.jsonl")
+            }
+            press(app)
+            Self.record(["pressed": "true", "shown": shown, "app": app.bundleID, "on": String(AppScope.shared.isOn(lab)),
+                         "drop": String(describing: model.phase), "label": model.label], to: "turn-on.jsonl")
+        }
         // Writes `text` at the lab's caret, so a run can exercise insert without a microphone.
         on("insert-lab") { [weak self] info in
             guard let self, let text = info["text"], Self.labIsInFront() else { return }
@@ -91,6 +106,7 @@ import OopsCore
         case .inserted: ["outcome": "inserted"]
         case .unconfirmed: ["outcome": "unconfirmed"]
         case .refused(let refusal): ["outcome": "refused", "reason": refusal.rawValue]
+        case .turnedOff: ["outcome": "refused", "reason": InsertRefusal.appTurnedOff.rawValue]
         }
         record(entry, to: "inserts.jsonl")
     }

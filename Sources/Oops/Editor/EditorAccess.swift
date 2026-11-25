@@ -101,11 +101,11 @@ actor EditorAccess {
         guard let scope = self.scope(of: pid) else { throw CorrectionError.message("No editable composer has focus.") }
         let app = scope.app, foreground = scope.foreground, name = scope.name
         let nested: Bool, owner: String
+        if let off = scope.turnedOff { throw CorrectionError.turnedOff(off) }
         switch scope.verdict {
         case .accepted(let id, let isNested): owner = id; nested = isNested
         case .denied: throw CorrectionError.message("Oops stays out of terminals and password managers.")
-        case .turnedOff: throw CorrectionError.message("Oops is off in \(name). Turn it back on in Settings.")
-        case .unknown: throw CorrectionError.message("No editable composer has focus.")
+        case .turnedOff, .unknown: throw CorrectionError.message("No editable composer has focus.")
         }
         let hostPID = nested ? foreground?.processIdentifier : nil
         let woken = try self.wakingField(&element, pid: pid), awakeDocument = woken.awakeDocument

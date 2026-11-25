@@ -63,6 +63,7 @@ struct ActionDropControls {
         model.copy = { [weak self] in self?.copy() }
         model.retry = { [weak self] in self?.controls.retry() }
         model.openSettings = { [weak self] in self?.controls.openSettings() }
+        model.turnOn = { [weak panel] in panel?.turnOn($0) }
         model.dismiss = { [weak panel] in panel?.hide() }
         model.words = .actions
         model.canRevert = false; model.canCancel = true
@@ -118,6 +119,7 @@ extension ActionFailure {
         case .tooLong: ("Too long", nil)
         case .secure: ("Password field", nil)
         case .capture: AccessibilityPermission.granted ? ("Can’t edit here", nil) : ("Not allowed", .settings)
+        case .turnedOff: ("Off in " + (app?.name ?? "this app"), app.map { .turnOn($0) })
         case .agentBusy: ("Agent busy", nil)
         case .sandbox: ("No sandbox", nil)
         case .noModel: ("No model", .settings)

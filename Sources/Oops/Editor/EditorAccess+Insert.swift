@@ -37,6 +37,7 @@ extension EditorAccess {
         let outcome: InsertOutcome
         do { outcome = try await write(text) }
         catch let refusal as InsertRefusal { outcome = .refused(refusal) }
+        catch let app as TurnedOffApp { outcome = .turnedOff(app) }
         catch is CancellationError { outcome = .refused(.cancelled) }
         catch { outcome = .refused(.noEditor) }
         Self.insertLog.notice("insert length=\(text.utf16.count, privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
@@ -125,6 +126,7 @@ extension EditorAccess {
         do { element = try focusedWaking() } catch is CancellationError { throw CancellationError() } catch { throw InsertRefusal.noEditor }
         let pid = self.pid(of: element)
         guard let scope = scope(of: pid, for: .dictate) else { throw InsertRefusal.noEditor }
+        if let app = scope.turnedOff { throw app }
         if let refusal = TextInsertion.refusal(for: scope.verdict) { throw refusal }
         guard case .accepted(let owner, let nested) = scope.verdict else { throw InsertRefusal.noEditor }
         let heldSwitch = switches.attribute(for: pid) != nil

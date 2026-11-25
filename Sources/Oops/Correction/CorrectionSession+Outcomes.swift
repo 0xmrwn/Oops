@@ -74,6 +74,7 @@ extension CorrectionSession {
         attempt.trace.failedStage = switch stage { case .capture: .capture; case .provider: .provider; case .apply: .apply }
         attempt.trace.error = message
         attempt.trace.reason = (error as? CorrectionError)?.reason.map { String(describing: $0) }
+        if case .turnedOff? = error as? CorrectionError { attempt.trace.reason = "turnedOff" }
         if attempt.trace.app == nil, let front = NSWorkspace.shared.frontmostApplication {
             attempt.trace.app = .init(bundleID: front.bundleIdentifier, name: front.localizedName ?? "", version: nil)
         }
@@ -90,6 +91,7 @@ extension CorrectionSession {
             let failure = Self.failure(error, at: stage)
             capsule.model.retry = attempt.inTryOnly ? { [weak self] in self?.retryInTry() } : { [weak self] in self?.correct() }
             let providers = stage == .provider
+            capsule.model.turnOn = { [weak capsule] in capsule?.turnOn($0) }
             capsule.model.openSettings = { [weak self] in
                 if providers { self?.preferences.providers.wantsProvidersPage = true }
                 self?.openSettings()
@@ -103,10 +105,13 @@ extension CorrectionSession {
     }
 
     /// A few words for the drop and what would help, from the error's reason or the stage that stopped.
-    /// The full message stays in the drop's tooltip and Settings.
-    static func failure(_ error: Error, at stage: Stage) -> (label: String, remedy: CapsuleModel.Remedy?) {
+    /// The full message stays in the drop's tooltip and Settings. An app the person turned Oops off in is named, with
+    /// Turn on; every other refusal at capture is one Oops makes (a terminal, a password field) and can't be undone here.
+    static func failure(_ error: Error, at stage: Stage,
+                        allowed: Bool = AccessibilityPermission.granted) -> (label: String, remedy: CapsuleModel.Remedy?) {
+        if case let .turnedOff(app)? = error as? CorrectionError { return ("Off in " + app.name, .turnOn(app)) }
         if (error as? CorrectionError)?.reason == .tooLong { return ("Too long", nil) }
-        if stage == .capture { return AccessibilityPermission.granted ? ("Can’t edit here", nil) : ("Not allowed", .settings) }
+        if stage == .capture { return allowed ? ("Can’t edit here", nil) : ("Not allowed", .settings) }
         return switch (error as? CorrectionError)?.reason {
         case .offline: ("No connection", .retry)
         case .slow: ("Took too long", .retry)

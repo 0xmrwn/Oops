@@ -79,6 +79,7 @@ struct ParkedDropView: View {
             switch model.remedy {
             case .retry: DropAction(symbol: "arrow.clockwise", label: "Try again") { model.retry?() }
             case .settings: DropAction(symbol: "gearshape", label: "Open Settings") { model.openSettings?() }
+            case .turnOn(let app): DropAction(symbol: "power", label: "Turn on in " + app.name) { model.turnOn?(app) }
             case nil: nil
             }
         default: nil

@@ -32,7 +32,7 @@ import Observation
     /// The same list, for capture on the Accessibility queue.
     nonisolated static var current: Set<String> { Set(UserDefaults.standard.stringArray(forKey: key) ?? []) }
 
-    static func name(_ bundleID: String) -> String {
+    nonisolated static func name(_ bundleID: String) -> String {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
             .flatMap { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") } ?? bundleID
     }

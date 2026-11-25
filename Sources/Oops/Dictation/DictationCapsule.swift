@@ -19,7 +19,7 @@ struct DictationCapsule<Voice: View>: View {
         HStack(spacing: 0) {
             HStack(spacing: DictationCapsuleLayout.spacing) {
                 voice()
-                if layout.words { Text(state.text).font(Font(DictationLivePreview.font)).lineLimit(1).fixedSize() }
+                if layout.words { Text(layout.text).font(Font(DictationLivePreview.font)).lineLimit(1).fixedSize() }
             }
             .accessibilityHidden(true) // The drop's own label reads the state.
             if let action {
@@ -49,6 +49,8 @@ struct DictationCapsule<Voice: View>: View {
 
     /// Padding before the content, and after it when there is no action; whether the state's words show.
     let lead: CGFloat, trail: CGFloat, words: Bool, width: CGFloat
+    /// The words as shown: cut behind an ellipsis to leave the action's cap inside the shelf. The drop's label reads them whole.
+    let text: String
 
     init(_ state: DictationDropState, action: Bool) {
         let voice = DictationVisualizerView.size(state).width, drop = EyesDropView.drop
@@ -61,10 +63,11 @@ struct DictationCapsule<Voice: View>: View {
         } else {
             (side, words) = (Self.padding, true)
         }
-        let text = words ? Self.spacing + (state.text as NSString).size(withAttributes: [.font: DictationLivePreview.font]).width.rounded(.up) : 0
         lead = side
         trail = action ? 0 : side
-        width = lead + voice + text + (action ? Self.gap + drop : trail)
+        let end = action ? Self.gap + drop : trail, font = DictationLivePreview.font
+        text = DropLabel.fitted([state.text], room: DropShelf.width - lead - voice - Self.spacing - end, font: font, divider: 0).first ?? ""
+        width = lead + voice + (words ? Self.spacing + DropLabel.measure(text, font) : 0) + end
     }
 }
 
