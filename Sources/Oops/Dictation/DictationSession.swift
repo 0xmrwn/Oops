@@ -327,6 +327,12 @@ import OSLog
         switch ending {
         case .done: drop.leave()
         case .offer(let text): offer(text)
+        // Turn on, as Fix's drop offers it; the refused words stay for Paste last dictation, and the drop leaves.
+        case .failed(.turnedOff(let app?)):
+            drop.show(.failed(.turnedOff(app)), action: DropAction(symbol: "power", label: "Turn on in " + app.name) { [weak self] in
+                AppScope.shared.set(app.bundleID, on: true)
+                self?.drop.leave()
+            })
         case .failed(let failure): drop.show(.failed(failure))
         case .kept: drop.show(.kept, action: DropAction(symbol: "doc.on.doc", label: "Copy dictation") { [weak self] in self?.copyLast(copying) })
         }

@@ -14,7 +14,8 @@ public enum EditorApplicationPolicy {
         /// process inside the frontmost app's bundle (Teams' WebView), which then stands for it.
         case accepted(bundleID: String, nested: Bool)
         case denied
-        case turnedOff
+        /// `bundleID` is the app the person turned off, as for `accepted`.
+        case turnedOff(bundleID: String)
         case unknown
     }
 
@@ -42,7 +43,7 @@ public enum EditorApplicationPolicy {
         let nested = isNested(bundleURL, in: foregroundBundleURL)
         guard let owner = nested ? foregroundBundleID : bundleID else { return .unknown }
         if denied(for: feature).contains(owner) { return .denied }
-        if turnedOff.contains(owner) { return .turnedOff }
+        if turnedOff.contains(owner) { return .turnedOff(bundleID: owner) }
         return .accepted(bundleID: owner, nested: nested && bundleID != foregroundBundleID)
     }
 

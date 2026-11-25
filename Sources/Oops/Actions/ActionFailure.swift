@@ -5,11 +5,13 @@ import OopsCore
 /// message its tooltip shows.
 struct ActionFailure: Error, Equatable {
     enum Reason: String, Sendable {
-        case empty, tooLong, secure, capture, agentBusy, sandbox, noModel, offline, slow, signIn, limit, setup, model, output, restore, attachment
+        case empty, tooLong, secure, capture, turnedOff, agentBusy, sandbox, noModel, offline, slow, signIn, limit, setup, model, output, restore, attachment
     }
     let reason: Reason
     let message: String
-    init(_ reason: Reason, _ message: String) { self.reason = reason; self.message = message }
+    /// The app the person turned Oops off in, for `turnedOff`.
+    var app: TurnedOffApp?
+    init(_ reason: Reason, _ message: String, app: TurnedOffApp? = nil) { self.reason = reason; self.message = message; self.app = app }
 
     static let noModel = ActionFailure(.noModel, "Add a provider in Settings → General → Providers to run actions.")
     static let slow = ActionFailure(.slow, "The model took longer than 40 seconds. Nothing was changed.")
@@ -29,6 +31,7 @@ struct ActionFailure: Error, Equatable {
             return ActionFailure(.tooLong, "Actions work on up to \(ActionPrompt.maximumLength.formatted()) characters at once. Select a part of this draft.")
         case .failure(.empty, _)?: return ActionFailure(.empty, "There’s no text here to run an action on.")
         case .message(EditorAccess.secureFieldMessage)?: return ActionFailure(.secure, "Actions don’t read password or code fields.")
+        case .turnedOff(let app)?: return ActionFailure(.turnedOff, error.localizedDescription, app: app)
         default: return ActionFailure(.capture, error.localizedDescription)
         }
     }

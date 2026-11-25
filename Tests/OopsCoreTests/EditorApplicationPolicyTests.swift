@@ -29,7 +29,9 @@ final class EditorApplicationPolicyTests: XCTestCase {
     func testAnyOtherAppIsAcceptedUnlessDeniedOrTurnedOff() {
         let obsidian = URL(fileURLWithPath: "/Applications/Obsidian.app")
         XCTAssertEqual(verdict("md.obsidian", obsidian, foregroundID: "md.obsidian", foregroundURL: obsidian), .accepted(bundleID: "md.obsidian", nested: false))
-        XCTAssertEqual(verdict("md.obsidian", obsidian, foregroundID: "md.obsidian", foregroundURL: obsidian, off: ["md.obsidian"]), .turnedOff)
+        XCTAssertEqual(verdict("md.obsidian", obsidian, foregroundID: "md.obsidian", foregroundURL: obsidian, off: ["md.obsidian"]), .turnedOff(bundleID: "md.obsidian"))
+        // A helper stands for the app in front, so the switch the person turned off is the app's.
+        XCTAssertEqual(verdict("com.microsoft.teams2.helper", helper, off: ["com.microsoft.teams2"]), .turnedOff(bundleID: "com.microsoft.teams2"))
         let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         XCTAssertEqual(verdict("com.apple.Terminal", terminal, foregroundID: "com.apple.Terminal", foregroundURL: terminal), .denied)
         let onePassword = URL(fileURLWithPath: "/Applications/1Password.app")
@@ -48,7 +50,7 @@ final class EditorApplicationPolicyTests: XCTestCase {
         let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         XCTAssertEqual(EditorApplicationPolicy.verdict(bundleID: "com.apple.Terminal", bundleURL: terminal, foregroundBundleID: "com.apple.Terminal",
                                                        foregroundBundleURL: terminal, turnedOff: ["com.apple.Terminal"], for: .dictate),
-                       .turnedOff, "an app turned off in Settings stays off")
+                       .turnedOff(bundleID: "com.apple.Terminal"), "an app turned off in Settings stays off")
     }
 
     func testPasswordManagersStayDeniedForBoth() {

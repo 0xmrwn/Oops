@@ -28,6 +28,7 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     var copy: (() -> Void)?
     var retry: (() -> Void)?
     var openSettings: (() -> Void)?
+    var turnOn: ((TurnedOffApp) -> Void)?
     var dismiss: (() -> Void)?
     /// A finished drop that stands for a result waiting elsewhere (an agent's): a tap, or its button, takes it there.
     var open: (() -> Void)?
@@ -49,7 +50,6 @@ enum CapsulePhase: Equatable { case invoked, working, fixed, pending, copied, fa
     var room = CGFloat.infinity
     /// An agent run's drop parked at a screen's edge (`ParkedDropView`); nil at the caret.
     @Published var parked: ParkedPill?
-    enum Remedy { case retry, settings }
 }
 
 /// The drop's buttons answer the first click: the panel never becomes key and oops stays in the

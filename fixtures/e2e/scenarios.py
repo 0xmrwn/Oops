@@ -2,6 +2,7 @@
 
 from actions import ACTIONS
 from agent import AGENT
+from turned_off import TURNED_OFF
 from typed import TYPED
 from wheel import WHEEL
 
@@ -361,8 +362,8 @@ SCENARIOS += [
     ),
 ]
 
-# Actions on the lab's draft (actions.py), and through the wheel (wheel.py).
-SCENARIOS += ACTIONS + WHEEL + AGENT + TYPED
+# Actions on the lab's draft (actions.py), and through the wheel (wheel.py); Fix in a lab Oops is off in (turned_off.py).
+SCENARIOS += ACTIONS + WHEEL + AGENT + TYPED + TURNED_OFF
 
 # Insert at the caret: no correction runs, so there is no stub. Each case checks the outcome Oops logs, the
 # text left behind and that the clipboard is back as it was.

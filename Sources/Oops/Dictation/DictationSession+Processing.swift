@@ -73,18 +73,18 @@ extension DictationSession {
         if cleanupFailed, [.inserted, .unconfirmed].contains(outcome) { return .failed(.cleanup) }
         // The cleanup replaces the text later, so only a field that read the text back offers it.
         if outcome == .inserted, offersCleanup { return .offer(polished) }
-        return Self.ending(outcome)
+        return Self.ending(outcome, turnedOff: outcome == .refused(.appTurnedOff) ? AppScope.turnedOffInFront : nil)
     }
 
     /// What an insert's outcome shows: nothing once written, Copy where no text field had focus, and why
-    /// otherwise.
-    static func ending(_ outcome: InsertOutcome) -> Ending {
+    /// otherwise; `app` names the app Oops is turned off in.
+    static func ending(_ outcome: InsertOutcome, turnedOff app: TurnedOffApp? = nil) -> Ending {
         switch outcome {
         case .inserted, .unconfirmed, .refused(.cancelled), .refused(.empty): .done
         case .refused(.noEditor): .kept
         case .refused(.secureField): .failed(.secureField)
         case .refused(.appDenied): .failed(.appDenied)
-        case .refused(.appTurnedOff): .failed(.turnedOff)
+        case .refused(.appTurnedOff): .failed(.turnedOff(app))
         case .refused: .failed(.cannotWrite)
         }
     }

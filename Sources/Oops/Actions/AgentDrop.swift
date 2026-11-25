@@ -90,6 +90,7 @@ import SwiftUI
         }
         model.retry = { [weak self] in self?.retry() }
         model.openSettings = { [weak self] in self?.openSettings() }
+        model.turnOn = { [weak panel] in panel?.turnOn($0) }
         model.dismiss = { [weak self, weak panel] in
             if panel?.model.open != nil { self?.discard() } else { panel?.hide() }
         }

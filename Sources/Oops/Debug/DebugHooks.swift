@@ -43,6 +43,20 @@ import OopsCore
         on("forget") { [weak self] _ in self?.session.remember(nil); self?.session.capsule.model.canRevert = false }
         on("correct-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.correct() } }
         on("restore-lab") { [weak self] _ in if Self.labIsInFront() { self?.session.revert() } }
+        // Turns Oops off in the lab in front (`off`), or presses the drop's Turn on (`on`), logging the drop before and
+        // after the press and the lab's switch in turn-on.jsonl. With nothing to press, `on` still turns the lab back on.
+        on("turned-off-lab") { [weak self] info in
+            guard let self, Self.labIsInFront(), let lab = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return }
+            guard info["state"] == "on" else { AppScope.shared.set(lab, on: false); return }
+            let model = self.session.capsule.model, shown = model.label
+            guard case .turnOn(let app)? = model.remedy, let press = model.turnOn else {
+                AppScope.shared.set(lab, on: true)
+                return Self.record(["pressed": "false", "shown": shown], to: "turn-on.jsonl")
+            }
+            press(app)
+            Self.record(["pressed": "true", "shown": shown, "app": app.bundleID, "on": String(AppScope.shared.isOn(lab)),
+                         "drop": String(describing: model.phase), "label": model.label], to: "turn-on.jsonl")
+        }
         // Writes `text` at the lab's caret, so a run can exercise insert without a microphone.
         on("insert-lab") { [weak self] info in
             guard let self, let text = info["text"], Self.labIsInFront() else { return }

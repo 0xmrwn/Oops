@@ -104,7 +104,7 @@ actor EditorAccess {
         switch scope.verdict {
         case .accepted(let id, let isNested): owner = id; nested = isNested
         case .denied: throw CorrectionError.message("Oops stays out of terminals and password managers.")
-        case .turnedOff: throw CorrectionError.message("Oops is off in \(name). Turn it back on in Settings.")
+        case .turnedOff(let id): throw CorrectionError.turnedOff(TurnedOffApp(name: AppScope.name(id), bundleID: id))
         case .unknown: throw CorrectionError.message("No editable composer has focus.")
         }
         let hostPID = nested ? foreground?.processIdentifier : nil

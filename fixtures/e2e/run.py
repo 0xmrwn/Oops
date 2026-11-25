@@ -31,6 +31,7 @@ from pathlib import Path
 import actions
 import agent
 import inserts
+import turned_off
 import wheel
 from footprint import resources
 from scenarios import QUICK, SCENARIOS
@@ -257,6 +258,8 @@ class Run:
         self.capture = None
         if "insert" in case:
             return inserts.check(self, case)
+        if case.get("turned_off"):
+            return turned_off.check(self, case)
         if case["name"].startswith("agent:"):
             return agent.check(self, case)
         if "action" in case:

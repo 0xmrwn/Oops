@@ -322,6 +322,7 @@ struct EyesDropView: View {
             switch model.remedy {
             case .retry: button("arrow.clockwise", "Try again") { model.retry?() }
             case .settings: button("gearshape", "Open Settings") { model.openSettings?() }
+            case .turnOn(let app): button("power", "Turn on in " + app.name) { model.turnOn?(app) }
             case nil: EmptyView()
             }
         default: EmptyView()

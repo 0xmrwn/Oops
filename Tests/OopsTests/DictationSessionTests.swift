@@ -144,7 +144,7 @@ import XCTest
 
     func testARefusedInsertSaysWhy() async throws {
         let refusals: [(InsertRefusal, DictationFailure)] = [
-            (.secureField, .secureField), (.appDenied, .appDenied), (.appTurnedOff, .turnedOff), (.readOnly, .cannotWrite),
+            (.secureField, .secureField), (.appDenied, .appDenied), (.appTurnedOff, .turnedOff(nil)), (.readOnly, .cannotWrite),
             (.focusMoved, .cannotWrite),
         ]
         for (refusal, failure) in refusals {

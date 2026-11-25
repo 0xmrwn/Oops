@@ -61,8 +61,8 @@ enum DictationFailure: Equatable, Sendable {
     case secureField
     /// An app dictation never writes in: a password manager.
     case appDenied
-    /// An app turned off in Settings.
-    case turnedOff
+    /// An app the person turned Oops off in, named when it is the app in front.
+    case turnedOff(TurnedOffApp?)
     /// The insert was refused for another reason.
     case cannotWrite
     /// The cleanup model failed, took too long or answered nothing: the text stays as heard.
@@ -79,7 +79,7 @@ enum DictationFailure: Equatable, Sendable {
         case .transcription: "Couldn’t transcribe"
         case .secureField: "Can’t write in a password field"
         case .appDenied: "Can’t write in this app"
-        case .turnedOff: "Turned off in this app"
+        case .turnedOff(let app): app.map { "Off in " + $0.name } ?? "Turned off in this app"
         case .cannotWrite: "Can’t write here"
         case .cleanup: "Couldn’t clean up"
         case .textChanged: "Text changed, nothing replaced"

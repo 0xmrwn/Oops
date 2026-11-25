@@ -11,6 +11,7 @@ import Foundation
 // `wheel-state`, `wheel-tap-probe`) to drive the Actions wheel over a lab in front, `trigger wheel-library <json>` to set
 // the wheel's actions without touching the saved ones (Debug, `-DebugActions YES`),
 // `trigger insert-lab <text>` to insert text at the caret of a lab's field when it is in front,
+// `trigger turned-off-lab <off|on>` to turn Oops off in a lab in front, or press the drop's Turn on there,
 // `trigger menu` to open the menu bar menu, `trigger forget` to drop the last correction (no toggle carries over), or
 // `trigger probe [plain|manual|enhanced]` to record the focused editor's geometry like Diagnostics → Probe, or
 // `trigger app <new|focus|outline|type|replace|remove|read|markers|attributes|correct|restore> <bundle id> [text]` for compatibility runs (fixtures/compat),
@@ -22,6 +23,7 @@ case "restore": "dev.0xmrwn.oops.restore"
 case "correct-lab": "dev.0xmrwn.oops.correct-lab"
 case "restore-lab": "dev.0xmrwn.oops.restore-lab"
 case "insert-lab": "dev.0xmrwn.oops.insert-lab"
+case "turned-off-lab": "dev.0xmrwn.oops.turned-off-lab"
 case "action-lab": "dev.0xmrwn.oops.action-lab"
 case "action-restore-lab": "dev.0xmrwn.oops.action-restore-lab"
 case "action-dismiss-lab": "dev.0xmrwn.oops.action-dismiss-lab"
@@ -36,6 +38,7 @@ default: "dev.0xmrwn.oops.preview-placement"
 }
 let info: [String: String]? = switch arguments.first {
 case "insert-lab": ["text": arguments.dropFirst().first ?? ""]
+case "turned-off-lab": ["state": arguments.dropFirst().first ?? "off"]
 case "action-lab", "agent-lab", "agent-try":
     ["name": arguments.dropFirst().first ?? "", "value": arguments.count > 2 ? arguments[2] : "", "options": arguments.count > 3 ? arguments[3] : ""]
 case "probe": ["mode": arguments.dropFirst().first ?? "plain"]
