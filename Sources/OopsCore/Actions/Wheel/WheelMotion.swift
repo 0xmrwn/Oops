@@ -30,7 +30,7 @@ public struct WheelNode: Equatable, Sendable, Identifiable {
 public struct WheelMotion: Equatable, Sendable {
     /// Things that happen a moment after the call that scheduled them. A cue made under one epoch dies when a later
     /// call bumps it (a new opening, a choice), unless it is `always`: a petal already on its way back finishes the trip.
-    enum Cue: Equatable, Sendable { case launch(String), leave(String), swallow, centreLeaves }
+    enum Cue: Equatable, Sendable { case launch(String), leave(String), swallow, centreLeaves, words(Bool), glance(Bool) }
     struct Pending: Equatable, Sendable {
         var at: TimeInterval, epoch: Int, always: Bool, cue: Cue
     }
@@ -45,10 +45,13 @@ public struct WheelMotion: Equatable, Sendable {
     public private(set) var named = false
     /// The words under the centre that say it takes typing; and whether the centre is a field.
     public private(set) var hint = WheelSpring(), typing = false
+    /// While the wheel teaches its typed centre (`WheelCue`): the eyes' one glance down at the words, and whether the
+    /// words are the cue's own.
+    public private(set) var glance = WheelSpring(), cueWords = false
     /// What the centre shows once a petal has flowed into it.
     public private(set) var symbol: String?
     var cues: [Pending] = []
-    private var epoch = 0, bloomed = false
+    private var epoch = 0, bloomed = false, teaching = false, hintLeaving = false
 
     public init(reduceMotion: Bool = false) { self.reduceMotion = reduceMotion }
 
@@ -63,6 +66,7 @@ public struct WheelMotion: Equatable, Sendable {
         named = false
         typing = false
         hint.target = 0
+        stopTeaching()
         bloomed = false
         symbol = nil
         iconMix.target = 0
@@ -112,6 +116,7 @@ public struct WheelMotion: Equatable, Sendable {
     /// What is pointed at grows and the rest step back; the centre leans toward it.
     public mutating func setLive(_ place: ActionPlace?) {
         live = place
+        if place != nil { stopTeaching() }
         let pointer = choice.contains { !$0.leaving } ? \WheelMotion.choice : \WheelMotion.root
         for index in self[keyPath: pointer].indices where !self[keyPath: pointer][index].leaving {
             self[keyPath: pointer][index].highlight.target = self[keyPath: pointer][index].petal.place == place ? 1 : 0
@@ -130,8 +135,31 @@ public struct WheelMotion: Equatable, Sendable {
         for index in root.indices where !root[index].leaving { root[index].name.target = 1 }
     }
 
-    /// The words under the centre come out with the names.
-    public mutating func showHint() { hint.target = 1 }
+    /// The words under the centre at an action's ring come out after the linger.
+    public mutating func showHint() {
+        cueWords = false
+        hintLeaving = false
+        hint.target = 1
+    }
+
+    /// The cue, for an opening that teaches the typed centre; `elapsed` is how long ago the shortcut opened the wheel,
+    /// which its times count from.
+    public mutating func teach(opened elapsed: TimeInterval) {
+        teaching = true
+        let back = reduceMotion ? WheelCue.glanceIn + WheelCue.held : WheelCue.glanceOut
+        let times: [(TimeInterval, Cue)] = [(WheelCue.wordsIn, .words(true)), (WheelCue.glanceIn, .glance(true)), (back, .glance(false)),
+                                           (WheelCue.wordsOut, .words(false))]
+        for (time, cue) in times { cues.append(Pending(at: clock + max(0, time - elapsed), epoch: epoch, always: false, cue: cue)) }
+    }
+
+    /// Pointing, typing or a choice ends the cue at once, and it doesn't come back in this opening.
+    private mutating func stopTeaching() {
+        guard teaching else { return }
+        teaching = false
+        cues.removeAll { switch $0.cue { case .words, .glance: true; default: false } }
+        if cueWords { hint.target = 0 }
+        glance.target = 0
+    }
 
     /// The centre widens into a field and both rings go back into it.
     public mutating func beginTyping() {
@@ -141,6 +169,7 @@ public struct WheelMotion: Equatable, Sendable {
         dim.target = 0
         named = false
         hint.target = 0
+        stopTeaching()
         width.target = WheelLayout.field
         relax()
         retract(\.root, chosen: nil)
@@ -156,10 +185,18 @@ public struct WheelMotion: Equatable, Sendable {
     /// How far the centre has widened into its field, 0 to 1.
     public var fieldOpen: Double { min(1, max(0, (width.x - WheelLayout.drop) / (WheelLayout.field - WheelLayout.drop))) }
 
+    /// How much the field's words show: nothing until the widening glass has passed where they start, so the first
+    /// letters never stand on the page ahead of it.
+    public var fieldReveal: Double {
+        let edge = centrePoint.x - centreSize.width / 2, start = WheelLayout.hub.x - WheelLayout.field / 2 + WheelLayout.fieldText
+        return min(1, max(0, (start - 4 - edge) / 10))
+    }
+
     /// The chosen petal flows into the centre, which shows its symbol; the rest of its ring goes back.
     public mutating func select(_ place: ActionPlace?, symbol: String) {
         epoch += 1
         hint.target = 0
+        stopTeaching()
         self.symbol = symbol
         iconMix.target = 1
         live = nil
@@ -176,6 +213,7 @@ public struct WheelMotion: Equatable, Sendable {
         named = false
         typing = false
         hint.target = 0
+        stopTeaching()
         dim.target = 0
         width.target = WheelLayout.drop
         relax()
@@ -207,7 +245,9 @@ public struct WheelMotion: Equatable, Sendable {
         recoilY.step(dt, 0.3, 0.45)
         dip.step(dt, 0.32, 0.42)
         iconMix.step(dt, 0.2, 1)
-        hint.step(dt, 0.3, 0.85)
+        // The cue's words leave slower than they came.
+        hint.step(dt, hintLeaving ? 0.55 : 0.3, hintLeaving ? 1 : 0.85)
+        glance.step(dt, reduceMotion ? 0.2 : 0.34, reduceMotion ? 1 : 0.86)
         check.step(dt, 0.4, 0.6)
         dim.step(dt, 0.2, 1)
     }
@@ -219,7 +259,7 @@ public struct WheelMotion: Equatable, Sendable {
 
     /// Nothing moves and nothing is scheduled: another step would draw the same frame.
     public var resting: Bool {
-        cues.isEmpty && [present, width, recoilX, recoilY, dip, iconMix, check, dim, hint].allSatisfy(\.resting)
+        cues.isEmpty && [present, width, recoilX, recoilY, dip, iconMix, check, dim, hint, glance].allSatisfy(\.resting)
             && (root + choice).allSatisfy { [$0.out, $0.grow, $0.highlight, $0.name, $0.fade].allSatisfy(\.resting) }
     }
 
@@ -264,6 +304,11 @@ public struct WheelMotion: Equatable, Sendable {
             }
         case .swallow: dip.v += 1.6
         case .centreLeaves: present.target = 0
+        case let .words(on):
+            cueWords = true
+            hintLeaving = !on
+            hint.target = on ? 1 : 0
+        case let .glance(on): glance.target = on ? 1 : 0
         }
     }
 

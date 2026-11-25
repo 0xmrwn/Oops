@@ -113,10 +113,10 @@ struct WheelTypingTests {
         #expect(ring.level == .choices(translate))
     }
 
-    @Test func `the hint comes with the names, and alone at a ring`() {
+    @Test func `the hint waits for the linger at a ring, and the first ring leaves it to its cue`() {
         var wheel = typingWheel()
         let effects = wheel.advance(to: 0.7)
-        #expect(effects == [.showNames, .showHint])
+        #expect(effects == [.showNames])
         _ = WheelFixtures.tap(&wheel, .right, at: 1.0)
         #expect(wheel.advance(to: 1.17) == [.bloomChoices([.up, .right, .down, .left])])
         #expect(!wheel.advance(to: 1.86).contains(.showHint))

@@ -10,8 +10,8 @@ public enum WheelTyping {
         bundleID.map { !unavailable.contains($0) } ?? true
     }
 
-    /// The words under the centre once the names show, and the field's placeholder: an instruction at the first
-    /// ring, the choice's name at an action's ring.
+    /// The words under the centre, and the field's placeholder: an instruction at the first ring, the choice's name at
+    /// an action's ring.
     public static func hint(at level: Wheel.Level) -> String? {
         switch level {
         case .root, .typing(from: .root): "Type an instruction"
