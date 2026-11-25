@@ -28,7 +28,6 @@ struct ProvidersRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("Open Providers")
         .accessibilityLabel((["Providers"] + configured.map(\.name) + [overview.attention].compactMap(\.self)).joined(separator: ", "))
         .padding(.vertical, -6)
         .settingsSurface()

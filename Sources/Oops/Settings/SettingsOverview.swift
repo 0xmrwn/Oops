@@ -48,7 +48,6 @@ struct FeatureOverview: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Open \(tab.rawValue)")
             // One sentence: the feature, what it uses, its shortcut.
             .accessibilityLabel([tab.rawValue, setup?.spoken ?? "Off", shortcut?.spoken].compactMap(\.self).joined(separator: ", "))
             // The shortcut is the switch: turning on opens the tab and records it there. Beside the row's own
