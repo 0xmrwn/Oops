@@ -19,6 +19,10 @@ struct DictationHistoryDetailsTests {
         let durations = [0: "0:00", 499: "0:00", 500: "0:01", 7_000: "0:07", 59_499: "0:59", 59_500: "1:00", 83_000: "1:23",
                          725_000: "12:05", 3_599_000: "59:59", 3_600_000: "1:00:00", 3_725_000: "1:02:05", 36_000_000: "10:00:00", -5: "0:00"]
         for (ms, text) in durations { #expect(DictationHistoryEntry.duration(ms: ms) == text, "\(ms) ms") }
+        // A value a file could hold: it rounds without overflowing, and the spoken length uses the same seconds.
+        #expect(DictationHistoryEntry.seconds(ms: .max) == Int.max / 1_000 + 1)
+        #expect(!DictationHistoryEntry.duration(ms: .max).isEmpty)
+        #expect(DictationHistoryEntry.seconds(ms: 2_500) == 3)
     }
 
     @Test func `the second line has the age, the length when kept and the words`() {

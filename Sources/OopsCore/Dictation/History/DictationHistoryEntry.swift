@@ -71,9 +71,16 @@ public struct DictationHistoryEntry: Codable, Equatable, Identifiable, Sendable 
 
     /// A recording's length to the nearest second, as a clock shows it: "0:07", "1:23", "12:05", then "1:02:05" from an hour.
     public static func duration(ms: Int) -> String {
-        let seconds = (max(0, ms) + 500) / 1_000, hours = seconds / 3_600, minutes = seconds / 60 % 60
+        let seconds = seconds(ms: ms), hours = seconds / 3_600, minutes = seconds / 60 % 60
         let rest = String(format: "%02d", seconds % 60)
         return hours > 0 ? "\(hours):" + String(format: "%02d", minutes) + ":" + rest : "\(minutes):" + rest
+    }
+
+    /// `ms` to the nearest whole second, which is what the clock form and VoiceOver both say. A value read from disk
+    /// can be anything, so nothing is added before dividing.
+    public static func seconds(ms: Int) -> Int {
+        let ms = max(0, ms)
+        return ms / 1_000 + (ms % 1_000 >= 500 ? 1 : 0)
     }
 
     /// Whether any searched field (text, application, model) contains `needle`, already lowercased.

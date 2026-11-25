@@ -148,7 +148,7 @@ import UniformTypeIdentifiers
             item.image = Self.appIcon(entry.bundleID)
             if #available(macOS 27, *) { item.preferredImageVisibility = .visible }
             // Spelled out: a clock's "0:07" reads badly aloud, and the icon says nothing.
-            let length = entry.durationMs.map { Duration.milliseconds($0).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide)) }
+            let length = entry.durationMs.map { Duration.seconds(DictationHistoryEntry.seconds(ms: $0)).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide)) }
             item.setAccessibilityLabel([entry.menuTitle, entry.application, entry.age(now: now), length, entry.words].compactMap(\.self).joined(separator: ", "))
             item.tag = entry.id
             item.target = self
