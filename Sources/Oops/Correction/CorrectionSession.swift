@@ -242,7 +242,7 @@ import OopsCore
         if snapshot.pid != getpid() {
             if attempt.inTryOnly { throw CorrectionError.message("Click into the draft, then press Correct.") }
             attempt.fixture?.cancelled(); attempt.fixture = nil
-            attempt.counted = (Stats.words(in: snapshot.transaction.source), snapshot.appName, attempt.provider.modelName)
+            attempt.counted = (Words.count(in: snapshot.transaction.source), snapshot.appName, attempt.provider.modelName)
         }
         attempt.stage = .provider
         // Test runs (a stub provider) leave the real list alone.

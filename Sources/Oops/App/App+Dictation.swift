@@ -43,7 +43,7 @@ extension AppDelegate {
     }
 
     /// The session's history, kept by `DictationHistoryModel`, whose first touch here opens the store and so expires
-    /// old entries at launch. An entry records the app in front, and the model the dictation ran with.
+    /// old entries at launch. An entry records the app in front, the model the dictation ran with and how long it listened.
     private func dictationHistory(_ providers: ProviderStore, _ local: LocalModels) -> DictationSession.History {
         let model = DictationHistoryModel.shared
         model.insert = { [weak self] text in
@@ -57,12 +57,12 @@ extension AppDelegate {
                 let override = DebugFlags.dictationModel.flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0).lastPathComponent }
                 return override ?? providers.dictateOption(local)?.name
             },
-            record: { text, language, speechModel in
+            record: { text, language, speechModel, durationMs in
                 let app = NSWorkspace.shared.frontmostApplication, bundleID = app?.bundleIdentifier
                 // Words written here: the app gets its switch in Turn off in apps, as one Fix corrected in does.
                 if let bundleID { AppScope.shared.noteUsed(bundleID) }
                 model.record(text: text, language: language, model: speechModel,
-                             application: app?.localizedName ?? bundleID.map(AppScope.name), bundleID: bundleID)
+                             application: app?.localizedName ?? bundleID.map(AppScope.name), bundleID: bundleID, durationMs: durationMs)
             },
             replaceLast: { model.replaceLast($0) },
             last: { model.lastText(inMemory: $0) })

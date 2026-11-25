@@ -85,16 +85,6 @@ import Observation
         }
     }
 
-    static func words(in text: String) -> Int {
-        var count = 0, previousWasSeparator = true
-        for character in text {
-            let isSeparator = character.isWhitespace || character.isNewline
-            if previousWasSeparator, !isSeparator { count += 1 }
-            previousWasSeparator = isSeparator
-        }
-        return count
-    }
-
     static func load(_ file: URL) -> [Event] {
         guard let data = try? Data(contentsOf: file) else { return [] }
         return decode(data)

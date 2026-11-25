@@ -118,10 +118,11 @@ private struct DictationHistoryRow: View {
         .padding(.vertical, 10)
     }
 
-    /// The app, the age, the model and the language, each when known.
+    /// The app, the age, the recording's length, the model and the language, each when known.
     private var details: String {
         let language = entry.language.map { DictateModelCard.name($0) }
-        return [entry.application, entry.age(now: now), entry.model, language].compactMap(\.self).joined(separator: " · ")
+        let length = entry.durationMs.map(DictationHistoryEntry.duration(ms:))
+        return [entry.application, entry.age(now: now), length, entry.model, language].compactMap(\.self).joined(separator: " · ")
     }
 
     private func icon(_ symbol: String, help: String, label: String, action: @escaping () -> Void) -> some View {
