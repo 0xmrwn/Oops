@@ -50,6 +50,8 @@ struct FeatureOverview: View {
             .buttonStyle(.plain)
             // One sentence: the feature, what it uses, its shortcut.
             .accessibilityLabel([tab.rawValue, setup?.spoken ?? "Off", shortcut?.spoken].compactMap(\.self).joined(separator: ", "))
+            // What the hover tooltip said, kept for VoiceOver alone.
+            .accessibilityHint("Opens \(tab.rawValue)")
             // The shortcut is the switch: turning on opens the tab and records it there. Beside the row's own
             // button, not inside it, so it stays a control of its own.
             if shortcut == nil {
