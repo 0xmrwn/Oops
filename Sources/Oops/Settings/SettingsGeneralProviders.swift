@@ -1,30 +1,27 @@
 import OopsCore
 import SwiftUI
 
-/// General's way into Providers: the services set up, by their marks and a count past four.
+/// General's way into Providers: the services set up, by their marks and a count past four, and what needs attention
+/// among them. Not shown while nothing is set up: the card at the top of General is the way in then.
 struct ProvidersRow: View {
     static let symbol = "sparkles"
-    let store: ProviderStore
+    let overview: ProviderOverview
     let open: () -> Void
 
     var body: some View {
-        let connected = store.connectedProviders
+        let configured = overview.configured.map(\.provider)
         Button(action: open) {
             HStack(spacing: 14) {
                 Image(systemName: Self.symbol).font(.system(size: 18, weight: .medium)).frame(width: 24)
                     .secondaryText().accessibilityHidden(true)
                 Text("Providers").fontWeight(.semibold)
                 Spacer(minLength: 8)
-                if connected.isEmpty {
-                    // The card at the top of General offers the way in, so this row doesn't ask again.
-                    Text("None").secondaryText()
-                } else {
-                    HStack(spacing: 8) {
-                        ForEach(connected.prefix(4)) { ProviderMark(provider: $0, size: 15) }
-                        if connected.count > 4 { Text("+\(connected.count - 4)").secondaryText().monospacedDigit() }
-                    }
-                    .padding(.trailing, 4)
+                HStack(spacing: 8) {
+                    ForEach(configured.prefix(4)) { ProviderMark(provider: $0, size: 15) }
+                    if configured.count > 4 { Text("+\(configured.count - 4)").secondaryText().monospacedDigit() }
                 }
+                .padding(.trailing, 4)
+                if let attention = overview.attention { StatusBadge(attention, ok: false).lineLimit(1) }
                 Chevron()
             }
             .padding(.vertical, 12)
@@ -32,7 +29,7 @@ struct ProvidersRow: View {
         }
         .buttonStyle(.plain)
         .help("Open Providers")
-        .accessibilityLabel((["Providers"] + (connected.isEmpty ? ["None"] : connected.map(\.name))).joined(separator: ", "))
+        .accessibilityLabel((["Providers"] + configured.map(\.name) + [overview.attention].compactMap(\.self)).joined(separator: ", "))
         .padding(.vertical, -6)
         .settingsSurface()
     }

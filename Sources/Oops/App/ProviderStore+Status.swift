@@ -21,7 +21,12 @@ extension ProviderStore {
         }
     }
 
-    /// The providers set up: signed in or connected, or still being checked, so a recheck doesn't hide one. ChatGPT
-    /// is always in the list, signed out on a fresh Mac.
-    var connectedProviders: [Provider] { providers.filter { problem($0.id) == nil } }
+    /// The providers set up and where each stands: usable once a check said so, a problem in the Providers list's
+    /// words, or unchecked until one has run.
+    var overview: ProviderOverview {
+        ProviderOverview(providers: providers, chatGPTOnRecord: chatGPTOnRecord) { provider in
+            if let problem = problem(provider.id) { return .problem(problem) }
+            return health[provider.id] == .ready ? .usable : .unchecked
+        }
+    }
 }

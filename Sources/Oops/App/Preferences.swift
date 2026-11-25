@@ -67,7 +67,7 @@ import OopsCore
 
     private func updateChatGPTHealth() {
         guard let chatGPTStatus else { return }
-        if case .signedIn = chatGPTStatus { providers.setChatGPT(signedIn: true) } else { providers.setChatGPT(signedIn: false) }
+        providers.setChatGPT(chatGPTStatus)
     }
 
     func refreshChatGPT(loadCatalog: Bool = false) {

@@ -17,6 +17,9 @@ import OopsCore
     /// One sentence when a saved choice had to change (a model disappeared, an effort is unsupported).
     private(set) var notice: String?
     private(set) var claudeAccount: ClaudeCode.Account?
+    /// Whether a ChatGPT sign-in is on record (signed in, or needing to sign in again), as read from this Mac's
+    /// Keychain and profile; nil until read.
+    private(set) var chatGPTOnRecord: Bool?
     /// Which provider's detail Providers shows; nil shows the list.
     var openProvider: String?
     /// An API provider being added: shown like a detail page, saved only once Add connects.
@@ -233,7 +236,10 @@ import OopsCore
 
     // MARK: Catalogs and health
 
-    func setChatGPT(signedIn: Bool) { health["chatgpt"] = signedIn ? .ready : .signedOut }
+    func setChatGPT(_ status: ChatGPTStatus) {
+        if case .signedIn = status { health["chatgpt"] = .ready } else { health["chatgpt"] = .signedOut }
+        chatGPTOnRecord = status != .signedOut
+    }
     func setChatGPT(models: [ChatGPTModel]) {
         setCatalog("chatgpt", models.map(CatalogModel.init), preferred: ModelSelection.preferredChatGPT)
     }
@@ -321,7 +327,7 @@ import OopsCore
         let groq = Provider(id: "preview-groq", kind: .api(preset: "groq"), name: "Groq", baseURL: "https://api.groq.com/openai/v1")
         let local = Provider(id: "preview-local", kind: .api(preset: "lmstudio"), name: "LM Studio", baseURL: "http://localhost:1234/v1",
                              shownModels: ["qwen-4-8b"])
-        providers = [chatgpt, claude, mistral, groq, local]
+        providers = DebugFlags.workingProviders ? [chatgpt, claude, mistral, local] : [chatgpt, claude, mistral, groq, local]
         let efforts = ["low", "medium", "high", "xhigh", "max"]
         let mistralModels = ["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest", "ministral-8b-latest"].map { CatalogModel(id: $0, name: $0) }
         catalogs = [
