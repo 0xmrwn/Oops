@@ -10,10 +10,13 @@ struct WheelView: View {
 
     static let darkInk = Color(red: 0.06, green: 0.06, blue: 0.09)
     private static let label = Font(NSFont.systemFont(ofSize: WheelLayout.labelSize, weight: .medium))
+    private static let hintFont = NSFont.systemFont(ofSize: 12, weight: .medium)
 
     var body: some View {
         let motion = frame.motion, ink = frame.ink
         let pieces = motion.pieces()
+        // The words under the drop sit on the page, not on glass: they get a lens of their own.
+        let lensed = pieces.filter { $0.lens > 0.01 } + hintLens(motion)
         // Glass ignores opacity: under Reduce Motion its mask does the cross-fade.
         let fades = motion.reduceMotion ? Self.fades(motion) : nil
         let edge = ink.dark ? WheelLayout.edge : 0
@@ -41,14 +44,14 @@ struct WheelView: View {
                 // masked to sit only under the content, with no edge of its own.
                 GlassEffectContainer(spacing: 0) {
                     ZStack {
-                        ForEach(pieces.filter { $0.lens > 0.01 }) { piece in
+                        ForEach(lensed) { piece in
                             Color.clear.frame(width: piece.size.width, height: piece.size.height)
                                 .glassEffect(.regular, in: .capsule).position(piece.centre)
                         }
                     }
                     .frame(width: WheelLayout.canvas.width, height: WheelLayout.canvas.height)
                 }
-                .mask { LensMask(pieces: pieces, strength: WheelLayout.lens, fades: fades) }
+                .mask { LensMask(pieces: lensed, strength: WheelLayout.lens, fades: fades) }
             }
             if edge > 0.01 { EdgeShade(pieces: pieces, amount: edge, travel: motion.travel, hairline: true, fades: fades) }
             if !frame.increaseContrast {
@@ -129,13 +132,22 @@ struct WheelView: View {
                 GlassLight(dark: !ink.dark)
                     .frame(width: size.width, height: size.height).opacity(motion.reduceMotion ? shown : 1).position(point)
             }
-            DashEyes(look: Self.look(motion.live), lid: 0.15, check: motion.check.x, ink: tone,
-                     halo: ink.plain ? .clear : (ink.dark ? Color.white : .black).opacity(0.85))
-                .frame(width: WheelLayout.drop, height: WheelLayout.drop)
-                .scaleEffect(scale)
-                .opacity(max(0, 1 - motion.iconMix.x) * shown)
-                .position(face)
-                .animation(.spring(duration: 0.3, bounce: 0.1), value: motion.live)
+            let look = Self.look(motion.live), eyes = max(0, 1 - motion.iconMix.x) * shown
+            // The cue's glance travels to the words; under Reduce Motion it is a cross-fade between the two still poses.
+            let glance = motion.reduceMotion ? 0 : max(0, motion.glance.x)
+            let dissolve = motion.reduceMotion ? min(1, max(0, motion.glance.x)) : 0
+            ForEach(dissolve > 0.01 ? [0, 1] : [0], id: \.self) { pose in
+                let down = pose == 1 ? 1 : glance
+                DashEyes(look: CGSize(width: look.width + (WheelCue.look.width - look.width) * down,
+                                      height: look.height + (WheelCue.look.height - look.height) * down),
+                         lid: 0.15 + (WheelCue.lid - 0.15) * down, check: motion.check.x, ink: tone,
+                         halo: ink.plain ? .clear : (ink.dark ? Color.white : .black).opacity(0.85))
+                    .frame(width: WheelLayout.drop, height: WheelLayout.drop)
+                    .scaleEffect(scale)
+                    .opacity(eyes * (pose == 1 ? dissolve : 1 - dissolve))
+                    .position(face)
+                    .animation(.spring(duration: 0.3, bounce: 0.1), value: motion.live)
+            }
             if let symbol = motion.symbol {
                 Image(systemName: symbol).font(.system(size: 17 * scale, weight: .semibold))
                     .modifier(WheelInkStyle(ink: ink))
@@ -143,22 +155,25 @@ struct WheelView: View {
                     .scaleEffect(0.7 + 0.3 * motion.iconMix.x)
                     .position(face)
             }
-            if frame.canType { typingCue(motion, ink, shown: shown) }
+            if motion.hint.x > 0.01 {
+                // Words saying what to type, and nothing that blinks or looks like a caret: that would claim a focus
+                // the person never gave. The cue's own words are at full ink.
+                Text(frame.hintText).font(Font(Self.hintFont)).lineLimit(1).fixedSize()
+                    .modifier(WheelInkStyle(ink: ink, strength: motion.cueWords ? 1 : 0.8))
+                    .opacity(min(1, motion.hint.x))
+                    .position(Self.hintPoint)
+            }
         }
     }
 
-    /// Where the centre takes typing: a still text cursor inside the drop's trailing edge, never blinking, since a
-    /// blinking caret would claim a focus the person never gave; and, with the names, words saying what to type.
-    @ViewBuilder private func typingCue(_ motion: WheelMotion, _ ink: WheelInk, shown: Double) -> some View {
-        let point = motion.centrePoint, scale = motion.centreScale
-        IBeam().fill(.foreground).frame(width: 5 * scale, height: 13 * scale)
-            .modifier(WheelInkStyle(ink: ink, strength: 0.7))
-            .opacity(shown * max(0, 1 - motion.fieldOpen * 4) * max(0, 1 - motion.iconMix.x))
-            .position(x: point.x + 14 * scale, y: point.y)
-        Text(frame.hintText).font(.system(size: 12, weight: .medium)).lineLimit(1).fixedSize()
-            .modifier(WheelInkStyle(ink: ink, strength: 0.8))
-            .opacity(min(1, max(0, motion.hint.x)))
-            .position(x: WheelLayout.hub.x, y: WheelLayout.hub.y + WheelLayout.drop / 2 + 12)
+    private static let hintPoint = CGPoint(x: WheelLayout.hub.x, y: WheelLayout.hub.y + WheelLayout.drop / 2 + 12)
+
+    /// The petals' lens, under the words below the drop while they show.
+    private func hintLens(_ motion: WheelMotion) -> [WheelPiece] {
+        guard motion.hint.x > 0.01 else { return [] }
+        let width = (frame.hintText as NSString).size(withAttributes: [.font: Self.hintFont]).width
+        return [WheelPiece(id: "hint", centre: Self.hintPoint, size: CGSize(width: width + 24, height: 26), hole: 0,
+                           kind: .pill(title: frame.hintText), scale: 1, fade: 1, lens: min(1, motion.hint.x))]
     }
 
     /// Where the eyes look: at what is pointed at, otherwise toward the text above.
@@ -190,17 +205,5 @@ private extension WheelPiece {
         case .petal, .pill: true
         case .centre, .neck: false
         }
-    }
-}
-
-/// A text cursor's I-beam, drawn rather than taken from a symbol so it reads as a cursor and nothing else.
-private struct IBeam: Shape {
-    func path(in rect: CGRect) -> Path {
-        let stem = max(1.2, rect.width * 0.28), serif = max(1, rect.height * 0.09)
-        var path = Path()
-        path.addRect(CGRect(x: rect.midX - stem / 2, y: rect.minY, width: stem, height: rect.height))
-        path.addRect(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: serif))
-        path.addRect(CGRect(x: rect.minX, y: rect.maxY - serif, width: rect.width, height: serif))
-        return path
     }
 }

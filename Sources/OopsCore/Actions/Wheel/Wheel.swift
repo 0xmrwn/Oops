@@ -22,7 +22,8 @@ public enum WheelEffect: Equatable, Sendable {
     case select(ActionPlace, symbol: String)
     /// The centre becomes a field for an instruction, or a value at a ring, with `placeholder` in it.
     case beginTyping(placeholder: String)
-    /// The words under the centre that say it takes typing, after the same linger as the names.
+    /// The words under the centre that say an action's ring takes a typed value, after the same linger as the names. The
+    /// first ring says it with its cue as it opens (`WheelCue`).
     case showHint
     case bloomChoices([ActionPlace])
     case run(ActionInvocation)
@@ -148,8 +149,7 @@ public struct Wheel: Equatable, Sendable {
             if level == .root {
                 named = true
                 effects.append(.showNames)
-            }
-            if canType, !hinted {
+            } else if canType, !hinted {
                 hinted = true
                 effects.append(.showHint)
             }
@@ -157,11 +157,11 @@ public struct Wheel: Equatable, Sendable {
         return effects
     }
 
-    /// Nothing is pointed at a ring that is out: the names (first ring) and the hint (either ring) are waited for.
+    /// Nothing is pointed at a ring that is out: the names (first ring) and the hint (an action's ring) are waited for.
     private var lingering: Bool {
         guard bloomed, !flicking, gesture.pointed == nil, gesture.held.isEmpty, gesture.commitAt == nil else { return false }
         switch level {
-        case .root: return !named || canType && !hinted
+        case .root: return !named
         case .choices: return canType && !hinted
         case .closed, .typing: return false
         }

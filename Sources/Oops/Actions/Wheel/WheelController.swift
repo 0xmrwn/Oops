@@ -115,7 +115,6 @@ import QuartzCore
         motion = WheelMotion(reduceMotion: Self.reduceMotion)
         openedAt = CACurrentMediaTime()
         apply(wheel.open(library, restorable: restorable, typing: typingHere(), at: openedAt))
-        frame.canType = wheel.canType
         let timer = Timer(timeInterval: 0.016, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.advance() }
         }
@@ -160,6 +159,11 @@ import QuartzCore
         placed = true; shown = true
         panel.window.orderFrontRegardless()
         motion.open()
+        if wheel.canType, Self.teachesTyping() {
+            frame.hintText = WheelTyping.hint(at: .root) ?? ""
+            motion.teach(opened: (now - openedAt) * Self.pace)
+            log(["wheel": "cue"])
+        }
         // A ring entered before the window was up blooms now, and says so with the window on screen.
         queued.forEach(perform)
         queued = []
@@ -178,8 +182,11 @@ import QuartzCore
         frames += 1; longest = max(longest, now - lastTick)
         lastTick = now
         apply(wheel.advance(to: now))
+        let unseen = !motion.cueSeen
         motion.step(dt)
+        if unseen, motion.cueSeen { Self.countCueOpen() }
         frame.motion = motion
+        if field.shown { field.panel.window.alphaValue = motion.fieldReveal }
         if !settledTold, motion.settled {
             settledTold = true
             log(["wheel": "settled", "petals": "\(motion.root.filter { !$0.leaving }.count)",

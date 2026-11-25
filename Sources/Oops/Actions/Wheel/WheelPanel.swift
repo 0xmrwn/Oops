@@ -13,8 +13,7 @@ import SwiftUI
     /// Each title's drawn width, measured once per opening, so a name is cut at the limit and never while it is
     /// being revealed.
     var widths: [String: Double] = [:]
-    /// The centre takes typing in the app in front: the cue shows, and the hint says what to type.
-    var canType = false
+    /// The words under the centre: the first ring's cue, or what an action's ring takes typed.
     var hintText = ""
     /// VoiceOver's way to a petal: its button chooses it as a click would.
     @ObservationIgnored var choose: @MainActor (ActionPlace) -> Void = { _ in }

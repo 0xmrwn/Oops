@@ -77,6 +77,8 @@ extension WheelController {
             guard !Task.isCancelled, case .typing = self.wheel.level else { return }
             self.field.panel.place(hub: self.hub)
             let shownAt = CACurrentMediaTime()
+            // Its words show only where the widening glass already is; each frame reveals more (`tick`).
+            self.field.panel.window.alphaValue = self.motion.fieldReveal
             self.field.panel.show()
             self.field.shown = true
             waited = 0
@@ -100,7 +102,9 @@ extension WheelController {
     }
 
     private func submitField(_ text: String) {
-        apply(wheel.submit(text))
+        let effects = wheel.submit(text)
+        if effects.contains(where: { if case .run(.typed) = $0 { true } else { false } }) { Self.learnedTyping() }
+        apply(effects)
     }
 
     func hideField() {

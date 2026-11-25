@@ -6,6 +6,8 @@ import Foundation
 public enum WheelLayout {
     /// The centre's width while it is a field.
     public static let field = 320.0
+    /// Where the field's words start, from its leading edge (past the drop's eyes), and how wide they may run.
+    public static let fieldText = drop + 2, fieldTextWidth = field - drop - 14
     public static let drop = 46.0, radius = 74.0, petal = 38.0, merge = 40.0, merge8 = 24.0
     public static let response = 0.19, damping = 0.78, stagger = 0.009, wave = 0.06
     /// The window's canvas and the hub inside it.

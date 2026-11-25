@@ -24,6 +24,9 @@ enum DebugFlags {
     static var wheelSlow: Bool { bool("DebugWheelSlow") }
     /// `-DebugTypingUnavailable <bundle id>`: that app is treated as one where the wheel's centre can't take typing.
     static var typingUnavailable: String? { string("DebugTypingUnavailable") }
+    /// `-WheelTypingCue always|never|reset`: the wheel shows its typing cue at every opening, or at none, whatever has
+    /// been learned and saving nothing; `reset` forgets the typed instruction and the opens counted, once per launch.
+    static var wheelTypingCue: String? { string("WheelTypingCue") }
 
     // MARK: Dictation
 

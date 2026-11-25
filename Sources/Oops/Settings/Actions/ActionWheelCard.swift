@@ -228,7 +228,7 @@ private struct TypedCentre: View {
                 // Clear glass, as on the real wheel, shows nothing over Settings' plain light page: the edge gives it its shape.
                 .glassEdge(Circle(), outside: true)
             Button(action: open) {
-                Label("Typed instruction", systemImage: "character.cursor.ibeam").font(.system(size: 12, weight: .medium))
+                Label("Typed instruction", systemImage: "keyboard").font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.settingsGlass).controlSize(.small)
             .offset(y: 80)
