@@ -10,12 +10,12 @@ import Testing
     }
 
     @Test func `same as fix names Fix's model at its lightest level`() {
-        #expect(store().runsWithSummary(.sameAsFix) == "Same as Fix · Haiku 5.5 · Low")
+        #expect(store().runsWithSummary(.sameAsFix).text == "Same as Fix · Haiku 5.5 · Low")
     }
 
     @Test func `a model no longer switched on follows Fix`() {
         let run = ActionRunsWith(model: .init(choice: .init(providerID: "claude-code", modelID: "opus"), effort: "high"))
-        #expect(store().runsWithSummary(run).hasPrefix("Same as Fix"))
+        #expect(store().runsWithSummary(run).sameAsFix)
     }
 
     @Test func `a saved model whose catalog hasn't loaded is named, not called Same as Fix`() {
@@ -23,8 +23,8 @@ import Testing
         store.setShown("preview-groq", model: "llama", true)
         let run = ActionRunsWith(model: .init(choice: .init(providerID: "preview-groq", modelID: "llama")))
         #expect(store.actionModel(run.model)?.followsFix == false)
-        #expect(!store.runsWithSummary(run).hasPrefix("Same as Fix"))
-        #expect(store.runsWithSummary(run).contains(ModelSelection.modelName("llama")))
+        #expect(!store.runsWithSummary(run).sameAsFix)
+        #expect(store.runsWithSummary(run).model == ModelSelection.modelName("llama"))
     }
 
     @Test func `the agent's model falls back to the preferred one`() {
