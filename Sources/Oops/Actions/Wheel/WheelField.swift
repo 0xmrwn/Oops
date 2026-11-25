@@ -47,7 +47,7 @@ private final class FieldPanel: NSPanel {
     }
 
     static func frame(hub: CGPoint) -> CGRect {
-        CGRect(x: hub.x - WheelLayout.field / 2 + WheelLayout.fieldText, y: hub.y - 17, width: WheelLayout.field - WheelLayout.drop - 14, height: 34)
+        CGRect(x: hub.x - WheelLayout.field / 2 + WheelLayout.fieldText, y: hub.y - 17, width: WheelLayout.fieldTextWidth, height: 34)
     }
 
     func show() {

@@ -103,7 +103,7 @@ extension WheelController {
 
     private func submitField(_ text: String) {
         let effects = wheel.submit(text)
-        if effects.contains(where: { if case .run(.typed) = $0 { true } else { false } }) { learnedTyping() }
+        if effects.contains(where: { if case .run(.typed) = $0 { true } else { false } }) { Self.learnedTyping() }
         apply(effects)
     }
 

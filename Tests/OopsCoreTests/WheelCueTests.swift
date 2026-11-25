@@ -32,8 +32,9 @@ struct WheelCueTests {
         var motion = teaching()
         run(&motion, to: 0.34)
         #expect(motion.hint.target == 0 && motion.glance.target == 0)
+        #expect(!motion.cueSeen)
         run(&motion, to: 0.36)
-        #expect(motion.hint.target == 1 && motion.cueWords)
+        #expect(motion.hint.target == 1 && motion.cueWords && motion.cueSeen)
         run(&motion, to: 0.44)
         #expect(motion.glance.target == 0)
         run(&motion, to: 0.46)
@@ -56,6 +57,14 @@ struct WheelCueTests {
         #expect(motion.glance.target == 1)
         run(&motion, to: 1.36)
         #expect(motion.glance.target == 0)
+    }
+
+    @Test func `a cue pointed away before its words appear is never seen`() {
+        var motion = teaching()
+        run(&motion, to: 0.2)
+        motion.setLive(.right)
+        run(&motion, to: 3)
+        #expect(!motion.cueSeen && motion.hint.x < 0.01)
     }
 
     @Test func `pointing clears it at once, and it doesn't come back`() {
@@ -95,12 +104,15 @@ struct WheelCueTests {
         for _ in 0 ..< 60 { motion.step(frame) }
         motion.beginTyping()
         #expect(motion.fieldReveal == 0)
-        let start = WheelLayout.hub.x - WheelLayout.field / 2 + WheelLayout.fieldText
+        let start = WheelLayout.hub.x - WheelLayout.field / 2 + WheelLayout.fieldText, end = start + WheelLayout.fieldTextWidth
         var hidden = 0
         for _ in 0 ..< 120 {
             motion.step(frame)
             if motion.fieldReveal == 0 { hidden += 1 }
-            if motion.fieldReveal > 0 { #expect(motion.centrePoint.x - motion.centreSize.width / 2 < start - 4, "words only inside the glass") }
+            if motion.fieldReveal > 0 {
+                #expect(motion.centrePoint.x - motion.centreSize.width / 2 < start - 2, "the words' start is inside the glass")
+                #expect(motion.centrePoint.x + motion.centreSize.width / 2 > end + 2, "and so is their end")
+            }
         }
         // The glass takes more than 100 ms to reach the words' start, which they used to show at from the first key.
         #expect(hidden > 12)

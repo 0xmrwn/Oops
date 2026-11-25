@@ -159,7 +159,7 @@ import QuartzCore
         placed = true; shown = true
         panel.window.orderFrontRegardless()
         motion.open()
-        if wheel.canType, teachesTyping() {
+        if wheel.canType, Self.teachesTyping() {
             frame.hintText = WheelTyping.hint(at: .root) ?? ""
             motion.teach(opened: (now - openedAt) * Self.pace)
             log(["wheel": "cue"])
@@ -182,7 +182,9 @@ import QuartzCore
         frames += 1; longest = max(longest, now - lastTick)
         lastTick = now
         apply(wheel.advance(to: now))
+        let unseen = !motion.cueSeen
         motion.step(dt)
+        if unseen, motion.cueSeen { Self.countCueOpen() }
         frame.motion = motion
         if field.shown { field.panel.window.alphaValue = motion.fieldReveal }
         if !settledTold, motion.settled {

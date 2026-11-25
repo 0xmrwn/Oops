@@ -48,6 +48,8 @@ public struct WheelMotion: Equatable, Sendable {
     /// While the wheel teaches its typed centre (`WheelCue`): the eyes' one glance down at the words, and whether the
     /// words are the cue's own.
     public private(set) var glance = WheelSpring(), cueWords = false
+    /// The cue's words have appeared in this opening: only then does it count as one of the cue's opens.
+    public private(set) var cueSeen = false
     /// What the centre shows once a petal has flowed into it.
     public private(set) var symbol: String?
     var cues: [Pending] = []
@@ -67,6 +69,7 @@ public struct WheelMotion: Equatable, Sendable {
         typing = false
         hint.target = 0
         stopTeaching()
+        cueSeen = false
         bloomed = false
         symbol = nil
         iconMix.target = 0
@@ -185,11 +188,12 @@ public struct WheelMotion: Equatable, Sendable {
     /// How far the centre has widened into its field, 0 to 1.
     public var fieldOpen: Double { min(1, max(0, (width.x - WheelLayout.drop) / (WheelLayout.field - WheelLayout.drop))) }
 
-    /// How much the field's words show: nothing until the widening glass has passed where they start, so the first
-    /// letters never stand on the page ahead of it.
+    /// How much the field's words show: nothing until the widening glass covers both ends of where they run, so no
+    /// letter ever stands on the page ahead of it.
     public var fieldReveal: Double {
-        let edge = centrePoint.x - centreSize.width / 2, start = WheelLayout.hub.x - WheelLayout.field / 2 + WheelLayout.fieldText
-        return min(1, max(0, (start - 4 - edge) / 10))
+        let start = WheelLayout.hub.x - WheelLayout.field / 2 + WheelLayout.fieldText, end = start + WheelLayout.fieldTextWidth
+        let left = centrePoint.x - centreSize.width / 2, right = centrePoint.x + centreSize.width / 2
+        return min(1, max(0, min(start - 2 - left, right - end - 2) / 6))
     }
 
     /// The chosen petal flows into the centre, which shows its symbol; the rest of its ring goes back.
@@ -306,6 +310,7 @@ public struct WheelMotion: Equatable, Sendable {
         case .centreLeaves: present.target = 0
         case let .words(on):
             cueWords = true
+            cueSeen = cueSeen || on
             hintLeaving = !on
             hint.target = on ? 1 : 0
         case let .glance(on): glance.target = on ? 1 : 0
