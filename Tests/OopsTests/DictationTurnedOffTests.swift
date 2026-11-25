@@ -8,7 +8,7 @@ import XCTest
     private let notes = TurnedOffApp(name: "Notes", bundleID: "com.apple.Notes")
     private var recorded: [String] = []
     private var history: DictationSession.History {
-        DictationSession.History(model: { nil }, record: { [weak self] text, _, _ in self?.recorded.append(text) },
+        DictationSession.History(model: { nil }, record: { [weak self] text, _, _, _ in self?.recorded.append(text) },
                                  replaceLast: { _ in }, last: { $0 })
     }
 
