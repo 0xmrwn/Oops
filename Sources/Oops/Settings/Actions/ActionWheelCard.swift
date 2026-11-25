@@ -147,7 +147,9 @@ struct ActionWheelCard: View {
     }
 
     private func drag(_ action: Action) -> some Gesture {
-        DragGesture(minimumDistance: 8)
+        // Measured in the window: the pill's own space moves with the offset this drag sets, so each change would come
+        // back short by the last one and the pill would jump back and forth.
+        DragGesture(minimumDistance: 8, coordinateSpace: .global)
             .onChanged { value in
                 if dragging == nil {
                     pressedAt = CGPoint(x: NSEvent.mouseLocation.x - value.translation.width, y: NSEvent.mouseLocation.y + value.translation.height)
