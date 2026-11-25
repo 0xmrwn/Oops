@@ -216,20 +216,18 @@ import SwiftUI
             return phase == .recording
         default: break
         }
-        let modifiers = Shortcut.modifiers(event.modifierFlags)
-        let pressed = Shortcut(keyCode: UInt32(event.keyCode), modifiers: modifiers)
         if phase == .recording {
-            if event.keyCode == 53, modifiers == 0 { cancelRecording(); return true }
-            guard !event.isARepeat else { return true }
-            press(event.keyCode)
-            // A shortcut needs ⌃, ⌥ or ⌘; Shift alone would take a letter from every text field.
-            guard modifiers & UInt32(controlKey | optionKey | cmdKey) != 0 else {
-                if Sounds.enabled { NSSound.beep() }
-                return true
+            let capture = ShortcutCapture(keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.isARepeat)
+            capture.log(action, event: event)
+            switch capture {
+            case .cancel: cancelRecording()
+            case .ignore: break
+            case .refuse: press(event.keyCode); if Sounds.enabled { NSSound.beep() }
+            case .record(let chord): press(event.keyCode); record(chord)
             }
-            record(pressed)
             return true
         }
+        let pressed = Shortcut(keyCode: UInt32(event.keyCode), modifiers: Shortcut.modifiers(event.modifierFlags))
         // The shortcut's key lights the moment it goes down, whatever is held with it.
         if UInt32(event.keyCode) == shortcut?.keyCode, !event.isARepeat { press(event.keyCode) }
         guard pressed == shortcut else { return false }

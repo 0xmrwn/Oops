@@ -12,6 +12,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - Settings → Fix → Apps is now Settings → General → Turn off in apps, and lists the apps you dictate in as well as those you fix in. Its row shows how many apps Oops is off in.
 - Recent dictations in the menu bar menu shows each one's app icon and, under its words, how long ago you said it, how long you spoke and how many words it has. Settings → Dictate → History shows how long you spoke too. Dictations from before this update show what they have.
 - In Settings → Dictate, the ⓘ beside Animation shows the drop's animation you chose moving as it does while you speak, without dictating.
+- When another app also uses your Dictate or Fix shortcut, letting go of the keys now ends a dictation you held down, and the next press works, instead of Oops waiting for a release that never came.
 
 ## 0.2.0
 

@@ -203,17 +203,17 @@ private struct ShortcutRecorder: View {
         recording = true
         ShortcutSettings.shared.pause()
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
-            let modifiers = Shortcut.modifiers(event.modifierFlags)
-            if event.type == .flagsChanged { held = modifiers; return nil }
-            if event.keyCode == 53, modifiers == 0 { stop(); return nil }
-            // A shortcut needs ⌃, ⌥ or ⌘; Shift alone would take a letter from every text field.
-            guard modifiers & UInt32(controlKey | optionKey | cmdKey) != 0 else {
-                if Sounds.enabled { NSSound.beep() }
-                return nil
+            if event.type == .flagsChanged { held = Shortcut.modifiers(event.modifierFlags); return nil }
+            let capture = ShortcutCapture(keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.isARepeat)
+            capture.log(action, event: event)
+            switch capture {
+            case .cancel: stop()
+            case .ignore: break
+            case .refuse: if Sounds.enabled { NSSound.beep() }
+            case .record(let chord):
+                do { try ShortcutSettings.shared.set(action, chord) } catch { self.error = error.localizedDescription }
+                stop()
             }
-            do { try ShortcutSettings.shared.set(action, Shortcut(keyCode: UInt32(event.keyCode), modifiers: modifiers)) }
-            catch { self.error = error.localizedDescription }
-            stop()
             return nil
         }
     }
