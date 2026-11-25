@@ -58,7 +58,7 @@ struct RunsWithValue: View {
             }
             .secondaryText()
         } else if summary.agent {
-            // An agent with no tools still says so, or it would read as a plain model through the same provider.
+            // An agent with every switch off still says it is one, or it would read as a plain model through the same provider.
             if summary.permissions.isEmpty { Text("Agent").secondaryText() } else { permissions }
         }
     }

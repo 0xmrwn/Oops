@@ -27,6 +27,8 @@ public struct ActionRunSummary: Equatable, Sendable {
 
     /// The provider whose mark goes before the model: Claude Code's for an agent.
     public let providerID: String?
+    /// That provider's name, for VoiceOver: the mark that shows it is not read.
+    public let provider: String?
     public let model: String?
     public let effort: String?
     public let sameAsFix: Bool
@@ -37,15 +39,16 @@ public struct ActionRunSummary: Equatable, Sendable {
 
     /// A model with no levels has none; Same as Fix names Fix's model at the lightest level it runs at, and with no
     /// model at all is Same as Fix alone.
-    public static func model(sameAsFix: Bool, providerID: String?, name: String?, effort: String?) -> Self {
-        .init(providerID: providerID, model: name, effort: effort, sameAsFix: sameAsFix, agent: false, permissions: [], problem: nil)
+    public static func model(sameAsFix: Bool, providerID: String?, provider: String?, name: String?, effort: String?) -> Self {
+        .init(providerID: providerID, provider: provider, model: name, effort: effort, sameAsFix: sameAsFix, agent: false, permissions: [],
+              problem: nil)
     }
 
     public static func agent(model: String?, effort: String?, _ run: ActionAgentRun, problem: String?) -> Self {
         let permissions: [Permission] = [run.searchWeb ? .web : nil, run.runCommands ? .commands : nil, run.usesSetup ? .setup : nil]
             .compactMap(\.self)
-        return .init(providerID: "claude-code", model: model, effort: effort, sameAsFix: false, agent: true, permissions: permissions,
-                     problem: problem)
+        return .init(providerID: "claude-code", provider: "Claude Code", model: model, effort: effort, sameAsFix: false, agent: true,
+                     permissions: permissions, problem: problem)
     }
 
     public var level: String? { effort.map(ModelSelection.effortName) }
@@ -61,14 +64,16 @@ public struct ActionRunSummary: Equatable, Sendable {
     /// One sentence for VoiceOver, what stops the run first: "Claude Code is signed out; Sonnet 5.5, Extra High, with
     /// Claude Code; can search the web and use your setup".
     public var spoken: String {
-        let named = [model, level].compactMap(\.self)
+        var named = [model, level].compactMap(\.self)
+        if !named.isEmpty, let provider { named.append("with " + provider) }
         guard agent else {
             guard sameAsFix else { return named.joined(separator: ", ") }
             return named.isEmpty ? "Same as Fix" : (named + ["same as Fix"]).joined(separator: ", ")
         }
         let phrases = permissions.map(\.phrase)
         let tools = phrases.count < 2 ? phrases.first : phrases.dropLast().joined(separator: ", ") + " and " + phrases[phrases.count - 1]
-        let sentence = (named + ["with Claude Code"]).joined(separator: ", ") + "; " + (tools.map { "can " + $0 } ?? "no tools")
+        // With every switch off the agent still reads and edits inside its own run folder, so nothing is claimed.
+        let sentence = (named.isEmpty ? ["Claude Code"] : named).joined(separator: ", ") + (tools.map { "; can " + $0 } ?? "")
         guard let problem else { return sentence }
         let state = problem.prefix(1).lowercased() + problem.dropFirst()
         return "Claude Code \(state.hasPrefix("can") ? "" : "is ")\(state); \(sentence)"

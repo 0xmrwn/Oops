@@ -88,8 +88,9 @@ extension ProviderStore {
         switch runsWith.kind {
         case .model:
             let target = actionModel(runsWith.model)
-            return .model(sameAsFix: target?.followsFix ?? true, providerID: target?.choice.providerID, name: target.map { modelName($0.choice) },
-                          effort: target?.settings.effort)
+            let providerID = target?.choice.providerID
+            return .model(sameAsFix: target?.followsFix ?? true, providerID: providerID, provider: providerID.flatMap(provider)?.name,
+                          name: target.map { modelName($0.choice) }, effort: target?.settings.effort)
         case .agent:
             let model = agentModel(runsWith.agent)
             return .agent(model: model?.name, effort: model.flatMap { ModelSelection.nearestEffort(runsWith.agent.effort, in: $0) },

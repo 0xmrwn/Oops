@@ -2,8 +2,8 @@ import XCTest
 @testable import OopsCore
 
 final class ActionRunSummaryTests: XCTestCase {
-    private func model(fix: Bool = false, _ name: String?, _ effort: String?) -> ActionRunSummary {
-        .model(sameAsFix: fix, providerID: "claude-code", name: name, effort: effort)
+    private func model(fix: Bool = false, provider: String? = "Claude", _ name: String?, _ effort: String?) -> ActionRunSummary {
+        .model(sameAsFix: fix, providerID: "claude-code", provider: provider, name: name, effort: effort)
     }
 
     private func agent(web: Bool = false, commands: Bool = false, setup: Bool = false, problem: String? = nil) -> ActionRunSummary {
@@ -13,7 +13,7 @@ final class ActionRunSummaryTests: XCTestCase {
     func testSameAsFix() {
         let fix = model(fix: true, "Haiku 5.5", "low")
         XCTAssertEqual(fix.text, "Same as Fix · Haiku 5.5 · Low")
-        XCTAssertEqual(fix.spoken, "Haiku 5.5, Low, same as Fix")
+        XCTAssertEqual(fix.spoken, "Haiku 5.5, Low, with Claude, same as Fix")
         XCTAssertEqual(model(fix: true, nil, nil).text, "Same as Fix")
         XCTAssertEqual(model(fix: true, nil, nil).spoken, "Same as Fix")
     }
@@ -22,14 +22,15 @@ final class ActionRunSummaryTests: XCTestCase {
         let chosen = model("GPT-6.1 Sol", "high")
         XCTAssertEqual(chosen.level, "High")
         XCTAssertEqual(chosen.text, "GPT-6.1 Sol · High")
-        XCTAssertEqual(chosen.spoken, "GPT-6.1 Sol, High")
+        XCTAssertEqual(chosen.spoken, "GPT-6.1 Sol, High, with Claude")
         XCTAssertFalse(chosen.agent)
         XCTAssertTrue(chosen.permissions.isEmpty)
     }
 
     func testModelWithoutLevels() {
         XCTAssertEqual(model("qwen-4-8b", nil).text, "qwen-4-8b")
-        XCTAssertEqual(model("qwen-4-8b", nil).spoken, "qwen-4-8b")
+        XCTAssertEqual(model("qwen-4-8b", nil).spoken, "qwen-4-8b, with Claude")
+        XCTAssertEqual(model(provider: nil, "qwen-4-8b", nil).spoken, "qwen-4-8b")
     }
 
     func testAgentWithoutPermissions() {
@@ -37,7 +38,7 @@ final class ActionRunSummaryTests: XCTestCase {
         XCTAssertTrue(none.agent)
         XCTAssertTrue(none.permissions.isEmpty)
         XCTAssertEqual(none.text, "Claude Code · Sonnet 5.5 · Extra High")
-        XCTAssertEqual(none.spoken, "Sonnet 5.5, Extra High, with Claude Code; no tools")
+        XCTAssertEqual(none.spoken, "Sonnet 5.5, Extra High, with Claude Code")
     }
 
     func testAgentPermissions() {
