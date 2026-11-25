@@ -1,3 +1,4 @@
+import AppKit
 import OopsCore
 import SwiftUI
 
@@ -8,11 +9,12 @@ struct ProviderSections: View {
     let preferences: Preferences
 
     var body: some View {
+        let voice = store.speechOnlyID
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Provider.Category.allCases, id: \.self) { category in
                 if category != .account { SettingsDivider().padding(.vertical, 8) }
                 heading(category).padding(.top, category == .account ? 10 : 2)
-                ForEach(store.providers.filter { $0.category == category }) { entry($0) }
+                ForEach(store.providers.filter { $0.category == category }) { entry($0, voice: voice) }
                 switch category {
                 case .account: EmptyView()
                 case .agent: if store.provider("claude-code") == nil { ClaudeCodeEntry(store: store) }
@@ -24,15 +26,15 @@ struct ProviderSections: View {
         .settingsSurface()
     }
 
-    @ViewBuilder private func entry(_ provider: Provider) -> some View {
-        let health = store.health[provider.id]
-        // A ChatGPT sign-in needing renewal is on record: it stays a row, its page says to sign in again.
-        if provider.kind == .chatGPT, !ProviderOverview.isConfigured(.chatGPT, chatGPTOnRecord: store.chatGPTOnRecord) {
+    @ViewBuilder private func entry(_ provider: Provider, voice: String?) -> some View {
+        // Only a sign-in known to be missing gets the button. One being read shows as Checking, and one needing
+        // renewal is on record: both stay a row, and the page says to sign in again.
+        if provider.kind == .chatGPT, store.chatGPTOnRecord == false {
             ChatGPTEntry(preferences: preferences)
-        } else if provider.kind == .claudeCode, health == .notInstalled || health == .signedOut {
+        } else if provider.kind == .claudeCode, ClaudeCodeEntry.need(added: true, health: store.health[provider.id]) != nil {
             ClaudeCodeEntry(store: store)
         } else {
-            ProviderRow(provider: provider, status: store.status(provider.id), voice: store.speechOnly(provider, local: .shared)) {
+            ProviderRow(provider: provider, status: store.status(provider.id), voice: provider.id == voice) {
                 store.openProvider = provider.id
             }
         }
@@ -51,29 +53,49 @@ struct ProviderSections: View {
     }
 }
 
-/// ChatGPT until signed in: OpenAI's own button, which signs in from here.
+/// ChatGPT until signed in: OpenAI's own button, which signs in from here, and Cancel while the browser has it, so a
+/// closed tab never leaves the button waiting.
 private struct ChatGPTEntry: View {
     @ObservedObject var preferences: Preferences
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ContinueWithChatGPTButton(loading: preferences.signingIn, listed: true) { preferences.signInWithChatGPT() }
+            HStack(spacing: 12) {
+                ContinueWithChatGPTButton(loading: preferences.signingIn, listed: true) { preferences.signInWithChatGPT() }
+                if preferences.signingIn { Button("Cancel") { preferences.cancelSignIn() }.buttonStyle(.settingsGlass) }
+            }
             if let message = preferences.chatGPTMessage { ChatGPTNotice(message) }
         }
         .padding(.vertical, 6)
     }
 }
 
-/// Claude Code until it works: Anthropic's orange button, beside what is wrong once it has been added. It opens
-/// Claude Code's page, where installing and signing in happen.
-private struct ClaudeCodeEntry: View {
+/// Claude Code until it works: Anthropic's orange button, named for what it does, beside what is wrong once added.
+struct ClaudeCodeEntry: View {
     let store: ProviderStore
 
+    /// Not in Oops yet: add it, which checks it. Not installed: the setup page in the browser. Signed out: sign in, in
+    /// Terminal. Nil once it works or is being checked, when it is a row.
+    static func need(added: Bool, health: ProviderStore.Health?) -> ClaudeCodeButton.Need? {
+        guard added else { return .add }
+        switch health {
+        case .notInstalled?: return .install
+        case .signedOut?: return .signIn
+        default: return nil
+        }
+    }
+
     var body: some View {
-        let added = store.provider("claude-code") != nil
+        let added = store.provider("claude-code") != nil, need = Self.need(added: added, health: store.health["claude-code"]) ?? .add
         HStack(spacing: 12) {
-            ClaudeCodeButton(need: added && store.health["claude-code"] == .signedOut ? .signIn : .install) {
-                store.openProvider = store.addClaudeCode()
+            ClaudeCodeButton(need: need) {
+                switch need {
+                case .add: _ = store.addClaudeCode()
+                case .install: NSWorkspace.shared.open(ClaudeCodeSignIn.install)
+                case .signIn: store.signInToClaude()
+                }
+                // Its page too, where Check again and Remove are once it's back from the browser or Terminal.
+                store.openProvider = "claude-code"
             }
             Spacer(minLength: 8)
             if added, let problem = store.problem("claude-code") { StatusBadge(problem, ok: false).fixedSize() }

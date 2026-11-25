@@ -20,6 +20,8 @@ import OopsCore
     /// Whether a ChatGPT sign-in is on record (signed in, or needing to sign in again), as read from this Mac's
     /// Keychain and profile; nil until read.
     private(set) var chatGPTOnRecord: Bool?
+    /// The OpenAI provider with a key, noted where keys change, so drawing reads no Keychain.
+    private(set) var openAIKeyID: String?
     /// Which provider's detail Providers shows; nil shows the list.
     var openProvider: String?
     /// An API provider being added: shown like a detail page, saved only once Add connects.
@@ -76,7 +78,10 @@ import OopsCore
         }
         for provider in providers where provider.kind != .chatGPT { health[provider.id] = .checking }
         resolve()
+        noteOpenAIKey()
     }
+
+    private func noteOpenAIKey() { if !preview { openAIKeyID = openAIProviders.first { !readKey($0.id).isEmpty }?.id } }
 
     private func save() {
         let identity = correctionIdentity
@@ -193,6 +198,7 @@ import OopsCore
         openProvider = provider.id
         draft = nil
         save()
+        noteOpenAIKey()
     }
 
     /// Applies edits that connected. A nil key keeps the saved one; an empty one removes it. Nothing
@@ -203,6 +209,7 @@ import OopsCore
             if key.isEmpty { KeyStore.remove(account: id) } else { try writeKey(key, id) }
             keyRevision += 1
             correctionKeyRevisions[id, default: 0] += 1
+            noteOpenAIKey()
         }
         edit(id) { $0.name = name; $0.baseURL = endpoint; $0.shownModels.removeAll { model in !models.contains { $0.id == model } } }
         catalogs[id] = models
@@ -218,6 +225,7 @@ import OopsCore
         providers.removeAll { $0.id == id }
         catalogs[id] = nil; health[id] = nil
         resolve()
+        noteOpenAIKey()
     }
 
     func setShown(_ id: String, model: String, _ on: Bool) {
@@ -342,11 +350,11 @@ import OopsCore
         if DebugFlags.fullProviders {
             providers += [Provider(id: "preview-openai", kind: .api(preset: "openai"), name: "OpenAI", baseURL: "https://api.openai.com/v1"),
                           Provider(id: "preview-azure", kind: .api(preset: nil), name: "Azure OpenAI · West Europe production",
-                                   baseURL: "https://westeurope-prod.openai.azure.com/openai/v1")]
+                                   baseURL: "https://westeurope.openai.azure.com/v1")]
             health["preview-openai"] = .ready; health["preview-azure"] = .ready
         }
         switch DebugFlags.claudeCodeState {
-        case "notInstalled": health["claude-code"] = .notInstalled; claudeAccount = nil
+        case "notInstalled": health["claude-code"] = .notInstalled
         case "signedOut": health["claude-code"] = .signedOut; claudeAccount = nil
         case "missing": providers.removeAll { $0.id == "claude-code" }
         default: break

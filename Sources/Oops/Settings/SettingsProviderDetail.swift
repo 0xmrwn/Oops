@@ -112,10 +112,7 @@ private struct ClaudeConnectionCard: View {
         }
     }
 
-    private func signIn() {
-        if let executable = store.claudeExecutable, ClaudeCodeSignIn.open(executable, finished: { [store] in store.refreshClaude(force: true) }) { return }
-        store.refreshClaude(force: true)
-    }
+    private func signIn() { store.signInToClaude() }
 }
 
 /// Adds or edits an API provider. Nothing is saved until the endpoint answers with its models, so a

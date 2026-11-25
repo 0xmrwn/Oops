@@ -14,7 +14,8 @@ enum ProviderListItem {
 /// the Claude mark on Anthropic's orange (#d97757, the brand-guidelines accent in github.com/anthropics/skills).
 /// Ink is Anthropic's dark (#141413): white on that orange is 2.6:1, too faint for 15 pt text.
 struct ClaudeCodeButton: View {
-    enum Need { case install, signIn }
+    /// `add` puts Claude Code in Oops and opens its page; `install` opens the setup page in the browser.
+    enum Need { case add, install, signIn }
     let need: Need
     var loading = false
     let action: () -> Void
@@ -47,12 +48,16 @@ struct ClaudeCodeButton: View {
 
     private var title: String {
         if loading { return "Finish in your browser…" }
-        return need == .install ? "Install Claude Code" : "Sign in to Claude Code"
+        switch need {
+        case .add: return "Add Claude Code"
+        case .install: return "Install Claude Code"
+        case .signIn: return "Sign in to Claude Code"
+        }
     }
 
     private var accessibilityTitle: String {
         if loading { return "Signing in to Claude Code, finish in your browser" }
-        return need == .install ? "Install Claude Code (opens in browser)" : "Sign in to Claude Code"
+        return need == .install ? "Install Claude Code (opens in browser)" : title
     }
 }
 
