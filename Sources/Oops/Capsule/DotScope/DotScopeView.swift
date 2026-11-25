@@ -33,6 +33,7 @@ struct DotScopeView: NSViewRepresentable {
         view.drawPlate = drawPlate
         view.loudnessProvider = provider
         view.phase = phase
+        view.holdsStill = context.environment.voiceHeldStill
         return view
     }
 
@@ -43,6 +44,7 @@ struct DotScopeView: NSViewRepresentable {
         nsView.updateTuning(tuning)
         nsView.drawPlate = drawPlate
         nsView.phase = phase
+        nsView.holdsStill = context.environment.voiceHeldStill
         nsView.scheduleVisibilityRefresh()
     }
 }

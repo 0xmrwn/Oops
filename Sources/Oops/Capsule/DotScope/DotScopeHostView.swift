@@ -61,6 +61,15 @@ final class DotScopeHostView: NSView {
     }
 
     var reduceMotion = false
+    /// A still scope at the level it is given, for a preview under Reduce Motion: it settles at once and the display
+    /// link stays paused, so nothing draws again until it is let go.
+    var holdsStill = false {
+        didSet {
+            guard holdsStill != oldValue else { return }
+            if holdsStill, hasFittedInitialLayout { settleStill() }
+            updateAnimatingState()
+        }
+    }
     var useDemoVoice = false
     var loudnessProvider: (() -> Float)?
 
@@ -218,6 +227,9 @@ final class DotScopeHostView: NSView {
             if isFirstFit, phase == .idle {
                 settleIdleImmediately()
             }
+            if isFirstFit, holdsStill {
+                settleStill()
+            }
         }
         seedForSnapshotIfNeeded()
         updateAnimatingState()
@@ -248,6 +260,15 @@ final class DotScopeHostView: NSView {
                 reduceMotion: reduceMotion
             )
         }
+    }
+
+    /// Two seconds of the scope at its level now, at once, so a held scope shows where it would have come to rest.
+    private func settleStill() {
+        for _ in 0..<120 {
+            let (stage, visible, loudness) = simulationInputs()
+            simulation.advance(dt: 1.0 / 60.0, stage: stage, visible: visible, loudness: loudness, reduceMotion: reduceMotion)
+        }
+        renderCurrentFrame()
     }
 
     private func handlePhaseChange(from old: DotScopePhase, to next: DotScopePhase) {
@@ -299,7 +320,7 @@ final class DotScopeHostView: NSView {
     private func updateAnimatingState() {
         let visible = isEffectivelyVisible
         let wantsFrames: Bool
-        if !visible {
+        if !visible || holdsStill {
             wantsFrames = false
         } else {
             wantsFrames = switch phase {

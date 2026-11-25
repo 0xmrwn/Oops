@@ -80,7 +80,12 @@ struct DictateDropCard: View {
     var body: some View {
         VStack(spacing: 0) {
             SettingRow(symbol: "alternatingcurrent", title: "Animation") {
-                GlassChoice(title: "Animation", choices: Self.visualizers, selection: $visualizer)
+                HStack(spacing: 10) {
+                    InfoTip("Animation", "How the drop shows your voice while you dictate.") {
+                        AnimationPreview(kind: visualizer, label: Self.visualizers.first { $0.value == visualizer }?.label ?? "")
+                    }
+                    GlassChoice(title: "Animation", choices: Self.visualizers, selection: $visualizer)
+                }
             }
             SettingRow(symbol: "rectangle.bottomhalf.inset.filled", title: "Position") {
                 HStack(spacing: 10) {

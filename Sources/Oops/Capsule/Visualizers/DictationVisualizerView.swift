@@ -61,4 +61,7 @@ struct VoiceInk {
 extension EnvironmentValues {
     /// Whether the voice sits on regular glass, as the dictation drop's does, and so needs no halo.
     @Entry var voiceOnRegularGlass = false
+    /// Whether a voice that draws itself (Hex) holds still at the level it is given, as a preview does under Reduce
+    /// Motion, rather than drawing every frame.
+    @Entry var voiceHeldStill = false
 }
