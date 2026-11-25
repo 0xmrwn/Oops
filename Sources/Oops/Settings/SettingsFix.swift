@@ -44,8 +44,7 @@ struct FixPage: View {
             VStack(alignment: .leading, spacing: 14) {
                 shortcut("Fix text", action: .correct)
                 if let shortcutError {
-                    Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                        .fixedSize(horizontal: false, vertical: true)
+                    ShortcutErrorLine(error: shortcutError, action: .correct)
                 }
             }
             .settingsSurface()
@@ -150,6 +149,7 @@ private struct ShortcutRecorder: View {
     /// Modifiers held so far while recording.
     @State private var held: UInt32 = 0
     @State private var monitor: Any?
+    @State private var probe: ShortcutConflictProbe?
     @State private var hovering = false
 
     private var current: Shortcut? { ShortcutSettings.shared.shortcut(action) }
@@ -186,7 +186,13 @@ private struct ShortcutRecorder: View {
             if note.object as? SettingsTab == action.tab, action.isSwitch, !recording { start() }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
+        .onReceive(NotificationCenter.default.publisher(for: .shortcutUseAnyway)) { note in
+            if note.object as? ShortcutSettings.Action == action, let chord = ShortcutInUse.shared.chords[action] { save(chord) }
+        }
         .onDisappear { stop() }
+        #if DEBUG
+        .onAppear { if DebugFlags.shortcutConflictPreview, action == .dictate { taken(Shortcut(keyCode: 2, modifiers: Shortcut.hyper)) } }
+        #endif
     }
 
     private func keycap(_ key: String) -> some View {
@@ -199,28 +205,42 @@ private struct ShortcutRecorder: View {
     }
 
     private func start() {
-        error = nil; held = 0
+        error = nil; held = 0; ShortcutInUse.shared.chords[action] = nil
         recording = true
         ShortcutSettings.shared.pause()
+        probe = ShortcutConflictProbe(held: { held }, found: taken)
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             if event.type == .flagsChanged { held = Shortcut.modifiers(event.modifierFlags); return nil }
+            probe?.heard(event.keyCode)
             let capture = ShortcutCapture(keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.isARepeat)
             capture.log(action, event: event)
             switch capture {
             case .cancel: stop()
             case .ignore: break
             case .refuse: if Sounds.enabled { NSSound.beep() }
-            case .record(let chord):
-                do { try ShortcutSettings.shared.set(action, chord) } catch { self.error = error.localizedDescription }
-                stop()
+            case .record(let chord): save(chord)
             }
             return nil
         }
     }
 
+    private func save(_ chord: Shortcut) {
+        do { try ShortcutSettings.shared.set(action, chord); error = nil; ShortcutInUse.shared.chords[action] = nil }
+        catch { self.error = error.localizedDescription }
+        stop()
+    }
+
+    /// Another app took `chord` before it reached the recorder: said on the row, recording on for other keys.
+    private func taken(_ chord: Shortcut) {
+        ShortcutInUse.shared.chords[action] = chord
+        error = ShortcutInUse.settings(chord)
+        ShortcutInUse.announce(ShortcutInUse.settings(chord))
+    }
+
     private func stop() {
         guard recording else { return }
         if let monitor { NSEvent.removeMonitor(monitor) }
+        probe?.stop(); probe = nil
         monitor = nil; recording = false; held = 0
         ShortcutSettings.shared.resume()
     }

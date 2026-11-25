@@ -109,7 +109,7 @@ struct OnboardingView: View {
                 AccessibilityStepView(step: accessibility, next: advance).transition(.opacity)
             case .tryIt:
                 if speaking || !asksFor(.fix) {
-                    DictateTryView(step: dictateTry, fix: tryIt, next: advance).transition(.opacity)
+                    DictateTryView(step: dictateTry, fix: tryIt, next: advance, change: changeDictateShortcut).transition(.opacity)
                 } else {
                     TryItStepView(step: tryIt, next: { tries.contains(.dictate) ? speak() : advance() }).transition(.opacity)
                 }
@@ -200,6 +200,12 @@ struct OnboardingView: View {
         guard let back = detour else { return advance() }
         detour = nil
         withAnimation(.easeInOut(duration: 0.45)) { step = back }
+    }
+
+    /// Try it's way back when nothing reached Oops: the Shortcut step, recording Dictate's keys again.
+    private func changeDictateShortcut() {
+        dictateShortcut.change()
+        withAnimation(.easeInOut(duration: 0.45)) { step = .shortcut }
     }
 
     /// Set up: the drop appears exactly over the finale's own, which hides, then flies to the step.

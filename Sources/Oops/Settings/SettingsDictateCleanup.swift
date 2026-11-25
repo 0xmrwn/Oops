@@ -47,8 +47,7 @@ struct DictateCleanupCard: View {
                 }
             }
             if let shortcutError {
-                Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                    .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
+                ShortcutErrorLine(error: shortcutError, action: .dictateAndCleanUp).padding(.bottom, 10)
             }
         }
         .padding(.vertical, -6)

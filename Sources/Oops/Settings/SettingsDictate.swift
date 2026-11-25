@@ -23,8 +23,7 @@ struct DictateShortcutCard: View {
                 ShortcutControl(title: "Dictate", action: .dictate, error: $shortcutError)
             }
             if let shortcutError {
-                Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                    .fixedSize(horizontal: false, vertical: true).padding(.bottom, 10)
+                ShortcutErrorLine(error: shortcutError, action: .dictate).padding(.bottom, 10)
             }
             // Once refused, the system never asks again: this is the way back.
             if ShortcutSettings.shared.shortcut(.dictate) != nil, DictationMicrophoneAccess.current == .denied {

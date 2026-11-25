@@ -108,8 +108,16 @@ struct ShortcutStepView: View {
             keys.padding(.top, 4)
             Group {
                 if let error = step?.error {
-                    Text(error).font(.system(size: 13, weight: .medium)).multilineTextAlignment(.center).lineLimit(2)
-                        .frame(maxWidth: 440).opacity(0.85).transition(.opacity)
+                    HStack(spacing: 12) {
+                        Text(error).font(.system(size: 13, weight: .medium)).multilineTextAlignment(.center).lineLimit(2)
+                            .frame(maxWidth: 440).opacity(0.85)
+                        // The keys may be the person's own keyboard tool's, which looks the same from here.
+                        if let step, let chord = step.inUse {
+                            Button("Use anyway", action: step.useAnyway).buttonStyle(.settingsGlass).controlSize(.small)
+                                .help("Save \(chord.label) anyway")
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
             .frame(height: 34)

@@ -69,6 +69,8 @@ enum DebugFlags {
     /// `-DebugShortcuts YES`: every key-down a shortcut recorder hears goes to the unified log (Shortcuts) with its key
     /// code, modifiers and the process that posted it, to trace a recorded shortcut that differs from the keys pressed.
     static var debugShortcuts: Bool { bool("DebugShortcuts") }
+    /// `-ShortcutConflictPreview YES`: Settings → Dictate's shortcut row opens saying another app is using ✦ Hyper-D.
+    static var shortcutConflictPreview: Bool { bool("ShortcutConflictPreview") }
     /// Keeps a check's dictation history apart from the real one.
     static var dictationHistoryDirectory: URL? { string("DictationHistoryDirectory").map { URL(fileURLWithPath: $0) } }
     /// `settings`, `capsule` or `editor`: drives one surface on a loop for `fixtures/perf/run.sh`.
