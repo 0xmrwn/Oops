@@ -49,7 +49,8 @@ import OopsCore
             guard let self, Self.labIsInFront(), let lab = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return }
             guard info["state"] == "on" else { AppScope.shared.set(lab, on: false); return }
             let model = self.session.capsule.model, shown = model.label
-            guard case .turnOn(let app)? = model.remedy, let press = model.turnOn else {
+            // The shared drop can still hold another app's remedy: only the lab's own is pressed.
+            guard case .turnOn(let app)? = model.remedy, app.bundleID == lab, let press = model.turnOn else {
                 AppScope.shared.set(lab, on: true)
                 return Self.record(["pressed": "false", "shown": shown], to: "turn-on.jsonl")
             }
@@ -105,6 +106,7 @@ import OopsCore
         case .inserted: ["outcome": "inserted"]
         case .unconfirmed: ["outcome": "unconfirmed"]
         case .refused(let refusal): ["outcome": "refused", "reason": refusal.rawValue]
+        case .turnedOff: ["outcome": "refused", "reason": InsertRefusal.appTurnedOff.rawValue]
         }
         record(entry, to: "inserts.jsonl")
     }

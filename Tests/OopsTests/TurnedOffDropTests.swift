@@ -46,10 +46,19 @@ import Testing
         #expect(ActionFailure.capture(CorrectionError.message("No editable composer has focus.")).reason == .capture)
     }
 
-    @Test func `Dictate names the app in front, or says this app`() {
-        #expect(DictationSession.ending(.refused(.appTurnedOff), turnedOff: notes) == .failed(.turnedOff(notes)))
+    @Test func `Dictate names the app its write was refused in`() {
+        #expect(DictationSession.ending(.turnedOff(notes)) == .failed(.turnedOff(notes)))
         #expect(DictationDropState.failed(.turnedOff(notes)).text == "Off in Notes")
-        #expect(DictationDropState.failed(.turnedOff(nil)).text == "Turned off in this app")
-        #expect(DictationSession.ending(.refused(.appDenied), turnedOff: notes) == .failed(.appDenied))
+        #expect(DictationSession.ending(.refused(.appDenied)) == .failed(.appDenied))
+    }
+
+    @Test func `Dictate's drop keeps Turn on inside the shelf with a long name`() {
+        let long = TurnedOffApp(name: "Microsoft Outlook Web Companion Preview Edition", bundleID: "com.example.long")
+        let layout = DictationCapsuleLayout(.failed(.turnedOff(long)), action: true)
+        #expect(layout.width <= DropShelf.width)
+        #expect(layout.text.hasPrefix("Off in ") && layout.text.hasSuffix("…"))
+        let short = DictationCapsuleLayout(.failed(.turnedOff(notes)), action: true)
+        #expect(short.text == "Off in Notes")
+        #expect(short.width < layout.width)
     }
 }

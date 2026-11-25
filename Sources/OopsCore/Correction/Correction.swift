@@ -25,8 +25,8 @@ public enum CorrectionError: LocalizedError, Equatable {
     public var reason: Reason? { if case let .failure(reason, _) = self { return reason }; return nil }
 }
 
-/// An app Oops is turned off in, as Settings and the menu bar name it.
-public struct TurnedOffApp: Equatable, Sendable {
+/// An app Oops is turned off in, as Settings and the menu bar name it; thrown by a write refused there.
+public struct TurnedOffApp: Error, Equatable, Sendable {
     public let name: String
     public let bundleID: String
     public init(name: String, bundleID: String) { self.name = name; self.bundleID = bundleID }

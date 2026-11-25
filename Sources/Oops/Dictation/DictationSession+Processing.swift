@@ -61,7 +61,10 @@ extension DictationSession {
         if outcome != .refused(.cancelled) {
             lastTranscript = polished
             // Words refused at a password field or in an app kept from writing never reach the disk.
-            if ![.refused(.secureField), .refused(.appDenied), .refused(.appTurnedOff)].contains(outcome) {
+            let kept = if case .turnedOff = outcome { false } else {
+                ![.refused(.secureField), .refused(.appDenied), .refused(.appTurnedOff)].contains(outcome)
+            }
+            if kept {
                 history.record(polished, language, historyModel, Int(seconds * 1_000))
             }
         }
@@ -73,18 +76,18 @@ extension DictationSession {
         if cleanupFailed, [.inserted, .unconfirmed].contains(outcome) { return .failed(.cleanup) }
         // The cleanup replaces the text later, so only a field that read the text back offers it.
         if outcome == .inserted, offersCleanup { return .offer(polished) }
-        return Self.ending(outcome, turnedOff: outcome == .refused(.appTurnedOff) ? AppScope.turnedOffInFront : nil)
+        return Self.ending(outcome)
     }
 
     /// What an insert's outcome shows: nothing once written, Copy where no text field had focus, and why
-    /// otherwise; `app` names the app Oops is turned off in.
-    static func ending(_ outcome: InsertOutcome, turnedOff app: TurnedOffApp? = nil) -> Ending {
+    /// otherwise.
+    static func ending(_ outcome: InsertOutcome) -> Ending {
         switch outcome {
         case .inserted, .unconfirmed, .refused(.cancelled), .refused(.empty): .done
         case .refused(.noEditor): .kept
         case .refused(.secureField): .failed(.secureField)
         case .refused(.appDenied): .failed(.appDenied)
-        case .refused(.appTurnedOff): .failed(.turnedOff(app))
+        case .turnedOff(let app): .failed(.turnedOff(app))
         case .refused: .failed(.cannotWrite)
         }
     }

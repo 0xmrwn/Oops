@@ -1,6 +1,5 @@
 import AppKit
 import Observation
-import OopsCore
 
 /// The apps Oops has corrected in, and those it is turned off in, by bundle identifier
 /// (Settings → General → Turn off in apps, and the menu bar menu).
@@ -36,12 +35,6 @@ import OopsCore
     nonisolated static func name(_ bundleID: String) -> String {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
             .flatMap { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") } ?? bundleID
-    }
-
-    /// The app in front when Oops is turned off in it: Dictate's refusal names the app it was refused in.
-    nonisolated static var turnedOffInFront: TurnedOffApp? {
-        guard let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, current.contains(id) else { return nil }
-        return TurnedOffApp(name: name(id), bundleID: id)
     }
 
     static func icon(_ bundleID: String) -> NSImage {

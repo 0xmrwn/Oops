@@ -39,7 +39,8 @@ extension AppDelegate {
                                 status: { [weak self] in self?.preferences.status = $0 }, cleanup: cleanup,
                                 escape: { [weak self] in self?.armEscape(.dictate, $0) },
                                 shortcutModifiers: { ShortcutSettings.shared.shortcut($0 ? .dictateAndCleanUp : .dictate)?.modifiers },
-                                environment: DictationRecordingEnvironment(), history: history)
+                                environment: DictationRecordingEnvironment(), history: history,
+                                appTurnedOff: { await editor.turnedOff(for: .dictate) })
     }
 
     /// The session's history, kept by `DictationHistoryModel`, whose first touch here opens the store and so expires

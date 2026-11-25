@@ -7,7 +7,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - In Settings → Fix, the model list has a search field: type part of a model's or a provider's name to find it.
 - The drop's words, such as a fix's count and time, are in slightly larger, easier-to-read type, with a little more room after the eyes.
 - Settings → General shows what each feature uses under its name: Fix's model and effort, Dictate's speech model and language, or what's left to set up.
-- When you've turned Oops off in an app, the drop says so by name, such as Off in Notes, instead of Can't edit here, and its button turns Oops back on there.
+- When you've turned Oops off in an app, the drop says so by name, such as Off in Notes, instead of Can't edit here, and its button turns Oops back on there. Dictate no longer listens in an app Oops is off in.
 - Providers is now in Settings → General, below your features, instead of a tab of its own, and groups your accounts, agents on this Mac and APIs, each with its own way to add one. While none is set up, General says so at the top.
 - Settings → Fix → Apps is now Settings → General → Turn off in apps, and lists the apps you dictate in as well as those you fix in. Its row shows how many apps Oops is off in.
 - Recent dictations in the menu bar menu shows each one's app icon and, under its words, how long ago you said it, how long you spoke and how many words it has. Settings → Dictate → History shows how long you spoke too. Dictations from before this update show what they have.
