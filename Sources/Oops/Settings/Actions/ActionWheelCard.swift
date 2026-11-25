@@ -73,7 +73,7 @@ struct ActionWheelCard: View {
 
     private var actions: [Action] { library.library.actions }
     /// How a typed instruction runs, as the centre's tooltip and VoiceOver value say it.
-    private var typedSummary: String { store.runsWithSummary(library.library.typed) }
+    private var typedSummary: ActionRunSummary { store.runsWithSummary(library.library.typed) }
 
     var body: some View {
         ZStack {
@@ -214,7 +214,7 @@ struct ActionWheelCard: View {
 /// The wheel's centre, where an instruction is typed when the wheel is open: opens how such an instruction runs.
 private struct TypedCentre: View {
     let spare: SpareSpaceModel
-    let summary: String
+    let summary: ActionRunSummary
     let open: () -> Void
 
     var body: some View {
@@ -233,10 +233,10 @@ private struct TypedCentre: View {
             .buttonStyle(.settingsGlass).controlSize(.small)
             .offset(y: 80)
         }
-        .help("How an instruction typed in the wheel runs · \(summary)")
+        .help("How an instruction typed in the wheel runs · \(summary.text)")
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Typed instruction")
-        .accessibilityValue(summary)
+        .accessibilityValue(summary.spoken)
         .accessibilityHint("Opens Runs with")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(.default, open)

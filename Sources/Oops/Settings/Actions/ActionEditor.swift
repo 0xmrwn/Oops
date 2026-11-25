@@ -111,7 +111,7 @@ struct ActionEditor: View {
         return Button { navigation.openRunsWith(.action(id)) } label: {
             SettingRow(symbol: "cpu", title: "Runs with") {
                 HStack(spacing: 10) {
-                    Text(summary).secondaryText().lineLimit(1).truncationMode(.middle)
+                    RunsWithValue(store: store, summary: summary)
                     Chevron()
                 }
             }
@@ -119,7 +119,7 @@ struct ActionEditor: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Runs with")
-        .accessibilityValue(summary)
+        .accessibilityValue(summary.spoken)
     }
 
     @ViewBuilder private var tryRows: some View {

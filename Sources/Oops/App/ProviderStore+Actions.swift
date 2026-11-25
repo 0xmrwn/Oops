@@ -84,17 +84,16 @@ extension ProviderStore {
         return models.first { $0.id == run.model } ?? models.first { ModelSelection.preferredClaude.contains($0.id) } ?? models.first
     }
 
-    func runsWithSummary(_ runsWith: ActionRunsWith) -> String {
+    func runsWithSummary(_ runsWith: ActionRunsWith) -> ActionRunSummary {
         switch runsWith.kind {
         case .model:
             let target = actionModel(runsWith.model)
-            let text = ActionRunSummary.model(sameAsFix: target?.followsFix ?? true, name: target.map { modelName($0.choice) },
-                                              effort: target?.settings.effort)
-            return text.isEmpty ? "Choose a model" : text
+            return .model(sameAsFix: target?.followsFix ?? true, providerID: target?.choice.providerID, name: target.map { modelName($0.choice) },
+                          effort: target?.settings.effort)
         case .agent:
             let model = agentModel(runsWith.agent)
-            return ActionRunSummary.agent(model: model?.name, effort: model.flatMap { ModelSelection.nearestEffort(runsWith.agent.effort, in: $0) },
-                                          runsWith.agent)
+            return .agent(model: model?.name, effort: model.flatMap { ModelSelection.nearestEffort(runsWith.agent.effort, in: $0) },
+                          runsWith.agent, problem: agentProblem)
         }
     }
 }
