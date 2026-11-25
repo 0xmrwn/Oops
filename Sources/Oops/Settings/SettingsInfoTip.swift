@@ -229,9 +229,12 @@ struct AnimationPreview: View {
         let start = start, still = reduceMotion
         VStack(alignment: .leading, spacing: 5) {
             Group {
-                // Hex draws on its own display link and reads the level there; the others are handed it each frame.
-                if kind == .hex {
+                // Hex draws on its own display link and reads the level there; the others, and Wave standing in for
+                // Hex without Metal, are handed it each frame.
+                if kind == .hex, DotScopeMetalPipeline.shared != nil {
                     voice(loudness: 0) { @MainActor in actedLevel(Date().timeIntervalSince(start), still: still) }
+                        // Held, the scope settles at once and stops drawing until the popover closes.
+                        .environment(\.voiceHeldStill, still)
                 } else {
                     TimelineView(.animation(paused: still)) { context in
                         voice(loudness: actedLevel(context.date.timeIntervalSince(start), still: still), live: nil)

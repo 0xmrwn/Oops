@@ -31,6 +31,21 @@ import Testing
         #expect(host.debugElapsedTime > tBefore + 0.14)
     }
 
+    @Test func `a scope held still stops its display link while recording`() {
+        let host = DotScopeHostView(tuning: .bar(leadingInset: 45, trailingInset: 77))
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 373, height: 44), styleMask: [], backing: .buffered, defer: true)
+        host.frame = CGRect(x: 0, y: 0, width: 373, height: 44)
+        window.contentView?.addSubview(host)
+        host.loudnessProvider = { -30 }
+        host.phase = .recording
+        #expect(!host.debugIsPaused)
+
+        host.holdsStill = true
+        #expect(host.debugIsPaused)
+        host.holdsStill = false
+        #expect(!host.debugIsPaused)
+    }
+
     @Test func `the bundled dot scope shader compiles and builds its pipeline`() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { return } // no GPU: nothing to compile on
         let source = URL(fileURLWithPath: #filePath)
