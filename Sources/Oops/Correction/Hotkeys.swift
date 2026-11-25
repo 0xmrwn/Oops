@@ -159,11 +159,10 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
     }
     /// Actions whose shortcut did not register in the last `register()`.
     private(set) var failed: Set<ShortcutSettings.Action> = []
-    /// Reached only when this process already holds the chord: macOS lets several apps register the same one,
-    /// so a chord another app holds registers here without an error (`RegisterEventHotKey` in CarbonEvents.h).
-    static func taken(_ shortcut: Shortcut) -> String {
-        "\(shortcut.label) is already in use by another app. Choose another shortcut, or free that one."
-    }
+    /// Reached only when the system refuses the chord: macOS lets several apps register the same one, so a chord
+    /// another app holds usually registers without an error (`RegisterEventHotKey` in CarbonEvents.h), and the
+    /// recorders catch it instead (`ShortcutConflictProbe`).
+    static func taken(_ shortcut: Shortcut) -> String { ShortcutInUse.settings(shortcut) }
     /// Stops the shortcuts until the next `register()`.
     func suspend() { clearRegistrations() }
     func unregister() {

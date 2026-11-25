@@ -7,6 +7,8 @@ struct DictateTryView: View {
     let step: DictateTryStep
     let fix: TryItStep
     let next: () -> Void
+    /// Back to the Shortcut step, recording Dictate's keys again.
+    let change: () -> Void
 
     var body: some View {
         OnboardingStepLayout(height: 430) { column } primary: {
@@ -29,7 +31,18 @@ struct DictateTryView: View {
                 .contentTransition(.numericText())
                 .foregroundStyle(.white)
             TryItChat(step: fix, dictate: step).padding(.top, 24)
+            // Under the keys without moving them; the step's own error style.
             keys.frame(height: 46).padding(.top, 26)
+                .overlay(alignment: .bottom) {
+                    if step.nothingArrived, step.phase == .waiting {
+                        HStack(spacing: 12) {
+                            Text("Nothing reached Oops. Another app may be using these keys.").font(.system(size: 13, weight: .medium)).opacity(0.85)
+                            Button("Change shortcut", action: change).buttonStyle(.settingsGlass).controlSize(.small)
+                        }
+                        .foregroundStyle(.white).environment(\.colorScheme, .dark)
+                        .fixedSize().offset(y: 44).transition(.opacity)
+                    }
+                }
         }
     }
 

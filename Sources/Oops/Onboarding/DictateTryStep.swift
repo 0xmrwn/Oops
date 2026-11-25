@@ -13,12 +13,17 @@ import SwiftUI
     private(set) var isLive = false
     /// The acted answer as it arrives.
     private(set) var acted = ""
+    /// The shortcut has had `quietWait` to arrive and nothing did: another app may be taking it.
+    private(set) var nothingArrived = false
+    /// Long enough to read the question and the instruction and try once or twice, short of giving up.
+    static let quietWait: Duration = .seconds(12)
     @ObservationIgnored let fixture = TestEditorModel()
     @ObservationIgnored let keys: ShortcutStep
     @ObservationIgnored let speech: OnboardingSpeechModel
     @ObservationIgnored private let preferences: Preferences?
     @ObservationIgnored private var started = false
     @ObservationIgnored private var acting: Task<Void, Never>?
+    @ObservationIgnored private var quiet: Task<Void, Never>?
     /// What came before in the thread: Fix's reply, sent.
     @ObservationIgnored var earlier: [(text: String, sent: Bool)] = []
     /// Léa's next message, something to answer aloud; it follows the thread Fix's beat was in.
@@ -53,7 +58,8 @@ import SwiftUI
         dictation?.onBusy = { [weak self] busy in
             // Nothing written (silence, Escape) asks again.
             guard let self, phase == (busy ? .waiting : .listening) else { return }
-            withAnimation(.spring(duration: 0.4)) { self.phase = busy ? .listening : .waiting }
+            quiet?.cancel()
+            withAnimation(.spring(duration: 0.4)) { self.phase = busy ? .listening : .waiting; nothingArrived = false }
         }
         keys.mirror { false }
         unlock()
@@ -62,17 +68,35 @@ import SwiftUI
     /// The real shortcut dictates only once there is a model to dictate with.
     func unlock() {
         guard started, isLive else { return }
-        if locked { ShortcutSettings.shared.pause() } else { ShortcutSettings.shared.resume(); fixture.editor?.focus() }
+        if locked { ShortcutSettings.shared.pause() } else { ShortcutSettings.shared.resume(); fixture.editor?.focus(); waitQuietly() }
+    }
+
+    /// Never a silent wait on a press that cannot arrive: once the shortcut has had its time, the step says so.
+    private func waitQuietly() {
+        quiet?.cancel()
+        quiet = Task { [weak self] in
+            try? await Task.sleep(for: Self.quietWait)
+            guard !Task.isCancelled, let self, phase == .waiting else { return }
+            withAnimation(.spring(duration: 0.4)) { nothingArrived = true }
+            ShortcutInUse.announce("Nothing reached Oops. Another app may be using these keys.")
+        }
     }
 
     func stop() {
         acting?.cancel(); acting = nil
-        keys.stop()
+        quiet?.cancel(); quiet = nil; nothingArrived = false
+        // Only what this step still owns: going back to the Shortcut step can start its recorder on the same keys
+        // before this view goes, and that recorder, with the shortcuts it paused, is the Shortcut step's.
+        let owned = Self.ownsKeys(listening: keys.isListening, mirroring: keys.isMirroring)
+        if owned { keys.stop() }
         let dictation = (NSApp.delegate as? AppDelegate)?.dictation
         dictation?.onInserted = nil; dictation?.onBusy = nil
-        if started { ShortcutSettings.shared.resume() }
+        if started, owned { ShortcutSettings.shared.resume() }
         started = false
     }
+
+    /// Whether Try it still owns the keys it mirrored: not once they listen for the Shortcut step.
+    static func ownsKeys(listening: Bool, mirroring: Bool) -> Bool { !listening || mirroring }
 
     /// A run that saves nothing: the step hears the keys itself and plays an answer.
     private func act() {

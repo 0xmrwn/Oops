@@ -94,8 +94,7 @@ struct ActionsPage: View {
                     ShortcutControl(title: "Run an action", action: .actions, error: $shortcutError)
                 }
                 if let shortcutError {
-                    Label(shortcutError, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
-                        .fixedSize(horizontal: false, vertical: true)
+                    ShortcutErrorLine(error: shortcutError, action: .actions)
                 }
             }
             .settingsSurface()

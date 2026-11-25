@@ -29,6 +29,8 @@ import SwiftUI
     private(set) var shortcut: Shortcut?
     private(set) var phase = Phase.waiting
     private(set) var error: String?
+    /// The chord another app seemed to take while recording: what "Use anyway" saves.
+    private(set) var inUse: Shortcut?
     /// Modifiers and the key held right now.
     private(set) var held: NSEvent.ModifierFlags = []
     private(set) var key: UInt16?
@@ -42,6 +44,7 @@ import SwiftUI
     @ObservationIgnored let saves: Bool
     @ObservationIgnored private var sounds: HelloSounds?
     @ObservationIgnored private var monitor: Any?
+    @ObservationIgnored private var probe: ShortcutConflictProbe?
     /// Try it's listening: the keys light, nothing is accepted, and `heard` gets the shortcut.
     @ObservationIgnored private var mirroring = false
     @ObservationIgnored private var heard: (() -> Bool)?
@@ -154,6 +157,7 @@ import SwiftUI
             center.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.letGo()
+                    self?.syncProbe()
                     if self?.mirroring == false {
                         self?.sounds?.finish()
                         ShortcutSettings.shared.resume()
@@ -162,6 +166,7 @@ import SwiftUI
             },
             center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
+                    self?.syncProbe()
                     if self?.mirroring == false {
                         self?.prepareSounds()
                         ShortcutSettings.shared.pause()
@@ -169,7 +174,36 @@ import SwiftUI
                 }
             },
         ]
+        syncProbe()
     }
+
+    /// Watches for keys another app takes only while recording here, in the key window: keys pressed elsewhere
+    /// never reach the step either.
+    private func syncProbe() {
+        let window = NSApp.windows.first { $0.identifier == Self.window }
+        guard phase == .recording, monitor != nil, !mirroring, window?.isKeyWindow == true else { probe?.stop(); probe = nil; return }
+        guard probe == nil else { return }
+        probe = ShortcutConflictProbe(held: { [weak self] in Shortcut.modifiers(self?.held ?? []) }) { [weak self] in self?.taken($0) }
+    }
+
+    /// Another app took `chord` before it reached the step: said under the keys, recording on for other keys.
+    private func taken(_ chord: Shortcut) {
+        withAnimation(.spring(duration: 0.4)) { inUse = chord; error = ShortcutInUse.onboarding(chord); lid = 0.55 }
+        Sounds.play(.failure, after: 0)
+        ShortcutInUse.announce(ShortcutInUse.onboarding(chord))
+    }
+
+    /// "Use anyway": saves the chord seen taken, which may be the person's own keyboard tool's.
+    func useAnyway() {
+        guard let chord = offered else { return }
+        record(chord)
+    }
+
+    /// The chord "Use anyway" saves: only while the error on screen is that conflict.
+    var offered: Shortcut? { ShortcutInUse.useAnyway(inUse, error: error, message: ShortcutInUse.onboarding) }
+
+    /// Whether the keys are listening, mirrored for Try it or not.
+    var isListening: Bool { monitor != nil }
 
     @discardableResult private func prepareSounds() -> HelloSounds? {
         guard Sounds.enabled else { return nil }
@@ -180,6 +214,7 @@ import SwiftUI
     func stop() {
         guard let monitor else { return }
         NSEvent.removeMonitor(monitor); self.monitor = nil
+        syncProbe()
         observers.forEach(NotificationCenter.default.removeObserver); observers = []
         heard = nil
         letGo()
@@ -217,6 +252,7 @@ import SwiftUI
         default: break
         }
         if phase == .recording {
+            probe?.heard(event)
             let capture = ShortcutCapture(keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.isARepeat)
             capture.log(action, event: event)
             switch capture {
@@ -239,14 +275,16 @@ import SwiftUI
     // MARK: Choosing
 
     func change() {
-        error = nil
+        error = nil; inUse = nil
         acceptedBeforeChange = phase == .accepted
         withAnimation(.spring(duration: 0.4, bounce: 0.2)) { phase = .recording; glow = 0; check = 0; lid = 0; look = CGSize(width: 0, height: 0.8) }
+        syncProbe()
     }
 
     func cancelRecording() {
         guard phase == .recording else { return }
-        error = nil
+        error = nil; inUse = nil
+        defer { syncProbe() }
         withAnimation(.spring(duration: 0.4, bounce: 0.2)) {
             if acceptedBeforeChange { phase = .accepted; glow = 0.3; check = 1; lid = 0; look = .zero }
             else { phase = .waiting; lid = 0; look = CGSize(width: 0, height: 0.7) }
@@ -254,12 +292,16 @@ import SwiftUI
     }
 
     private func record(_ recorded: Shortcut) {
+        // A new choice: the conflict pending goes first, so a refusal never leaves it to "Use anyway".
+        inUse = nil
         do { try save(recorded) } catch {
-            withAnimation(.spring(duration: 0.4)) { self.error = error.localizedDescription; lid = 0.55 }
+            // The system's refusal says it as this step does.
+            let message = error.localizedDescription == ShortcutInUse.settings(recorded) ? ShortcutInUse.onboarding(recorded) : error.localizedDescription
+            withAnimation(.spring(duration: 0.4)) { self.error = message; lid = 0.55 }
             Sounds.play(.failure, after: 0)
             return
         }
-        error = nil
+        error = nil; inUse = nil
         shortcut = recorded
         accept()
     }
@@ -279,6 +321,7 @@ import SwiftUI
         glow = 1
         withAnimation(.easeOut(duration: 1.2).delay(0.25)) { glow = 0.3 }
         if first { Sounds.play(.success, after: 0) }
+        syncProbe()
         announce(spoken)
     }
 
