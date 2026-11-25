@@ -145,7 +145,7 @@ enum DebugFlags {
     /// the real setting.
     static var simulatedAccessibilityGrant: Double { number("SimulateAccessibilityGrant") }
     static var openTry: Bool { argument("--fixture") }
-    /// The tab or page Settings opens on; `providers` is General → Providers.
+    /// The tab or page Settings opens on; `providers` is General → Providers, `apps` General → Turn off in apps.
     static var settingsTab: String? { string("SettingsPreviewTab") }
     /// Opens a popover at launch (`models` for the model list).
     static var settingsPopover: String? { string("SettingsPreviewPopover") }

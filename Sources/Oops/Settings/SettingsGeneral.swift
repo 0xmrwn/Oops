@@ -4,7 +4,7 @@ import ServiceManagement
 import SwiftUI
 
 /// The landing page: what needs the user (a missing permission, a waiting update, a provider), every feature at a
-/// glance, Providers, app-wide settings, the stats, then About.
+/// glance, Providers, the apps Oops is off in, app-wide settings, the stats, then About.
 struct GeneralPage: View {
     let hasAccessibility: Bool
     let tabs: [SettingsTab]
@@ -61,6 +61,14 @@ struct GeneralPage: View {
                         Image(systemName: "ladybug").font(.system(size: 18, weight: .medium))
                     }
                     DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
+                }
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
+            case .apps:
+                VStack(alignment: .leading, spacing: 20) {
+                    DrillHeader(title: "Turn off in apps", parent: "General", back: { detail = nil }) {
+                        Image(systemName: TurnOffInAppsRow.symbol).font(.system(size: 18, weight: .medium))
+                    }
+                    TurnOffInAppsPage()
                 }
                 .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .providers:
@@ -125,6 +133,7 @@ struct GeneralPage: View {
             }
             .padding(.vertical, -6)
             .settingsSurface()
+            TurnOffInAppsRow { detail = .apps }
             // Last, so it never moves as warnings come and go; the header's tally is the hook at the top.
             StatsCard(stats: Stats.shared) { detail = .stats }
             AboutRow(title: "About", value: AboutPage.version) { detail = .about } icon: {
@@ -179,7 +188,7 @@ struct GeneralPage: View {
 
 /// General's pages one level down.
 enum GeneralDetail: Hashable {
-    case stats, about, changelog, debug, providers
+    case stats, about, changelog, debug, providers, apps
     static var launchPreview: Self? { launch(DebugFlags.settingsTab) }
 
     /// The page a `-SettingsPreviewTab` name opens inside General, in any case, as `SettingsTab.launch` reads it.
@@ -190,6 +199,7 @@ enum GeneralDetail: Hashable {
         case "changelog": .changelog
         case "debug", "developer", "diagnostics": .debug
         case "provider", "providers": .providers
+        case "apps": .apps
         default: nil
         }
     }

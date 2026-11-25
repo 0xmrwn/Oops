@@ -11,11 +11,11 @@ public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
         allCases.filter { $0 != .actions || actions }
     }
 
-    /// The tab a `-SettingsPreviewTab` name opens on: a tab's own name, or a page inside one (`provider` and
-    /// `providers` are General's). A hidden tab, or a name nothing knows, opens General.
+    /// The tab a `-SettingsPreviewTab` name opens on: a tab's own name, or a page inside one (`provider`,
+    /// `providers` and `apps` are General's). A hidden tab, or a name nothing knows, opens General.
     public static func launch(_ name: String?, visible: [Self]) -> Self {
         let tab: Self = switch name?.lowercased() {
-        case "fix", "try", "customize", "advanced", "apps": .fix
+        case "fix", "try", "customize", "advanced": .fix
         case "dictate", "dictation", "history": .dictate
         case "actions": .actions
         default: .general

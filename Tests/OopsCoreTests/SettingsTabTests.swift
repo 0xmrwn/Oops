@@ -10,8 +10,8 @@ final class SettingsTabTests: XCTestCase {
     }
     func testLaunchNamesOpenTheTabHoldingThatPage() {
         let all = SettingsTab.visible(actions: true)
-        for name in ["try", "customize", "apps", "fix"] { XCTAssertEqual(SettingsTab.launch(name, visible: all), .fix, name) }
-        for name in ["about", "stats", "changelog", "debug", "general", "nonsense"] {
+        for name in ["try", "customize", "fix"] { XCTAssertEqual(SettingsTab.launch(name, visible: all), .fix, name) }
+        for name in ["about", "stats", "changelog", "debug", "apps", "Apps", "general", "nonsense"] {
             XCTAssertEqual(SettingsTab.launch(name, visible: all), .general, name)
         }
         for name in ["dictate", "dictation", "history"] { XCTAssertEqual(SettingsTab.launch(name, visible: all), .dictate, name) }

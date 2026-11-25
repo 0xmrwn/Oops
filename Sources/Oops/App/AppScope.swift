@@ -2,7 +2,7 @@ import AppKit
 import Observation
 
 /// The apps Oops has corrected in, and those it is turned off in, by bundle identifier
-/// (Settings → General, and the menu bar menu).
+/// (Settings → General → Turn off in apps, and the menu bar menu).
 @MainActor @Observable final class AppScope {
     static let shared = AppScope()
     private nonisolated static let key = "TurnedOffApps"

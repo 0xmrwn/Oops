@@ -8,6 +8,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - The drop's words, such as a fix's count and time, are in slightly larger, easier-to-read type, with a little more room after the eyes.
 - Settings → General shows what each feature uses under its name: Fix's model and effort, Dictate's speech model and language, or what's left to set up.
 - Providers is now in Settings → General, below your features, instead of a tab of its own, and groups your accounts, agents on this Mac and APIs, each with its own way to add one. While none is set up, General says so at the top.
+- Settings → Fix → Apps is now Settings → General → Turn off in apps, and lists the apps you dictate in as well as those you fix in. Its row shows how many apps Oops is off in.
 
 ## 0.2.0
 

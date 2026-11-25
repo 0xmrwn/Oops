@@ -59,6 +59,8 @@ extension AppDelegate {
             },
             record: { text, language, speechModel in
                 let app = NSWorkspace.shared.frontmostApplication, bundleID = app?.bundleIdentifier
+                // Words written here: the app gets its switch in Turn off in apps, as one Fix corrected in does.
+                if let bundleID { AppScope.shared.noteUsed(bundleID) }
                 model.record(text: text, language: language, model: speechModel,
                              application: app?.localizedName ?? bundleID.map(AppScope.name), bundleID: bundleID)
             },
