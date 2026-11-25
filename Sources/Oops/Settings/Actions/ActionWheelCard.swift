@@ -202,6 +202,11 @@ struct ActionWheelCard: View {
         library.update(action.id) { $0.name = "Rewrite as a friendly reply to the whole team" }
         dragging = action.id
         target = ActionPlace.allCases.first { place in !actions.contains { $0.place == place } }
+        // Most of the way there, as a drag would have it when that slot is the nearest.
+        if let target {
+            let from = Self.anchor(action.place), to = Self.anchor(target)
+            translation = CGSize(width: (to.width - from.width) * 0.8, height: (to.height - from.height) * 0.8)
+        }
     }
     #endif
 }
