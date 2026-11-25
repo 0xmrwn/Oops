@@ -10,6 +10,9 @@ struct GeneralPage: View {
     let tabs: [SettingsTab]
     let store: ProviderStore
     let preferences: Preferences
+    /// Dictate's speech models and keyboard switching, for its overview row.
+    var local = LocalModels.shared
+    var keyboards = KeyboardModelDriver.shared
     @Binding var detail: GeneralDetail?
     /// An overview row's jump to its tab.
     let open: (SettingsTab) -> Void
@@ -86,7 +89,7 @@ struct GeneralPage: View {
                     .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity),
                                             removal: .opacity))
             }
-            FeatureOverview(tabs: tabs, store: store, open: open) { tab in
+            FeatureOverview(tabs: tabs, store: store, local: local, keyboards: keyboards, open: open) { tab in
                 open(tab)
                 // After the switch has begun, which stops any recorder on the page being left.
                 DispatchQueue.main.async { NotificationCenter.default.post(name: .settingsRecordShortcut, object: tab) }
