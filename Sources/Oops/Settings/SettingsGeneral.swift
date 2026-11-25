@@ -4,7 +4,7 @@ import ServiceManagement
 import SwiftUI
 
 /// The landing page: what needs the user (a missing permission, a waiting update, a provider), every feature at a
-/// glance, Providers, app-wide settings, the stats, then About.
+/// glance, Providers, the apps Oops is off in, app-wide settings, the stats, then About.
 struct GeneralPage: View {
     let hasAccessibility: Bool
     let tabs: [SettingsTab]
@@ -63,6 +63,14 @@ struct GeneralPage: View {
                     DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
                 }
                 .drillPane(edge: 1, reduceMotion: reduceMotion)
+            case .apps:
+                VStack(alignment: .leading, spacing: 20) {
+                    DrillHeader(title: "Turn off in apps", parent: "General", back: { detail = nil }) {
+                        Image(systemName: TurnOffInAppsRow.symbol).font(.system(size: 18, weight: .medium))
+                    }
+                    TurnOffInAppsPage()
+                }
+                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case .providers:
                 ProvidersPage(store: store, preferences: preferences) { detail = nil }
                     .drillPane(edge: 1, reduceMotion: reduceMotion)
@@ -102,6 +110,7 @@ struct GeneralPage: View {
             }
             // Hidden while the card shows, so the page never says Providers twice.
             if !providers.configured.isEmpty { ProvidersRow(overview: providers, open: openProviders) }
+            TurnOffInAppsRow { detail = .apps }
             VStack(spacing: 0) {
                 OpenAtLoginRow().padding(.vertical, 12).disabled(DebugFlags.brandReview)
                 HStack(spacing: 14) {
@@ -179,7 +188,7 @@ struct GeneralPage: View {
 
 /// General's pages one level down.
 enum GeneralDetail: Hashable {
-    case stats, about, changelog, debug, providers
+    case stats, about, changelog, debug, providers, apps
     static var launchPreview: Self? { launch(DebugFlags.settingsTab) }
 
     /// The page a `-SettingsPreviewTab` name opens inside General, in any case, as `SettingsTab.launch` reads it.
@@ -190,6 +199,7 @@ enum GeneralDetail: Hashable {
         case "changelog": .changelog
         case "debug", "developer", "diagnostics": .debug
         case "provider", "providers": .providers
+        case "apps": .apps
         default: nil
         }
     }

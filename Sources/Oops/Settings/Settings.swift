@@ -22,9 +22,9 @@ struct SettingsView: View {
     @State private var leaving: SettingsTab?
     /// The page whose controls are live: the chosen one, set a frame before the switch animates.
     @State private var enabled = SettingsTab.launch(DebugFlags.settingsTab, visible: SettingsTab.shown)
-    /// General's drilled-in page. Launch-only aid: `-SettingsPreviewTab stats`, `changelog`, `debug` or `providers`.
+    /// General's drilled-in page. Launch-only aid: `-SettingsPreviewTab stats`, `changelog`, `debug`, `providers` or `apps`.
     @State private var generalDetail = GeneralDetail.launchPreview
-    /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
+    /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try` or `customize`.
     @State private var fixDetail = FixDetail.launchPreview
     /// Dictate's drilled-in page; its speech model page is `SpeechModelPicker`'s target. Launch-only aid:
     /// `-SettingsPreviewTab history`.

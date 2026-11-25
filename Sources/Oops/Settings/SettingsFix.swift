@@ -3,7 +3,7 @@ import Carbon
 import OopsCore
 import SwiftUI
 
-/// Fix: its shortcut, model and effort, Customize, Try and the apps it works in.
+/// Fix: its shortcut, model and effort, Customize and Try.
 struct FixPage: View {
     let store: ProviderStore
     let testEditor: TestEditorModel
@@ -30,14 +30,6 @@ struct FixPage: View {
                     CustomizePage()
                 }
                 .drillPane(edge: 1, reduceMotion: reduceMotion)
-            case .apps:
-                VStack(alignment: .leading, spacing: 20) {
-                    DrillHeader(title: "Apps", parent: "Fix", back: { detail = nil }) {
-                        Image(systemName: "square.grid.2x2").font(.system(size: 18, weight: .medium))
-                    }
-                    AppsList()
-                }
-                .drillPane(edge: 1, reduceMotion: reduceMotion)
             case nil:
                 fix.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
@@ -58,18 +50,6 @@ struct FixPage: View {
             }
             .settingsSurface()
             ModelCard(store: store, tryIt: { detail = .tryPage }, customize: { detail = .customize })
-            Button { detail = .apps } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "square.grid.2x2").font(.system(size: 17, weight: .medium)).frame(width: 24)
-                        .secondaryText().accessibilityHidden(true)
-                    Text("Apps").fontWeight(.semibold)
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).secondaryText()
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .settingsSurface()
         }
     }
 
@@ -118,39 +98,12 @@ struct ShortcutControl: View {
 
 /// Fix's pages one level down.
 enum FixDetail: Hashable {
-    case tryPage, customize, apps
+    case tryPage, customize
     static var launchPreview: Self? {
         switch DebugFlags.settingsTab {
         case "try": .tryPage
         case "customize", "advanced": .customize
-        case "apps": .apps
         default: nil
-        }
-    }
-}
-
-/// Fix → Apps: every app Oops has corrected in, most recent first, each with its switch.
-private struct AppsList: View {
-    private let scope = AppScope.shared
-
-    var body: some View {
-        if scope.apps.isEmpty {
-            Text("Apps you correct in appear here.").secondaryText().frame(maxWidth: .infinity, alignment: .leading).settingsSurface()
-        } else {
-            VStack(spacing: 0) {
-                ForEach(scope.apps, id: \.self) { app in
-                    HStack(spacing: 14) {
-                        Image(nsImage: AppScope.icon(app)).resizable().frame(width: 24, height: 24).accessibilityHidden(true)
-                        Text(AppScope.name(app)).fontWeight(.semibold)
-                        Spacer()
-                        Toggle(AppScope.name(app), isOn: Binding(get: { scope.isOn(app) }, set: { scope.set(app, on: $0) }))
-                            .settingsSwitch().labelsHidden()
-                    }
-                    .padding(.vertical, 12)
-                }
-            }
-            .padding(.vertical, -6)
-            .settingsSurface()
         }
     }
 }
