@@ -42,3 +42,17 @@ public struct ProviderOverview: Equatable, Sendable {
         return problems.count > 1 ? "\(problems.count) need attention" : problems.first
     }
 }
+
+public extension Provider {
+    /// The Providers page's sections, in its order: a plan signed in to, an agent installed on this Mac, or an API
+    /// reached with a key. Derived from the kind, so nothing stored changes.
+    enum Category: CaseIterable, Sendable { case account, agent, api }
+
+    var category: Category {
+        switch kind {
+        case .chatGPT: .account
+        case .claudeCode: .agent
+        case .api: .api
+        }
+    }
+}

@@ -38,6 +38,13 @@ extension ProviderStore {
         return dictateModel(local) == reference
     }
 
+    /// Whether `provider` is the OpenAI key dictation transcribes with and nothing else uses: none of its models is
+    /// switched on. The screenshot preview, which holds no keys, has its own OpenAI for this.
+    func speechOnly(_ provider: Provider, local: LocalModels) -> Bool {
+        if preview { return provider.id == "preview-openai" }
+        return provider.shownModels.isEmpty && provider.id == openAITranscriptionProvider?.id && dictatesWithOpenAI(local)
+    }
+
     /// The chosen language as an ISO 639-1 code, which is all the service takes; nil under Automatic.
     var openAILanguage: String? { dictateSelection.language.flatMap { $0.count == 2 ? $0 : nil } }
 

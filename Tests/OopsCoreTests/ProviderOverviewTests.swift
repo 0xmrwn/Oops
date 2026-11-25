@@ -43,4 +43,10 @@ struct ProviderOverviewTests {
         #expect(checking.attention == nil)
         #expect(!checking.noneSetUp)
     }
+
+    @Test func `each provider falls in one section, accounts then agents then APIs`() {
+        let custom = Provider.api(name: "Work", baseURL: "https://llm.example.com/v1", preset: nil)
+        #expect([chatGPT, claude, mistral, custom].map(\.category) == [.account, .agent, .api, .api])
+        #expect(Provider.Category.allCases == [.account, .agent, .api])
+    }
 }

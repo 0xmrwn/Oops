@@ -30,51 +30,17 @@ struct ProvidersPage: View {
             DrillHeader(title: "Providers", parent: "General", back: back) {
                 Image(systemName: ProvidersRow.symbol).font(.system(size: 18, weight: .medium))
             }
-            VStack(spacing: 0) {
-                ForEach(store.providers) { provider in
-                    ProviderRow(provider: provider, status: store.status(provider.id)) { store.openProvider = provider.id }
-                }
-                addMenu
-            }
-            .padding(.vertical, -6)
-            .settingsSurface()
+            ProviderSections(store: store, preferences: preferences)
         }
-    }
-
-    private var addMenu: some View {
-        Menu {
-            Toggle(isOn: .constant(true)) { Label { Text("ChatGPT") } icon: { MenuIcon.image("ChatGPTMarkBlack", template: true) } }
-                .disabled(true)
-            if store.provider("claude-code") == nil {
-                Button { store.openProvider = store.addClaudeCode() } label: { Label { Text("Claude Code") } icon: { MenuIcon.image("ClaudeMark", template: true) } }
-            } else {
-                Toggle(isOn: .constant(true)) { Label { Text("Claude Code") } icon: { MenuIcon.image("ClaudeMark", template: true) } }.disabled(true)
-            }
-            Button { store.startDraft() } label: { Label { Text("API provider…") } icon: { MenuIcon.symbol("server.rack") } }
-        } label: {
-            HStack(spacing: 12) {
-                // Monochrome like the provider marks above it.
-                Image(systemName: "plus.circle.fill").font(.system(size: 22)).foregroundStyle(.primary)
-                    .frame(width: 24).accessibilityHidden(true)
-                Text("Add provider").fontWeight(.semibold)
-                Spacer()
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11, weight: .semibold)).secondaryText()
-                    .accessibilityHidden(true)
-            }
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
-            .accessibilityElement(children: .combine)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
     }
 }
 
 /// A list row: mark, name and its current state. Keyboard focus shows as a soft highlight instead of the system ring.
-private struct ProviderRow: View {
+struct ProviderRow: View {
     let provider: Provider
     let status: ProviderStore.Status
+    /// Dictation's OpenAI key and nothing more: tagged as the model switches tag a voice model.
+    var voice = false
     let open: () -> Void
     @FocusState private var focused: Bool
     @Environment(\.isFocusEffectEnabled) private var focusVisible
@@ -83,12 +49,13 @@ private struct ProviderRow: View {
         Button(action: open) {
             HStack(spacing: 12) {
                 ProviderMark(provider: provider, size: 24)
-                Text(provider.name).fontWeight(.semibold)
+                Text(provider.name).fontWeight(.semibold).lineLimit(1)
                 Spacer(minLength: 8)
+                if voice { CapabilityTag(voice: true).help("Used only to transcribe dictation") }
                 if status.busy {
                     ProgressView().controlSize(.small).accessibilityLabel(status.text)
                 } else {
-                    StatusBadge(status.text, ok: status.ok)
+                    StatusBadge(status.text, ok: status.ok).fixedSize()
                 }
                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).secondaryText()
             }

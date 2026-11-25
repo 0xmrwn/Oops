@@ -72,12 +72,20 @@ private struct ModelKindTag: View {
 
     var body: some View {
         if let capabilities = resolution.capabilities, capabilities.text || capabilities.voice {
-            let voice = capabilities.voice && !capabilities.text
-            Label(voice ? "Voice" : "Text", systemImage: voice ? "waveform" : "text.alignleft")
-                .font(.caption.weight(.medium)).secondaryText()
-                .padding(.horizontal, 7).padding(.vertical, 2)
-                .background(.primary.opacity(0.06), in: .capsule)
-                .fixedSize()
+            CapabilityTag(voice: capabilities.voice && !capabilities.text)
         }
+    }
+}
+
+/// Text or Voice, in a small capsule: a model's use, or a provider's in the Providers list.
+struct CapabilityTag: View {
+    let voice: Bool
+
+    var body: some View {
+        Label(voice ? "Voice" : "Text", systemImage: voice ? "waveform" : "text.alignleft")
+            .font(.caption.weight(.medium)).secondaryText()
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(.primary.opacity(0.06), in: .capsule)
+            .fixedSize()
     }
 }

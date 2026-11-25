@@ -339,6 +339,18 @@ import OopsCore
         health = ["chatgpt": .ready, "claude-code": .ready, "preview-mistral": .ready, "preview-groq": .unreachable("The provider rejected the API key."),
                   "preview-local": .ready]
         claudeAccount = .init(email: "m@example.com", organization: "Northwind", plan: "Claude Team")
+        if DebugFlags.fullProviders {
+            providers += [Provider(id: "preview-openai", kind: .api(preset: "openai"), name: "OpenAI", baseURL: "https://api.openai.com/v1"),
+                          Provider(id: "preview-azure", kind: .api(preset: nil), name: "Azure OpenAI · West Europe production",
+                                   baseURL: "https://westeurope-prod.openai.azure.com/openai/v1")]
+            health["preview-openai"] = .ready; health["preview-azure"] = .ready
+        }
+        switch DebugFlags.claudeCodeState {
+        case "notInstalled": health["claude-code"] = .notInstalled; claudeAccount = nil
+        case "signedOut": health["claude-code"] = .signedOut; claudeAccount = nil
+        case "missing": providers.removeAll { $0.id == "claude-code" }
+        default: break
+        }
         let choice = ModelSelection.Choice(providerID: "claude-code", modelID: "haiku")
         selection = ModelSelection(choice: choice, settings: [:])
         selection.set(.init(effort: "low"), for: choice)

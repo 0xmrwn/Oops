@@ -121,7 +121,7 @@ private struct ChatGPTSignInCard: View {
     }
 }
 
-private struct ChatGPTNotice: View {
+struct ChatGPTNotice: View {
     let message: String
     init(_ message: String) { self.message = message }
     var body: some View {
