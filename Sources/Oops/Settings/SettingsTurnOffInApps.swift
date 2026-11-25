@@ -29,7 +29,7 @@ struct TurnOffInAppsRow: View {
     }
 
     /// The row's state: how many apps Oops is turned off in.
-    static func summary(_ count: Int) -> String {
+    nonisolated static func summary(_ count: Int) -> String {
         switch count {
         case 0: "None"
         case 1: "1 app"

@@ -110,7 +110,6 @@ struct GeneralPage: View {
             }
             // Hidden while the card shows, so the page never says Providers twice.
             if !providers.configured.isEmpty { ProvidersRow(overview: providers, open: openProviders) }
-            TurnOffInAppsRow { detail = .apps }
             VStack(spacing: 0) {
                 OpenAtLoginRow().padding(.vertical, 12).disabled(DebugFlags.brandReview)
                 HStack(spacing: 14) {
@@ -134,6 +133,7 @@ struct GeneralPage: View {
             }
             .padding(.vertical, -6)
             .settingsSurface()
+            TurnOffInAppsRow { detail = .apps }
             // Last, so it never moves as warnings come and go; the header's tally is the hook at the top.
             StatsCard(stats: Stats.shared) { detail = .stats }
             AboutRow(title: "About", value: AboutPage.version) { detail = .about } icon: {
