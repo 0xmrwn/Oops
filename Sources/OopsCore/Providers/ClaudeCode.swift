@@ -94,7 +94,7 @@ public enum ClaudeCode {
     static func failure(status: Int?, detail: String) -> CorrectionError {
         let lower = detail.lowercased()
         if status == 401 || status == 403 || lower.contains("/login") || lower.contains("not logged in") {
-            return .failure(.signIn, "Claude Code is signed out. Sign in from Settings → Providers.")
+            return .failure(.signIn, "Claude Code is signed out. Sign in from Settings → General → Providers.")
         }
         if status == 429 || lower.contains("usage limit") || lower.contains("rate limit") {
             return .failure(.limit, "Claude usage limit reached. Manage usage at claude.ai/settings/usage.")

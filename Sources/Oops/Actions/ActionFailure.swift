@@ -11,7 +11,7 @@ struct ActionFailure: Error, Equatable {
     let message: String
     init(_ reason: Reason, _ message: String) { self.reason = reason; self.message = message }
 
-    static let noModel = ActionFailure(.noModel, "Add a provider in Settings → Providers to run actions.")
+    static let noModel = ActionFailure(.noModel, "Add a provider in Settings → General → Providers to run actions.")
     static let slow = ActionFailure(.slow, "The model took longer than 40 seconds. Nothing was changed.")
     static let nothingToRestore = ActionFailure(.restore, "There’s no recent action to restore.")
     static let changedSince = ActionFailure(.restore, "The draft changed after the action, so restoring it would overwrite newer work.")
@@ -44,7 +44,7 @@ struct ActionFailure: Error, Equatable {
         case .sandboxUnavailable?:
             return ActionFailure(.sandbox, "The sandbox that keeps agent runs contained isn’t available, so nothing ran.")
         case .timedOut?: return ActionFailure(.slow, "The agent took longer than 5 minutes. Nothing was changed.")
-        case .notInstalled?: return ActionFailure(.setup, "Agent actions run with Claude Code. Install it and sign in from Settings → Providers.")
+        case .notInstalled?: return ActionFailure(.setup, "Agent actions run with Claude Code. Install it and sign in from Settings → General → Providers.")
         case .stopped?: return ActionFailure(.model, "The agent stopped before answering. Nothing was changed.")
         case nil:
             if error is ActionOutputError { return ActionFailure(.output, "The agent’s answer had no text to use. Nothing was changed.") }

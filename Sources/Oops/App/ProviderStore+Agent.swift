@@ -3,7 +3,7 @@ import OopsCore
 
 /// What an agent action runs with: Claude Code, found as Fix finds it, with the action's model as Claude Code lists it.
 extension ProviderStore {
-    /// A runner for one agent run. Throws, and so runs nothing, unless Claude Code is set up in Settings → Providers and
+    /// A runner for one agent run. Throws, and so runs nothing, unless Claude Code is set up in Settings → General → Providers and
     /// nothing is wrong with it, as the Runs with row says: an executable found on the Mac isn't enough.
     func agentRunner() throws -> any AgentRunning {
         #if DEBUG
@@ -21,9 +21,9 @@ extension ProviderStore {
     func checkAgentProvider() throws {
         switch agentProblem {
         case nil: return
-        case "Signed out"?: throw CorrectionError.failure(.signIn, "Sign in to Claude Code from Settings → Providers to run agent actions.")
+        case "Signed out"?: throw CorrectionError.failure(.signIn, "Sign in to Claude Code from Settings → General → Providers to run agent actions.")
         case "Not installed"?, "Not set up"?: throw ClaudeAgentError.notInstalled
-        case let problem?: throw CorrectionError.failure(.setup, "Claude Code can’t run agent actions right now (\(problem)). Check it in Settings → Providers.")
+        case let problem?: throw CorrectionError.failure(.setup, "Claude Code can’t run agent actions right now (\(problem)). Check it in Settings → General → Providers.")
         }
     }
 

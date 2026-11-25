@@ -1,4 +1,5 @@
 import Foundation
+import OopsCore
 
 extension ProviderStore {
     /// A few words when a provider can't correct right now; nil when it can.
@@ -19,4 +20,8 @@ extension ProviderStore {
         default: return Status(text: "Checking", ok: true, busy: true)
         }
     }
+
+    /// The providers set up: signed in or connected, or still being checked, so a recheck doesn't hide one. ChatGPT
+    /// is always in the list, signed out on a fresh Mac.
+    var connectedProviders: [Provider] { providers.filter { problem($0.id) == nil } }
 }

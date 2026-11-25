@@ -16,13 +16,13 @@ struct SettingsView: View {
     var clearFocus: () -> Void = {}
     /// The tabs this build shows; fixed for the life of the process.
     private let tabs = SettingsTab.shown
-    /// Launch-only screenshot aid: `-SettingsPreviewTab provider` (never persisted).
+    /// Launch-only screenshot aid: `-SettingsPreviewTab dictate` (never persisted).
     @State private var page = SettingsTab.launch(DebugFlags.settingsTab, visible: SettingsTab.shown)
     /// The page fading out: it stays enabled until its fade ends, so its controls never dim.
     @State private var leaving: SettingsTab?
     /// The page whose controls are live: the chosen one, set a frame before the switch animates.
     @State private var enabled = SettingsTab.launch(DebugFlags.settingsTab, visible: SettingsTab.shown)
-    /// General's drilled-in page. Launch-only aid: `-SettingsPreviewTab stats`, `changelog` or `debug`.
+    /// General's drilled-in page. Launch-only aid: `-SettingsPreviewTab stats`, `changelog`, `debug` or `providers`.
     @State private var generalDetail = GeneralDetail.launchPreview
     /// Fix's drilled-in page. Launch-only aid: `-SettingsPreviewTab try`, `customize` or `apps`.
     @State private var fixDetail = FixDetail.launchPreview
@@ -127,7 +127,7 @@ struct SettingsView: View {
             let parts = DebugFlags.pointer?.split(separator: ",").compactMap { Double($0) }
             if let parts, parts.count == 2 { spare.pointer = CGPoint(x: parts[0], y: parts[1]) }
         }
-        .onChange(of: page) { _, page in if page == .providers { providerAppeared() } }
+        .onChange(of: providersShown) { _, shown in if shown { providerAppeared() } }
         // A page drilled into or left opens at its top, as a tab does: left where the last one was scrolled,
         // it showed an empty card while the scroll view caught up, then settled far down.
         .onChange(of: drilled) {
@@ -147,7 +147,9 @@ struct SettingsView: View {
         .onChange(of: preferences.providers.wantsProvidersPage, initial: true) { _, wanted in
             guard wanted else { return }
             preferences.providers.wantsProvidersPage = false
-            pageSelection.wrappedValue = .providers
+            // A provider's page opened first stays open: the jump lands on it.
+            if page != .general { pageSelection.wrappedValue = .general }
+            withAnimation(SettingsMotion.drill(reduceMotion)) { generalDetail = .providers }
         }
         // The menu's Show all…, before or after this view exists. Only with Dictate shown, so the store isn't opened
         // otherwise.
@@ -180,20 +182,25 @@ struct SettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             refreshPermission()
-            if page == .providers { providerAppeared() }
+            if providersShown { providerAppeared() }
         }
     }
 
     /// What the shown tab is drilled into; nil on its first page.
     private var drilled: AnyHashable? {
         switch page {
+        case .general where providersShown:
+            // Providers' own level: its list, or a provider's page.
+            preferences.providers.openProvider ?? preferences.providers.draft?.id ?? "\(GeneralDetail.providers)"
         case .general: generalDetail
         case .fix: fixDetail
         case .dictate: SpeechModelPicker.shared.target?.id ?? dictateDetail.map { "\($0)" }
-        case .providers: preferences.providers.openProvider ?? preferences.providers.draft?.id
         case .actions: actionPages.level
         }
     }
+
+    /// General is drilled into Providers.
+    private var providersShown: Bool { page == .general && generalDetail == .providers }
 
     /// Try has eyes of its own (its status line), so the window's stay away.
     private var tryShown: Bool { page == .fix && fixDetail == .tryPage }
@@ -207,10 +214,9 @@ struct SettingsView: View {
             // The chosen tab again goes back to its list, like a tab bar on iOS.
             guard destination != page else {
                 withAnimation(SettingsMotion.drill(reduceMotion)) {
-                    if page == .general { generalDetail = nil }
+                    if page == .general { generalDetail = nil; preferences.providers.closeDetail() }
                     if page == .fix { fixDetail = nil }
                     if page == .dictate { closeDictateDetail() }
-                    if page == .providers { preferences.providers.closeDetail() }
                     if page == .actions { actionPages.backToWheel() }
                 }
                 return
@@ -317,7 +323,6 @@ struct SettingsView: View {
         case .fix: FixPage(store: preferences.providers, testEditor: testEditor, detail: $fixDetail)
         case .dictate: DictatePage(store: preferences.providers, detail: $dictateDetail)
         case .actions: ActionsPage(store: preferences.providers, navigation: actionPages, spare: spare)
-        case .providers: ProvidersPage(store: preferences.providers, preferences: preferences)
         }
     }
 

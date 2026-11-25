@@ -7,6 +7,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - In Settings → Fix, the model list has a search field: type part of a model's or a provider's name to find it.
 - The drop's words, such as a fix's count and time, are in slightly larger, easier-to-read type, with a little more room after the eyes.
 - Settings → General shows what each feature uses under its name: Fix's model and effort, Dictate's speech model and language, or what's left to set up.
+- Providers is now in Settings → General, below your features, instead of a tab of its own. While none is set up, General says so at the top.
 
 ## 0.2.0
 

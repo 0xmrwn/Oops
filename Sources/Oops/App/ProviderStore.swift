@@ -21,7 +21,7 @@ import OopsCore
     var openProvider: String?
     /// An API provider being added: shown like a detail page, saved only once Add connects.
     var draft: Provider?
-    /// Set by General's picker to ask Settings for the Providers tab. A flag rather than a closure, so
+    /// Set by General's picker to ask Settings for General → Providers. A flag rather than a closure, so
     /// the General page keeps only comparable inputs and is skipped on tab switches.
     var wantsProvidersPage = false
     /// Dictate's model and language, and what models can do (`ProviderStore+Dictate`).
@@ -313,6 +313,8 @@ import OopsCore
     /// `SettingsPreviewProviders`: a fixed set of providers for screenshots. No network, Keychain or process.
     private func loadPreview() {
         var chatgpt = Provider.chatGPT(); chatgpt.shownModels = ["gpt-6-luna", "gpt-6.1-sol"]
+        // Nothing else set up, nothing chosen: ChatGPT's health and models come from its own (signed-out) preview.
+        if DebugFlags.noProviders { providers = [chatgpt]; return }
         var claude = Provider.claudeCode(); claude.shownModels = ["haiku", "sonnet"]
         let mistral = Provider(id: "preview-mistral", kind: .api(preset: "mistral"), name: "Mistral", baseURL: "https://api.mistral.ai/v1",
                                shownModels: ["mistral-small-latest"])
