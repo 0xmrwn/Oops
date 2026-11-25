@@ -8,7 +8,6 @@ struct FeatureOverview: View {
     let store: ProviderStore
     let local: LocalModels
     let keyboards: KeyboardModelDriver
-    var library = ActionLibraryModel.shared
     let open: (SettingsTab) -> Void
     /// Opens the tab and starts recording its shortcut.
     let turnOn: (SettingsTab) -> Void
@@ -74,11 +73,13 @@ struct FeatureOverview: View {
             guard let option = store.dictateOption(local) else { return FeatureSetup(value: "Choose a speech model", missing: true) }
             // Switching with the keyboard changes the language (and maybe the model) as the keyboard changes.
             let language = store.dictateLanguage(for: option)
+            // Automatic as Dictate's own page says it: a model may detect only a few languages.
             let detail = keyboards.settings.enabled && !keyboards.settings.mappings.isEmpty ? "Follows keyboard"
-                : language == SpeechLanguage.auto ? "Any language" : SpeechLanguage.name(of: language)
+                : DictateModelCard.name(language)
             return FeatureSetup(mark: .speech(DictateModelCard.maker(option.reference)), value: option.name, detail: detail)
         default:
-            let count = library.library.actions.count
+            // Only here, so General with Actions hidden never loads (or writes) its library.
+            let count = ActionLibraryModel.shared.library.actions.count
             return FeatureSetup(value: count == 0 ? "No actions" : count == 1 ? "1 action" : "\(count) actions")
         }
     }
