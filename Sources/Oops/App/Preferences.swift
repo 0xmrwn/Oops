@@ -41,13 +41,14 @@ import OopsCore
     init(auth: ChatGPTAuth? = nil, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         // A providers preview shows a fixed provider list and implies a signed-in ChatGPT preview.
-        let preview = auth == nil ? ChatGPTPreview(DebugFlags.chatGPT ?? (DebugFlags.providers ? "signedIn" : nil)) : nil
+        let preview = auth == nil ? ChatGPTPreview(DebugFlags.chatGPT ?? (DebugFlags.noProviders ? "signedOut" : DebugFlags.providers ? "signedIn" : nil)) : nil
         self.preview = preview
         if let preview {
             chatGPT = ChatGPTAuth(store: InertChatGPTStore(), openBrowser: { _ in throw ChatGPTError("preview", "Preview only.") })
             providers = ProviderStore(chatGPT: chatGPT, preview: DebugFlags.providers, defaults: defaults)
             chatGPTStatus = preview.status
-            models = preview.models
+            // A fresh Mac has no ChatGPT models until it signs in.
+            models = DebugFlags.noProviders ? [] : preview.models
         } else {
             chatGPT = auth ?? ChatGPTAuth(store: ChatGPTKeychainStore(), openBrowser: { url in
                 let opened = await MainActor.run { NSWorkspace.shared.open(url) }
@@ -66,7 +67,7 @@ import OopsCore
 
     private func updateChatGPTHealth() {
         guard let chatGPTStatus else { return }
-        if case .signedIn = chatGPTStatus { providers.setChatGPT(signedIn: true) } else { providers.setChatGPT(signedIn: false) }
+        providers.setChatGPT(chatGPTStatus)
     }
 
     func refreshChatGPT(loadCatalog: Bool = false) {

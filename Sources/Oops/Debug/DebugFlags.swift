@@ -145,7 +145,7 @@ enum DebugFlags {
     /// the real setting.
     static var simulatedAccessibilityGrant: Double { number("SimulateAccessibilityGrant") }
     static var openTry: Bool { argument("--fixture") }
-    /// The tab or page Settings opens on.
+    /// The tab or page Settings opens on; `providers` is General → Providers.
     static var settingsTab: String? { string("SettingsPreviewTab") }
     /// Opens a popover at launch (`models` for the model list).
     static var settingsPopover: String? { string("SettingsPreviewPopover") }
@@ -153,8 +153,12 @@ enum DebugFlags {
     static var changelog: URL? { string("SettingsPreviewChangelog").map(URL.init(fileURLWithPath:)) }
     /// `available`, `downloading`, `ready` or `failed`: walks About's update card without a real update.
     static var update: String? { string("SettingsPreviewUpdate") }
-    /// Fake provider states: ChatGPT `signedIn`, `signedOut` or `reauth`; a provider page to open.
-    static var providers: Bool { bool("SettingsPreviewProviders") || brandReview }
+    /// Fake provider states: ChatGPT `signedIn`, `signedOut` or `reauth`; a provider page to open (General → Providers →
+    /// that provider). `-SettingsPreviewProviders none`: a fresh Mac's, ChatGPT alone and signed out; `working`: the
+    /// set without the one that can't connect.
+    static var providers: Bool { bool("SettingsPreviewProviders") || noProviders || workingProviders || brandReview }
+    static var noProviders: Bool { string("SettingsPreviewProviders") == "none" }
+    static var workingProviders: Bool { string("SettingsPreviewProviders") == "working" }
     /// Actions starts from the starters in memory and saves nothing, so a capture never reads or writes a person's library.
     static var actionsPreview: Bool { bool("SettingsPreviewActions") }
     /// Opens an Actions page: an action's name (a prefix), `new` for a new one, or `typed` for how a typed instruction runs.
@@ -180,6 +184,9 @@ enum DebugFlags {
     static var cycleTabs: Bool { bool("SettingsPreviewCycle") }
     /// A generated month of stats; nothing is written.
     static var sampleStats: Bool { bool("SettingsPreviewStats") }
+    /// Settings opens behind every other window, without activating Oops, and draws as a key window would, for
+    /// captures that never take the screen.
+    static var settingsBehind: Bool { bool("SettingsPreviewBehind") }
     /// `light` or `dark` for the Settings window.
     static var settingsAppearance: String? { string("SettingsPreviewAppearance") }
     /// A colourful window behind Settings for captures; `text` puts text in it.

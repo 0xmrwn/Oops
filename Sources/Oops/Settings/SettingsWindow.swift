@@ -28,7 +28,7 @@ import SwiftUI
                                               y: (visible.midY - window.frame.height / 2).rounded()))
             }
         }
-        if DebugFlags.perfHarness != nil { window.orderFrontRegardless() } else {
+        if DebugFlags.settingsBehind { window.orderBack(nil) } else if DebugFlags.perfHarness != nil { window.orderFrontRegardless() } else {
             NSApp.enterDock()
             NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
         }
@@ -60,6 +60,7 @@ import SwiftUI
                                 clearFocus: { [weak self] in self?.window?.makeFirstResponder(nil) })
             .environment(\.settingsStyle, style)
             .focusRingsFromKeyboard()
+            .transformEnvironment(\.controlActiveState) { if DebugFlags.settingsBehind { $0 = .key } }
         let controller = NSHostingController(rootView: view)
         // One fixed size for every page: long pages scroll, short ones show the eyes.
         controller.sizingOptions = []

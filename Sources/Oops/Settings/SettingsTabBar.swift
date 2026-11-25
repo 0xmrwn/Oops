@@ -11,7 +11,6 @@ extension SettingsTab {
         case .fix: ShortcutSettings.Action.correct.symbol
         case .dictate: "mic"
         case .actions: "circle.grid.cross"
-        case .providers: "sparkles"
         }
     }
 }

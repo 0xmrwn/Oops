@@ -2,11 +2,13 @@ import AppKit
 import SwiftUI
 import OopsCore
 
-/// Providers: the list of connections, and one connection's detail pushed in place. The list reads
-/// only the store; ChatGPT's own views observe `Preferences` inside its detail.
+/// Providers, a page inside General: the list of connections, and one connection's detail pushed in place. The
+/// list reads only the store; ChatGPT's own views observe `Preferences` inside its detail.
 struct ProvidersPage: View {
     let store: ProviderStore
     let preferences: Preferences
+    /// Back to General; a detail's own header goes back to this list.
+    let back: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -24,7 +26,10 @@ struct ProvidersPage: View {
     }
 
     private var list: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 20) {
+            DrillHeader(title: "Providers", parent: "General", back: back) {
+                Image(systemName: ProvidersRow.symbol).font(.system(size: 18, weight: .medium))
+            }
             VStack(spacing: 0) {
                 ForEach(store.providers) { provider in
                     ProviderRow(provider: provider, status: store.status(provider.id)) { store.openProvider = provider.id }

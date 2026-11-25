@@ -44,7 +44,7 @@ import SwiftUI
                 AnyView(RunsWithPage(store: store, parent: "Translate", runsWith: .constant(agentRun), back: {}, agent: .unavailable("Not set up")))
             }),
             ("dictate-history", { AnyView(DictationHistoryPage(model: history)) }),
-            ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences)) }),
+            ("providers", { AnyView(ProvidersPage(store: store, preferences: preferences) {}) }),
             ("picker-picks", { AnyView(SpeechModelPage(target: target, store: store, local: local) {}) }),
             ("provider-models", { AnyView(claude.map { ProviderDetail(provider: $0, store: store, preferences: preferences) }) }),
             ("dictate-whisper", {

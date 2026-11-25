@@ -3,8 +3,8 @@ import OopsCore
 import ServiceManagement
 import SwiftUI
 
-/// The landing page: what needs the user (a missing permission, a waiting update), every feature at a glance,
-/// app-wide settings, the stats, then About.
+/// The landing page: what needs the user (a missing permission, a waiting update, a provider), every feature at a
+/// glance, Providers, app-wide settings, the stats, then About.
 struct GeneralPage: View {
     let hasAccessibility: Bool
     let tabs: [SettingsTab]
@@ -63,6 +63,9 @@ struct GeneralPage: View {
                     DebugToolsPage(preferences: preferences, preview: preview, previewPlacement: previewPlacement)
                 }
                 .drillPane(edge: 1, reduceMotion: reduceMotion)
+            case .providers:
+                ProvidersPage(store: store, preferences: preferences) { detail = nil }
+                    .drillPane(edge: 1, reduceMotion: reduceMotion)
             case nil:
                 general.drillPane(edge: -1, reduceMotion: reduceMotion)
             }
@@ -89,11 +92,16 @@ struct GeneralPage: View {
                     .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity),
                                             removal: .opacity))
             }
+            // Nothing to correct with yet: Fix, Actions and Clean up with AI wait on this.
+            let providers = store.overview
+            if providers.noneSetUp { ProviderSetupCard(add: openProviders) }
             FeatureOverview(tabs: tabs, store: store, local: local, keyboards: keyboards, open: open) { tab in
                 open(tab)
                 // After the switch has begun, which stops any recorder on the page being left.
                 DispatchQueue.main.async { NotificationCenter.default.post(name: .settingsRecordShortcut, object: tab) }
             }
+            // Hidden while the card shows, so the page never says Providers twice.
+            if !providers.configured.isEmpty { ProvidersRow(overview: providers, open: openProviders) }
             VStack(spacing: 0) {
                 OpenAtLoginRow().padding(.vertical, 12).disabled(DebugFlags.brandReview)
                 HStack(spacing: 14) {
@@ -127,6 +135,14 @@ struct GeneralPage: View {
         }
         // A found update eases in, and the page below makes room for it.
         .animation(SettingsMotion.swap(reduceMotion), value: Updates.shared.pending)
+        // ChatGPT's sign-in, read from this Mac only (no network), so the card and the row know whether it is set up.
+        .onAppear { preferences.refreshChatGPT() }
+    }
+
+    /// The list, not a provider's page left open the last time.
+    private func openProviders() {
+        store.closeDetail()
+        detail = .providers
     }
 
     private var accessibilityCard: some View {
@@ -163,13 +179,17 @@ struct GeneralPage: View {
 
 /// General's pages one level down.
 enum GeneralDetail: Hashable {
-    case stats, about, changelog, debug
-    static var launchPreview: Self? {
-        switch DebugFlags.settingsTab {
+    case stats, about, changelog, debug, providers
+    static var launchPreview: Self? { launch(DebugFlags.settingsTab) }
+
+    /// The page a `-SettingsPreviewTab` name opens inside General, in any case, as `SettingsTab.launch` reads it.
+    static func launch(_ name: String?) -> Self? {
+        switch name?.lowercased() {
         case "stats": .stats
         case "about": .about
         case "changelog": .changelog
         case "debug", "developer", "diagnostics": .debug
+        case "provider", "providers": .providers
         default: nil
         }
     }

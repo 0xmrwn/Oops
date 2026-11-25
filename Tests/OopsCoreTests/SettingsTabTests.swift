@@ -2,11 +2,11 @@ import XCTest
 @testable import OopsCore
 
 final class SettingsTabTests: XCTestCase {
-    func testActionsOffShowsFourTabsInOrder() {
-        XCTAssertEqual(SettingsTab.visible(actions: false), [.general, .fix, .dictate, .providers])
+    func testActionsOffShowsThreeTabsInOrder() {
+        XCTAssertEqual(SettingsTab.visible(actions: false), [.general, .fix, .dictate])
     }
-    func testActionsOnShowsFiveTabsInOrder() {
-        XCTAssertEqual(SettingsTab.visible(actions: true), [.general, .fix, .dictate, .actions, .providers])
+    func testActionsOnShowsFourTabsInOrder() {
+        XCTAssertEqual(SettingsTab.visible(actions: true), [.general, .fix, .dictate, .actions])
     }
     func testLaunchNamesOpenTheTabHoldingThatPage() {
         let all = SettingsTab.visible(actions: true)
@@ -14,18 +14,23 @@ final class SettingsTabTests: XCTestCase {
         for name in ["about", "stats", "changelog", "debug", "general", "nonsense"] {
             XCTAssertEqual(SettingsTab.launch(name, visible: all), .general, name)
         }
-        XCTAssertEqual(SettingsTab.launch("provider", visible: all), .providers)
         for name in ["dictate", "dictation", "history"] { XCTAssertEqual(SettingsTab.launch(name, visible: all), .dictate, name) }
+        XCTAssertEqual(SettingsTab.launch("actions", visible: all), .actions)
         XCTAssertEqual(SettingsTab.launch(nil, visible: all), .general)
     }
+    func testProvidersOpensGeneralWhichHoldsIt() {
+        for visible in [SettingsTab.visible(actions: true), SettingsTab.visible(actions: false)] {
+            for name in ["provider", "providers", "Providers"] { XCTAssertEqual(SettingsTab.launch(name, visible: visible), .general, name) }
+        }
+    }
     func testHiddenTabsNeverOpen() {
-        let four = SettingsTab.visible(actions: false)
-        XCTAssertEqual(SettingsTab.launch("actions", visible: four), .general)
+        let three = SettingsTab.visible(actions: false)
+        XCTAssertEqual(SettingsTab.launch("actions", visible: three), .general)
     }
     func testTabsSlideFromTheirSideOfTheVisibleOrder() {
-        let four = SettingsTab.visible(actions: false)
-        XCTAssertEqual(SettingsTab.side(of: .general, shown: .fix, in: four), -1)
-        XCTAssertEqual(SettingsTab.side(of: .fix, shown: .fix, in: four), 0)
-        XCTAssertEqual(SettingsTab.side(of: .providers, shown: .fix, in: four), 1)
+        let three = SettingsTab.visible(actions: false)
+        XCTAssertEqual(SettingsTab.side(of: .general, shown: .fix, in: three), -1)
+        XCTAssertEqual(SettingsTab.side(of: .fix, shown: .fix, in: three), 0)
+        XCTAssertEqual(SettingsTab.side(of: .dictate, shown: .fix, in: three), 1)
     }
 }

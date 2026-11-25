@@ -65,7 +65,7 @@ final class ClaudeCodeTests: XCTestCase {
         XCTAssertEqual(try message(#"{"type":"result","subtype":"success","is_error":true,"api_error_status":429,"result":"x"}"#),
                        "Claude usage limit reached. Manage usage at claude.ai/settings/usage.")
         XCTAssertEqual(try message(#"{"type":"result","subtype":"success","is_error":true,"result":"Not logged in · Please run /login"}"#),
-                       "Claude Code is signed out. Sign in from Settings → Providers.")
+                       "Claude Code is signed out. Sign in from Settings → General → Providers.")
         XCTAssertEqual(try message(#"{"type":"result","subtype":"error_during_execution","is_error":true,"result":"boom"}"#),
                        "Claude couldn’t correct this text. Try again.")
     }
