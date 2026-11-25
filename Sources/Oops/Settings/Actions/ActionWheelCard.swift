@@ -85,8 +85,9 @@ struct ActionWheelCard: View {
                     .accessibilityHidden(true)
             }
             TypedCentre(spare: spare, summary: typedSummary) { navigation.openRunsWith(.typed) }
+            let held = actions.first { $0.id == dragging }
             ForEach(ActionPlace.allCases.filter { place in !actions.contains { $0.place == place } }, id: \.self) { place in
-                EmptySlot(place: place, targeted: target == place && dragging != nil) { navigation.add(at: place) }
+                EmptySlot(place: place, targeted: target == place && dragging != nil, held: held) { navigation.add(at: place) }
                     .offset(Self.anchor(place))
             }
             ForEach(actions) { action in
@@ -97,6 +98,24 @@ struct ActionWheelCard: View {
         .frame(height: Self.height)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Wheel")
+        #if DEBUG
+            .onAppear(perform: previewHeld)
+        #endif
+    }
+
+    /// A pill sits on its slot by its icon's centre, its name on the outer side.
+    static func alignment(_ side: CGFloat) -> Alignment { side > 0 ? .leading : side < 0 ? .trailing : .center }
+    static func iconOffset(_ side: CGFloat) -> CGFloat { side > 0 ? -20 : side < 0 ? 20 : 0 }
+
+    /// A pill's content; a free slot lays it out hidden to outline the held pill at its own size.
+    static func label(_ action: Action, side: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            if side < 0 { name(action) }
+            Image(systemName: action.symbol).font(.system(size: 15, weight: .medium)).frame(width: 24)
+            if side >= 0 { name(action) }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 40)
     }
 
     private func pill(_ action: Action) -> some View {
@@ -104,18 +123,11 @@ struct ActionWheelCard: View {
         let held = dragging == action.id
         let swapping = target == action.place && dragging != nil && !held
         return Color.clear.frame(width: 0, height: 0)
-            .overlay(alignment: side > 0 ? .leading : side < 0 ? .trailing : .center) {
+            .overlay(alignment: Self.alignment(side)) {
                 Button {
                     if dragged { dragged = false } else { navigation.edit(action.id) }
                 } label: {
-                    HStack(spacing: 6) {
-                        if side < 0 { name(action) }
-                        Image(systemName: action.symbol).font(.system(size: 15, weight: .medium)).frame(width: 24)
-                        if side >= 0 { name(action) }
-                    }
-                    .padding(.horizontal, 8)
-                    .frame(height: 40)
-                    .contentShape(Capsule())
+                    Self.label(action, side: side).contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.regular.interactive(), in: .capsule)
@@ -123,7 +135,7 @@ struct ActionWheelCard: View {
                 .overlay { if swapping { Capsule().inset(by: -3).strokeBorder(.primary.opacity(0.45), lineWidth: 1.5) } }
                 .fixedSize()
                 // The icon's centre, not the pill's edge, sits on the slot.
-                .offset(x: side > 0 ? -20 : side < 0 ? 20 : 0)
+                .offset(x: Self.iconOffset(side))
                 .help("\(action.title) · \(action.place.name)")
                 .accessibilityLabel(action.title)
                 .accessibilityValue(action.place.name)
@@ -141,7 +153,7 @@ struct ActionWheelCard: View {
             .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.22), value: action.place)
     }
 
-    private func name(_ action: Action) -> some View {
+    private static func name(_ action: Action) -> some View {
         Text(action.title).font(.system(size: 13, weight: .medium)).lineLimit(1).frame(maxWidth: 112)
             .fixedSize().foregroundStyle(.primary.opacity(action.name.isEmpty ? 0.6 : 1))
     }
@@ -181,6 +193,17 @@ struct ActionWheelCard: View {
         let anchor = Self.anchor(place)
         return hypot(anchor.width - point.width, anchor.height - point.height)
     }
+
+    #if DEBUG
+    /// `-SettingsPreviewActionPage held`: the first action held as a drag holds it, under the longest name, over the
+    /// first free slot, for captures without a pointer. Only the in-memory preview library is renamed.
+    private func previewHeld() {
+        guard DebugFlags.settingsActionPage == "held", DebugFlags.actionsPreview, let action = actions.first else { return }
+        library.update(action.id) { $0.name = "Rewrite as a friendly reply to the whole team" }
+        dragging = action.id
+        target = ActionPlace.allCases.first { place in !actions.contains { $0.place == place } }
+    }
+    #endif
 }
 
 /// The wheel's centre, where an instruction is typed when the wheel is open: opens how such an instruction runs.
@@ -215,26 +238,45 @@ private struct TypedCentre: View {
     }
 }
 
-/// A free place on the wheel.
+/// A free place on the wheel. While an action is held it outlines that pill where it would land here.
 private struct EmptySlot: View {
     let place: ActionPlace
     let targeted: Bool
+    let held: Action?
     let add: () -> Void
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: add) {
-            Image(systemName: "plus").font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary.opacity(hovering || targeted ? 0.85 : 0.45))
-                .frame(width: 36, height: 36)
-                .background(Circle().fill(.primary.opacity(hovering || targeted ? 0.08 : 0)))
-                .overlay(Circle().strokeBorder(.primary.opacity(targeted ? 0.5 : hovering ? 0.3 : 0.18), style: StrokeStyle(lineWidth: 1, dash: targeted ? [] : [3, 3])))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .help("Add an action · \(place.name)")
-        .accessibilityLabel("Add action")
-        .accessibilityValue(place.name)
+        let side = place.step.x, outlined = held != nil
+        // A 36 pt capsule is the resting circle, so the slot grows into the outline instead of swapping shapes.
+        Color.clear.frame(width: 0, height: 0)
+            .overlay(alignment: outlined ? ActionWheelCard.alignment(side) : .center) {
+                Button(action: add) {
+                    ZStack {
+                        if let held { ActionWheelCard.label(held, side: side).hidden() }
+                        Image(systemName: "plus").font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.primary.opacity(hovering || targeted ? 0.85 : 0.45))
+                            .opacity(outlined ? 0 : 1)
+                    }
+                    .frame(width: outlined ? nil : 36, height: outlined ? nil : 36)
+                    .background(Capsule().fill(.primary.opacity(hovering || targeted ? 0.08 : 0)))
+                    .overlay(Capsule().strokeBorder(.primary.opacity(targeted ? 0.5 : hovering ? 0.3 : 0.18), style: StrokeStyle(lineWidth: 1, dash: targeted ? [] : [3, 3])))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+                .offset(x: outlined ? ActionWheelCard.iconOffset(side) : 0)
+                // Reduce Motion fades the circle into the outline rather than growing it.
+                .id(reduceMotion && outlined)
+                .transition(.opacity)
+                // A drag's pointer passes over free slots: they neither highlight nor start an action until it ends.
+                .allowsHitTesting(!outlined)
+                .onHover { hovering = $0 }
+                .help("Add an action · \(place.name)")
+                .accessibilityLabel("Add action")
+                .accessibilityValue(place.name)
+            }
+            .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.22), value: outlined)
     }
 }

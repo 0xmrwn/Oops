@@ -156,7 +156,8 @@ enum DebugFlags {
     static var actionsPreview: Bool { bool("SettingsPreviewActions") }
     /// Opens an Actions page: an action's name (a prefix), `new` for a new one, or `typed` for how a typed instruction runs.
     static var settingsAction: String? { string("SettingsPreviewAction") }
-    /// A state inside an action's editor: `runs`, `picker` (Runs with, its model list open), `try`, `icons`, `delete`, `choice`, `insert`, `eight` or `long`.
+    /// A state inside an action's editor: `runs`, `picker` (Runs with, its model list open), `try`, `icons`, `delete`, `choice`, `insert`, `eight` or `long`;
+    /// on the wheel, `held` (an action held as a drag holds it).
     static var settingsActionPage: String? { string("SettingsPreviewActionPage") }
     /// With `-SettingsPreviewActions`, how the opened action runs: `model` (Haiku 5.5, Low) or `agent` (Claude Code,
     /// Sonnet 5.5, High, with web and commands), `agentSetup` (the same on Agent, no web, with the person's setup).
