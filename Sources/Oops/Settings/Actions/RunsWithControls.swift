@@ -19,11 +19,11 @@ struct RunModelButton: View {
     var leadingIsCurrent = false
     /// nil is the leading row.
     let choose: (ModelSelection.Choice?) -> Void
-    @State private var presented = false
+    @State private var list = PopoverToggle()
 
     var body: some View {
         Button {
-            if needsProvider { store.wantsProvidersPage = true } else { presented = true }
+            if needsProvider { store.wantsProvidersPage = true } else { list.press() }
         } label: {
             HStack(spacing: 6) {
                 if let mark { ProviderMark(provider: mark, size: 15) }
@@ -39,20 +39,20 @@ struct RunModelButton: View {
         .help(help ?? "")
         .accessibilityLabel(title)
         .accessibilityValue(label)
-        .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in presented = false }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in list.isPresented = false }
         // Screenshot aid: `-SettingsPreviewActionPage picker` opens the list at launch.
         .task {
             guard DebugFlags.settingsActionPage == "picker" else { return }
             try? await Task.sleep(for: .milliseconds(800))
-            presented = true
+            list.isPresented = true
         }
         // Beside the button, pointing at its chevron: under it, centred on a button at the card's right edge, the list
         // hung out past the window.
         .overlay(alignment: .trailing) {
             Color.clear.frame(width: 22).padding(.trailing, 8).allowsHitTesting(false)
-                .popover(isPresented: $presented, arrowEdge: .leading) {
+                .popover(isPresented: $list.isPresented, arrowEdge: .leading) {
                     RunModelPopover(store: store, groups: groups, current: current, leading: leading, leadingIsCurrent: leadingIsCurrent,
-                                    choose: { presented = false; choose($0) }, dismiss: { presented = false })
+                                    choose: { list.isPresented = false; choose($0) }, dismiss: { list.isPresented = false })
                 }
         }
     }

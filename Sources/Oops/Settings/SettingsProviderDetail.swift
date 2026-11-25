@@ -286,7 +286,7 @@ private struct APIProviderForm: View {
 private struct ModelsCard: View {
     let provider: Provider
     let store: ProviderStore
-    @State private var showingMore = false
+    @State private var moreList = PopoverToggle()
     /// The popover's list, fixed when it opens.
     @State private var more: [CatalogModel] = []
 
@@ -302,7 +302,7 @@ private struct ModelsCard: View {
             .padding(.bottom, 6)
             ForEach(primary) { ModelSwitchRow(model: $0, provider: provider, store: store) }
             if !rest.isEmpty {
-                Button { more = rest; showingMore = true } label: {
+                Button { more = rest; moreList.press() } label: {
                     HStack {
                         Text(primary.isEmpty ? "Choose models" : "More models").fontWeight(.medium)
                         Spacer()
@@ -314,7 +314,7 @@ private struct ModelsCard: View {
                 }
                 .buttonStyle(.plain)
                 // Always above the row: that is where the room is, so every provider opens the same way.
-                .popover(isPresented: $showingMore, arrowEdge: .top) {
+                .popover(isPresented: $moreList.isPresented, arrowEdge: .top) {
                     // `more` is fixed when the button is pressed; if the popover is built before that
                     // lands, it lists what is left now rather than nothing.
                     MoreModels(models: more.isEmpty ? rest : more, provider: provider, store: store)

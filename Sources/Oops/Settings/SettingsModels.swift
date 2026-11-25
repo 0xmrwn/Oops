@@ -48,7 +48,7 @@ struct ModelCard: View {
 private struct ModelPickerButton: View {
     let store: ProviderStore
     let openProviders: () -> Void
-    @State private var presented = false
+    @State private var picker = PopoverToggle()
     /// "Providers…" waits for the popover to close: switching pages under a closing popover froze the
     /// old page, then snapped the window to the new height.
     @State private var providersAfterClose = false
@@ -56,7 +56,7 @@ private struct ModelPickerButton: View {
     var body: some View {
         let model = store.currentModel, settings = store.currentSettings
         Button {
-            if store.pickerGroups.isEmpty { openProviders() } else { presented = true }
+            if store.pickerGroups.isEmpty { openProviders() } else { picker.press() }
         } label: {
             HStack(spacing: 6) {
                 if let provider = store.currentProvider, model != nil { ProviderMark(provider: provider, size: 15) }
@@ -76,27 +76,27 @@ private struct ModelPickerButton: View {
         }
         .buttonStyle(.settingsGlass)
         .controlSize(.large)
-        .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in presented = false }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in picker.isPresented = false }
         .accessibilityHint("Opens the model and reasoning options")
         // Screenshot aid: `-SettingsPreviewPopover options|models` opens the popover at launch.
         .task {
             guard DebugFlags.settingsPopover != nil else { return }
             try? await Task.sleep(for: .seconds(1))
-            presented = true
+            picker.isPresented = true
         }
         // Anchored to the chevron, at the pill's fixed trailing edge (the pill grows leftwards with the
         // effort label), so the popover never slides. Always below: the card tops General, so there is
         // room, and no pane change can flip it.
         .overlay(alignment: .trailing) {
             Color.clear.frame(width: 22).padding(.trailing, 8).allowsHitTesting(false)
-                .popover(isPresented: $presented, arrowEdge: .bottom) { popover }
+                .popover(isPresented: $picker.isPresented, arrowEdge: .bottom) { popover }
         }
     }
 
     private var popover: some View {
-        ModelPopover(store: store, dismiss: { presented = false }) {
+        ModelPopover(store: store, dismiss: { picker.isPresented = false }) {
             providersAfterClose = true
-            presented = false
+            picker.isPresented = false
         }
         .onDisappear {
             guard providersAfterClose else { return }

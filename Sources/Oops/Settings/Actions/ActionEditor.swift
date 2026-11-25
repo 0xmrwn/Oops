@@ -9,7 +9,7 @@ struct ActionEditor: View {
     let navigation: ActionsNavigation
     let id: UUID
     var library = ActionLibraryModel.shared
-    @State private var pickingIcon = false
+    @State private var iconPicker = PopoverToggle()
     @State private var tryOpen = DebugFlags.settingsActionPage == "try"
     @State private var confirmingDelete = DebugFlags.settingsActionPage == "delete"
     @State private var instruction = InstructionController()
@@ -55,7 +55,7 @@ struct ActionEditor: View {
         guard let page = DebugFlags.settingsActionPage, ["icons", "choice", "insert", "eight"].contains(page) else { return }
         try? await Task.sleep(for: .seconds(0.8))
         switch page {
-        case "icons": pickingIcon = true
+        case "icons": iconPicker.isPresented = true
         case "insert": instruction.insertChoice()
         default: instruction.openChoice()
         }
@@ -77,7 +77,7 @@ struct ActionEditor: View {
             .focusable(false)
             .help("Back to Actions · ⌘[")
             .accessibilityLabel("Back to Actions")
-            Button { pickingIcon = true } label: {
+            Button { iconPicker.press() } label: {
                 Image(systemName: action.symbol).font(.system(size: 15, weight: .medium)).frame(width: 18, height: 18)
             }
             .buttonStyle(.settingsGlass)
@@ -86,11 +86,11 @@ struct ActionEditor: View {
             .help("Change icon")
             .accessibilityLabel("Icon")
             // Beside the button, not under it: under it the picker hung out past the window's edge.
-            .popover(isPresented: $pickingIcon, arrowEdge: .trailing) {
-                IconPicker(symbol: bind(\.symbol)) { pickingIcon = false }
-                    .modifier(EscapeCloses { pickingIcon = false })
+            .popover(isPresented: $iconPicker.isPresented, arrowEdge: .trailing) {
+                IconPicker(symbol: bind(\.symbol)) { iconPicker.isPresented = false }
+                    .modifier(EscapeCloses { iconPicker.isPresented = false })
             }
-            .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in pickingIcon = false }
+            .onReceive(NotificationCenter.default.publisher(for: .settingsPageWillChange)) { _ in iconPicker.isPresented = false }
             WellField(title: "Name", text: bind(\.name), font: .system(size: 20, weight: .semibold), height: 36)
         }
     }
