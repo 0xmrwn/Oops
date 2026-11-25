@@ -7,11 +7,11 @@ import SwiftUI
 struct SpeechModelPill: View {
     let speech: OnboardingSpeechModel
     let useOpenAIKey: () -> Void
-    @State private var open = false
+    @State private var popover = PopoverToggle()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button { open.toggle() } label: {
+        Button { popover.press() } label: {
             HStack(spacing: 8) {
                 mark.frame(width: 16, height: 16)
                 if speech.announcing { Text("Downloading \(speech.model.name) · \(speech.size)").transition(.opacity) }
@@ -25,7 +25,7 @@ struct SpeechModelPill: View {
         .animation(.easeOut(duration: 0.2), value: speech.phase)
         .accessibilityLabel("Speech model")
         .accessibilityValue(spoken)
-        .popover(isPresented: $open, arrowEdge: .bottom) { details }
+        .popover(isPresented: $popover.isPresented, arrowEdge: .bottom) { details }
         .onChange(of: speech.phase == .ready, initial: true) { _, ready in if ready { speech.settle() } }
     }
 
@@ -89,7 +89,7 @@ struct SpeechModelPill: View {
                 case .failed: Button("Retry") { speech.resume() }
                 case .ready: EmptyView()
                 }
-                Button("Use an OpenAI key") { open = false; useOpenAIKey() }
+                Button("Use an OpenAI key") { popover.isPresented = false; useOpenAIKey() }
             }
             .buttonStyle(.settingsGlass)
         }
