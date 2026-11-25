@@ -22,16 +22,18 @@ enum ShortcutCapture: Equatable {
         else { self = .record(Shortcut(keyCode: UInt32(keyCode), modifiers: modifiers)) }
     }
 
-    /// Each key-down a recorder hears, with the process that posted it: another app's synthetic key, or a key it
-    /// swallowed, is what makes a recorded shortcut differ from the keys pressed.
+    /// Each key-down a recorder hears, with the process that posted it, under `-DebugShortcuts YES` only: they are
+    /// keystrokes. Another app's synthetic key, or one it swallowed, is what makes a recorded shortcut differ from
+    /// the keys pressed.
     func log(_ action: ShortcutSettings.Action, event: NSEvent) {
+        #if DEBUG
+        guard DebugFlags.debugShortcuts else { return }
         let source = event.cgEvent?.getIntegerValueField(.eventSourceUnixProcessID) ?? -1
-        Self.logger.notice("""
+        Logger(subsystem: "dev.0xmrwn.oops", category: "Shortcuts").notice("""
             recorder action=\(action.rawValue, privacy: .public) key=\(event.keyCode, privacy: .public) \
             modifiers=\(Shortcut.modifiers(event.modifierFlags), privacy: .public) repeat=\(event.isARepeat, privacy: .public) \
             source_pid=\(source, privacy: .public) outcome=\(String(describing: self), privacy: .public)
             """)
+        #endif
     }
-
-    private static let logger = Logger(subsystem: "dev.0xmrwn.oops", category: "Shortcuts")
 }

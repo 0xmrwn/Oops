@@ -22,8 +22,8 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
     /// Told when Escape is pressed while it is registered.
     var cancel: (() -> Void)?
     private var layoutObserver: NSObjectProtocol?
-    /// Each action under its own hotkey identity, so the handler knows which one fired.
-    private var router = HotkeyRouter(ShortcutSettings.Action.allCases)
+    /// Each action under its own hotkey identity, with a watch per hold for a release that never comes.
+    private var holds = HotkeyHolds<ShortcutSettings.Action, HotkeyInstant>(ShortcutSettings.Action.allCases)
     /// Each registered action's key, sampled while its chord is held in case the release never comes.
     private var keyCodes: [ShortcutSettings.Action: UInt32] = [:]
     private var releaseWatch: Task<Void, Never>?
@@ -71,7 +71,7 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
         guard status == noErr else { throw CorrectionError.message("Could not register keyboard shortcut handler.") }
         var problems: [String] = []
         for action in ShortcutSettings.Action.allCases {
-            guard let identity = router.identity(of: action) else { continue }
+            guard let identity = holds.router.identity(of: action) else { continue }
             let shortcut: Shortcut
             switch settings.registration(action) {
             case .chord(let chord): shortcut = chord
@@ -85,7 +85,7 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
             let status = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers,
                                             EventHotKeyID(signature: 0x53545854, id: identity), GetEventDispatcherTarget(), 0, &ref)
             // Not an error when another app holds the same chord: macOS registers both (see `taken`).
-            Self.log.notice("register action=\(action.rawValue, privacy: .public) chord=\(shortcut.label, privacy: .public) status=\(status, privacy: .public)")
+            Self.log.notice("register action=\(action.rawValue, privacy: .public) status=\(status, privacy: .public)")
             if status == noErr, let ref { refs.append(ref); keyCodes[action] = shortcut.keyCode } else {
                 failed.insert(action)
                 problems.append(Self.taken(shortcut))
@@ -116,9 +116,12 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
         cancelRefs.forEach { UnregisterEventHotKey($0) }
         cancelRefs = []
     }
-    /// One hotkey event, on the main thread: the action it belongs to, pressed or released.
+    /// One hotkey event, on the main thread: what it tells, a missed release first when it has one.
     private func deliver(identity: UInt32, pressed: Bool, at instant: HotkeyInstant) {
-        guard let event = router.route(identity: identity, pressed: pressed) else { return }
+        for told in holds.route(identity: identity, pressed: pressed, at: instant) { tell(told.event, at: told.at) }
+    }
+
+    private func tell(_ event: HotkeyHolds<ShortcutSettings.Action, HotkeyInstant>.Event, at instant: HotkeyInstant) {
         let settings = ShortcutSettings.shared
         switch event.phase {
         case .pressed: settings.down = event.action
@@ -128,29 +131,30 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
         invoke?(event.action, event.phase, instant)
         if event.phase == .pressed, releaseWatch == nil {
             releaseWatch = Task { [weak self] in
-                var watches: [ShortcutSettings.Action: MissedRelease<HotkeyInstant>] = [:]
                 while !Task.isCancelled {
                     try? await Task.sleep(for: MissedRelease<HotkeyInstant>.interval)
-                    guard !Task.isCancelled, let self, self.sampleHeld(&watches) else { return }
+                    guard !Task.isCancelled, let self, self.sampleHeld() else { return }
                 }
             }
         }
     }
 
-    /// One round of `MissedRelease` samples over the held chords, telling each release that never came.
-    /// False once nothing is held, which ends the watch.
-    private func sampleHeld(_ watches: inout [ShortcutSettings.Action: MissedRelease<HotkeyInstant>]) -> Bool {
-        guard !router.held.isEmpty else { releaseWatch = nil; return false }
+    /// One round of samples over the held chords, telling each release that never came. The keyboard's own
+    /// state backs the session's, which a remapper can leave down. False once nothing is watched, which ends
+    /// the watch.
+    private func sampleHeld() -> Bool {
+        guard holds.isWatching else { releaseWatch = nil; return false }
         let now: HotkeyInstant = (CaptureInstant.now(), ContinuousClock.now)
-        for action in router.held {
-            guard let keyCode = keyCodes[action], let identity = router.identity(of: action) else { continue }
-            let down = CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(keyCode))
-            guard let releasedAt = watches[action, default: MissedRelease()].sample(keyDown: down, at: now) else { continue }
-            Self.log.notice("release inferred action=\(action.rawValue, privacy: .public)")
-            KeyboardGate.heldShortcuts.withLock { _ = $0.remove(identity) }
-            deliver(identity: identity, pressed: false, at: releasedAt)
+        let round = holds.sample(at: now) { [keyCodes] action in
+            keyCodes[action].map { (CGEventSource.keyState(.combinedSessionState, key: CGKeyCode($0)),
+                                    CGEventSource.keyState(.hidSystemState, key: CGKeyCode($0))) }
         }
-        watches = watches.filter { router.held.contains($0.key) }
+        for told in round.released {
+            Self.log.notice("release inferred action=\(told.event.action.rawValue, privacy: .public)")
+            if let identity = holds.router.identity(of: told.event.action) { KeyboardGate.heldShortcuts.withLock { _ = $0.remove(identity) } }
+            tell(told.event, at: told.at)
+        }
+        for action in round.expired { Self.log.notice("release watch stopped action=\(action.rawValue, privacy: .public) still_down=true") }
         return true
     }
     /// Actions whose shortcut did not register in the last `register()`.
@@ -169,7 +173,7 @@ typealias HotkeyInstant = (capture: CaptureInstant, clock: ContinuousClock.Insta
     private func clearRegistrations() {
         refs.forEach { UnregisterEventHotKey($0) }; refs = []; failed = []; keyCodes = [:]; unregisterCancel()
         releaseWatch?.cancel(); releaseWatch = nil
-        ShortcutSettings.shared.down = nil; let cut = router.reset()
+        ShortcutSettings.shared.down = nil; let cut = holds.reset()
         KeyboardGate.heldShortcuts.withLock { $0 = [] }
         if let handler { RemoveEventHandler(handler) }; handler = nil
         // A chord that was down loses its release with its registration: told here, so nothing waits on it.
