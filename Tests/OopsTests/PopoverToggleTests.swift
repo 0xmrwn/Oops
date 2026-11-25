@@ -47,4 +47,14 @@ import Testing
         toggle.press()
         #expect(toggle.isPresented)
     }
+
+    @Test func `an unnumbered click that closed it does not block the next one`() {
+        var toggle = PopoverToggle()
+        toggle.click = { 0 }
+        toggle.press()
+        // Closed by a synthetic click elsewhere, then pressed by another: both report 0, and they are not the same click.
+        toggle.isPresented = false
+        toggle.press()
+        #expect(toggle.isPresented)
+    }
 }

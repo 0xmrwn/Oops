@@ -6,7 +6,8 @@ import AppKit
 /// has just closed the popover is skipped; no time window, and a click anywhere else leaves the next press alone.
 @MainActor struct PopoverToggle {
     var isPresented = false {
-        didSet { if oldValue, !isPresented { closedBy = click() } }
+        // A synthetic click can carry no number (0): it identifies nothing, so it never matches a later one.
+        didSet { if oldValue, !isPresented { closedBy = click().flatMap { $0 == 0 ? nil : $0 } } }
     }
 
     /// The number of the left click being handled, if any. The tests stand in for the event queue.
