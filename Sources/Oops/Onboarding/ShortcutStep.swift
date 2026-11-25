@@ -195,9 +195,15 @@ import SwiftUI
 
     /// "Use anyway": saves the chord seen taken, which may be the person's own keyboard tool's.
     func useAnyway() {
-        guard let inUse else { return }
-        record(inUse)
+        guard let chord = offered else { return }
+        record(chord)
     }
+
+    /// The chord "Use anyway" saves: only while the error on screen is that conflict.
+    var offered: Shortcut? { ShortcutInUse.useAnyway(inUse, error: error, message: ShortcutInUse.onboarding) }
+
+    /// Whether the keys are listening, mirrored for Try it or not.
+    var isListening: Bool { monitor != nil }
 
     @discardableResult private func prepareSounds() -> HelloSounds? {
         guard Sounds.enabled else { return nil }
@@ -246,7 +252,7 @@ import SwiftUI
         default: break
         }
         if phase == .recording {
-            probe?.heard(event.keyCode)
+            probe?.heard(event)
             let capture = ShortcutCapture(keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.isARepeat)
             capture.log(action, event: event)
             switch capture {
@@ -286,6 +292,8 @@ import SwiftUI
     }
 
     private func record(_ recorded: Shortcut) {
+        // A new choice: the conflict pending goes first, so a refusal never leaves it to "Use anyway".
+        inUse = nil
         do { try save(recorded) } catch {
             // The system's refusal says it as this step does.
             let message = error.localizedDescription == ShortcutInUse.settings(recorded) ? ShortcutInUse.onboarding(recorded) : error.localizedDescription

@@ -24,33 +24,40 @@ public struct ShortcutConflict: Sendable {
     private var stale: Set<UInt16>
     /// Keys whose press is settled (heard, reported, or not a shortcut) until they come up.
     private var settled: Set<UInt16> = []
-    private var pending: [UInt16: (seen: ContinuousClock.Instant, modifiers: UInt32)] = [:]
+    /// Presses waiting for their key-down, oldest first. Each keeps the modifiers of its first down sample: a
+    /// modifier added later, or a second press of the same key, never joins it.
+    private var pending: [Press] = []
+
+    private struct Press {
+        let key: UInt16
+        let seen: ContinuousClock.Instant
+        let modifiers: UInt32
+        /// The key has come up since: seen down again, it is a new press.
+        var up = false
+    }
 
     public init(alreadyDown: Set<UInt16>) { stale = alreadyDown }
 
-    /// The recorder heard this key's key-down: its press reached Oops.
-    public mutating func heard(_ keyCode: UInt16) {
-        pending[keyCode] = nil
-        settled.insert(keyCode)
+    /// The recorder heard a key-down of this key: the oldest press of it waiting reached Oops. A repeat
+    /// acknowledges nothing: it can reach Oops after another app took the press itself.
+    public mutating func heard(_ keyCode: UInt16, isRepeat: Bool) {
+        guard !isRepeat else { return }
+        if let index = pending.firstIndex(where: { $0.key == keyCode }) { pending.remove(at: index) }
+        if !pending.contains(where: { $0.key == keyCode && !$0.up }) { settled.insert(keyCode) }
     }
 
     /// One sample of the keys down and the modifiers held. Returns a chord another app took, at most one per press.
     public mutating func sample(down keys: Set<UInt16>, modifiers: UInt32, at now: ContinuousClock.Instant) -> Chord? {
         stale.formIntersection(keys)
         settled.formIntersection(keys)
-        for key in keys.subtracting(stale).subtracting(Self.modifierKeys).subtracting(settled) {
-            if var press = pending[key] {
-                press.modifiers |= modifiers
-                pending[key] = press
-            } else if modifiers & Self.required != 0 {
-                pending[key] = (now, modifiers)
-            } else {
-                settled.insert(key)
-            }
+        for index in pending.indices where !keys.contains(pending[index].key) { pending[index].up = true }
+        for key in keys.subtracting(stale).subtracting(Self.modifierKeys).subtracting(settled).sorted() {
+            guard !pending.contains(where: { $0.key == key && !$0.up }) else { continue }
+            if modifiers & Self.required != 0 { pending.append(Press(key: key, seen: now, modifiers: modifiers)) } else { settled.insert(key) }
         }
-        guard let (key, press) = pending.filter({ $0.value.seen.duration(to: now) >= Self.window }).min(by: { $0.key < $1.key }) else { return nil }
-        pending[key] = nil
-        settled.insert(key)
-        return Chord(keyCode: key, modifiers: press.modifiers)
+        guard let index = pending.firstIndex(where: { $0.seen.duration(to: now) >= Self.window }) else { return nil }
+        let press = pending.remove(at: index)
+        if !press.up, !pending.contains(where: { $0.key == press.key }) { settled.insert(press.key) }
+        return Chord(keyCode: press.key, modifiers: press.modifiers)
     }
 }

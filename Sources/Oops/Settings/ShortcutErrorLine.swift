@@ -10,7 +10,7 @@ struct ShortcutErrorLine: View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Label(error, systemImage: "exclamationmark.triangle").font(.callout).secondaryText()
                 .fixedSize(horizontal: false, vertical: true)
-            if let chord = ShortcutInUse.shared.chords[action] {
+            if let chord = ShortcutInUse.useAnyway(ShortcutInUse.shared.chords[action], error: error, message: ShortcutInUse.settings) {
                 Spacer(minLength: 0)
                 Button("Use anyway") { NotificationCenter.default.post(name: .shortcutUseAnyway, object: action) }
                     .buttonStyle(.settingsGlass).controlSize(.small)

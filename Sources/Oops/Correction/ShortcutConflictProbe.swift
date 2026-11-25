@@ -24,8 +24,8 @@ import OopsCore
         }
     }
 
-    /// The recorder heard this key's key-down.
-    func heard(_ keyCode: UInt16) { conflict.heard(keyCode) }
+    /// The recorder heard a key-down; a repeat acknowledges nothing.
+    func heard(_ event: NSEvent) { conflict.heard(event.keyCode, isRepeat: event.isARepeat) }
 
     func stop() { task?.cancel(); task = nil }
 
@@ -42,6 +42,13 @@ import OopsCore
 
     static func settings(_ shortcut: Shortcut) -> String { "Another app is using \(shortcut.label). Choose other keys." }
     static func onboarding(_ shortcut: Shortcut) -> String { "Another app is using \(shortcut.label). Press other keys." }
+
+    /// The chord "Use anyway" may save beside `error`: only the one that error names. Any other error on screen
+    /// (a later choice refused, say) offers nothing.
+    static func useAnyway(_ pending: Shortcut?, error: String?, message: (Shortcut) -> String) -> Shortcut? {
+        guard let pending, error == message(pending) else { return nil }
+        return pending
+    }
 
     static func announce(_ message: String) {
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,

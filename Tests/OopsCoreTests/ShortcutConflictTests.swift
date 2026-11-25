@@ -13,7 +13,7 @@ final class ShortcutConflictTests: XCTestCase {
     func testAChordThatReachesTheRecorderIsNoConflict() {
         var watch = ShortcutConflict(alreadyDown: [])
         XCTAssertNil(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(0)))
-        watch.heard(d)
+        watch.heard(d, isRepeat: false)
         for time in stride(from: 30, through: 600, by: 30) { XCTAssertNil(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(time))) }
     }
 
@@ -30,7 +30,7 @@ final class ShortcutConflictTests: XCTestCase {
         var watch = ShortcutConflict(alreadyDown: [])
         XCTAssertNil(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(0)))
         XCTAssertNil(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(200)))
-        watch.heard(d)
+        watch.heard(d, isRepeat: false)
         XCTAssertNil(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(400)))
     }
 
@@ -44,9 +44,9 @@ final class ShortcutConflictTests: XCTestCase {
     func testAHeldKeyThatRepeatsIsOnePress() {
         var watch = ShortcutConflict(alreadyDown: [])
         _ = watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(0))
-        watch.heard(d)
+        watch.heard(d, isRepeat: false)
         for time in stride(from: 30, through: 1500, by: 30) {
-            watch.heard(d)
+            watch.heard(d, isRepeat: true)
             XCTAssertNil(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(time)))
         }
     }
@@ -73,10 +73,40 @@ final class ShortcutConflictTests: XCTestCase {
         XCTAssertEqual(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(930)), .init(keyCode: d, modifiers: hyper))
     }
 
-    /// A modifier that joins while the key is still waiting belongs to the chord.
-    func testModifiersSeenWhileWaitingJoinTheChord() {
+    /// Another app takes ⌘D; Shift added while D is still down is not part of what was pressed.
+    func testAModifierAddedLaterNeverJoinsTheChord() {
         var watch = ShortcutConflict(alreadyDown: [])
         _ = watch.sample(down: [55, d], modifiers: 0x0100, at: at(0))
-        XCTAssertEqual(watch.sample(down: [55, 59, d], modifiers: 0x0100 | 0x1000, at: at(260)), .init(keyCode: d, modifiers: 0x0100 | 0x1000))
+        XCTAssertEqual(watch.sample(down: [55, 56, d], modifiers: 0x0100 | 0x0200, at: at(260)), .init(keyCode: d, modifiers: 0x0100))
+    }
+
+    /// Two quick presses of D: ⌘D, up, then ⌃D before the first is settled. Each is its own chord.
+    func testTwoQuickPressesAreTrackedApart() {
+        var watch = ShortcutConflict(alreadyDown: [])
+        _ = watch.sample(down: [55, d], modifiers: 0x0100, at: at(0))
+        _ = watch.sample(down: [], modifiers: 0, at: at(60))
+        _ = watch.sample(down: [59, d], modifiers: 0x1000, at: at(120))
+        XCTAssertEqual(watch.sample(down: [59, d], modifiers: 0x1000, at: at(260)), .init(keyCode: d, modifiers: 0x0100))
+        XCTAssertNil(watch.sample(down: [59, d], modifiers: 0x1000, at: at(300)))
+        XCTAssertEqual(watch.sample(down: [59, d], modifiers: 0x1000, at: at(380)), .init(keyCode: d, modifiers: 0x1000))
+    }
+
+    /// The second of two quick presses reaching the recorder settles the first, the oldest, not itself.
+    func testAKeyDownSettlesTheOldestPressOfItsKey() {
+        var watch = ShortcutConflict(alreadyDown: [])
+        _ = watch.sample(down: [55, d], modifiers: 0x0100, at: at(0))
+        _ = watch.sample(down: [], modifiers: 0, at: at(60))
+        _ = watch.sample(down: [59, d], modifiers: 0x1000, at: at(120))
+        watch.heard(d, isRepeat: false)
+        XCTAssertNil(watch.sample(down: [59, d], modifiers: 0x1000, at: at(260)))
+        XCTAssertEqual(watch.sample(down: [59, d], modifiers: 0x1000, at: at(380)), .init(keyCode: d, modifiers: 0x1000))
+    }
+
+    /// Another app takes the press, and a repeat of the held key reaches the recorder in the window: still taken.
+    func testARepeatDoesNotAcknowledgeThePress() {
+        var watch = ShortcutConflict(alreadyDown: [])
+        _ = watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(0))
+        watch.heard(d, isRepeat: true)
+        XCTAssertEqual(watch.sample(down: modifiersDown.union([d]), modifiers: hyper, at: at(260)), .init(keyCode: d, modifiers: hyper))
     }
 }

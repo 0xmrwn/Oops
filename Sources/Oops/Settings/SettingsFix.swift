@@ -187,7 +187,8 @@ private struct ShortcutRecorder: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
         .onReceive(NotificationCenter.default.publisher(for: .shortcutUseAnyway)) { note in
-            if note.object as? ShortcutSettings.Action == action, let chord = ShortcutInUse.shared.chords[action] { save(chord) }
+            if note.object as? ShortcutSettings.Action == action,
+               let chord = ShortcutInUse.useAnyway(ShortcutInUse.shared.chords[action], error: error, message: ShortcutInUse.settings) { save(chord) }
         }
         .onDisappear { stop() }
         #if DEBUG
@@ -211,7 +212,7 @@ private struct ShortcutRecorder: View {
         probe = ShortcutConflictProbe(held: { held }, found: taken)
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             if event.type == .flagsChanged { held = Shortcut.modifiers(event.modifierFlags); return nil }
-            probe?.heard(event.keyCode)
+            probe?.heard(event)
             let capture = ShortcutCapture(keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.isARepeat)
             capture.log(action, event: event)
             switch capture {
@@ -224,8 +225,10 @@ private struct ShortcutRecorder: View {
         }
     }
 
+    /// A new choice: the conflict pending beside the error goes first, so a refusal never leaves it to "Use anyway".
     private func save(_ chord: Shortcut) {
-        do { try ShortcutSettings.shared.set(action, chord); error = nil; ShortcutInUse.shared.chords[action] = nil }
+        ShortcutInUse.shared.chords[action] = nil
+        do { try ShortcutSettings.shared.set(action, chord); error = nil }
         catch { self.error = error.localizedDescription }
         stop()
     }

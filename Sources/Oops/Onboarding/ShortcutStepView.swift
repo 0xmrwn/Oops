@@ -112,7 +112,7 @@ struct ShortcutStepView: View {
                         Text(error).font(.system(size: 13, weight: .medium)).multilineTextAlignment(.center).lineLimit(2)
                             .frame(maxWidth: 440).opacity(0.85)
                         // The keys may be the person's own keyboard tool's, which looks the same from here.
-                        if let step, let chord = step.inUse {
+                        if let step, let chord = step.offered {
                             Button("Use anyway", action: step.useAnyway).buttonStyle(.settingsGlass).controlSize(.small)
                                 .help("Save \(chord.label) anyway")
                         }

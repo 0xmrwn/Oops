@@ -85,12 +85,18 @@ import SwiftUI
     func stop() {
         acting?.cancel(); acting = nil
         quiet?.cancel(); quiet = nil; nothingArrived = false
-        keys.stop()
+        // Only what this step still owns: going back to the Shortcut step can start its recorder on the same keys
+        // before this view goes, and that recorder, with the shortcuts it paused, is the Shortcut step's.
+        let owned = Self.ownsKeys(listening: keys.isListening, mirroring: keys.isMirroring)
+        if owned { keys.stop() }
         let dictation = (NSApp.delegate as? AppDelegate)?.dictation
         dictation?.onInserted = nil; dictation?.onBusy = nil
-        if started { ShortcutSettings.shared.resume() }
+        if started, owned { ShortcutSettings.shared.resume() }
         started = false
     }
+
+    /// Whether Try it still owns the keys it mirrored: not once they listen for the Shortcut step.
+    static func ownsKeys(listening: Bool, mirroring: Bool) -> Bool { !listening || mirroring }
 
     /// A run that saves nothing: the step hears the keys itself and plays an answer.
     private func act() {
