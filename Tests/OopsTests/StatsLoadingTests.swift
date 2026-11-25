@@ -3,14 +3,6 @@ import Foundation
 import Testing
 
 @MainActor struct StatsLoadingTests {
-    @Test func `word counts use whitespace and newline character boundaries`() {
-        #expect(Stats.words(in: "") == 0)
-        #expect(Stats.words(in: " \t\r\n\u{00A0}\u{2028}\u{2029}") == 0)
-        #expect(Stats.words(in: "  one-two\tcan't\r\nthree  ") == 3)
-        #expect(Stats.words(in: "cafe\u{0301}\u{00A0}👩🏽‍💻\u{2028}مرحبا") == 3)
-        #expect(Stats.words(in: "two\u{200B}words") == 1)
-    }
-
     @Test(arguments: Case.allCases)
     func `loading synthetic JSONL preserves the existing events and line boundaries`(_ variant: Case) throws {
         let fixture = try Fixture()

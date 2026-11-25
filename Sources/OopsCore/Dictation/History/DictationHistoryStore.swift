@@ -3,8 +3,9 @@ import os
 
 // The dictation history store, ported from Hex (github.com/anomalyco/hex, `src/history.rs` at v3.4.0; MIT, Copyright
 // (c) 2026 Christopher Langton). See THIRD_PARTY_NOTICES.md. Left out: recordings and their byte cap (Oops never keeps
-// audio), versions and restore, kind, processing and timing fields, `read_snapshot`, and `sync`/`file_state` (Hex
-// rereads because Linux runs two processes on one store; Oops is one process), so `expire_shared` is just `expire`.
+// audio), versions and restore, kind, processing and timing fields (but the recording's length), `read_snapshot`, and
+// `sync`/`file_state` (Hex rereads because Linux runs two processes on one store; Oops is one process), so
+// `expire_shared` is just `expire`.
 // Departures: no Forever, and Off expires at the month's age, so `prune`, `search`, `recent` and `revision` always
 // have a cutoff; `recent` still lists while Off, the caller decides what Off means for Paste last; the folder is 0o700.
 // Dictated words persist only here: nothing in this store logs entry text or a query.
@@ -59,7 +60,8 @@ public struct DictationHistoryStore: Sendable {
         let label = { (value: String?) in value.map { Self.truncated($0, maxBytes: Self.maxLabelBytes) } }
         entries.append(DictationHistoryEntry(
             id: id, timestampMs: now, text: Self.truncated(draft.text, maxBytes: Self.maxTextBytes),
-            application: label(draft.application), bundleID: label(draft.bundleID), model: label(draft.model), language: label(draft.language)
+            application: label(draft.application), bundleID: label(draft.bundleID), model: label(draft.model), language: label(draft.language),
+            durationMs: draft.durationMs
         ))
         prune(now: now)
         try persist()

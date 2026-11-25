@@ -2,6 +2,7 @@ import ApplicationServices
 import AppKit
 import OopsCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The menu bar eyes and their menu: a status line, Fix's items (Fix text or Cancel, Restore last correction,
 /// the copy fallbacks), Dictate's while it is on (Paste last dictation, Recent dictations), then the front app's switch, Settings
@@ -133,7 +134,8 @@ import SwiftUI
         }
     }
 
-    /// One item per entry, newest first, its text's start and how long ago, then Show all….
+    /// One item per entry, newest first: its app's icon, its text's start, then how long ago, how long it was recorded
+    /// and its words; then Show all….
     private func updateRecent(_ entries: [DictationHistoryEntry]) {
         recent.isHidden = entries.isEmpty
         guard let submenu = recent.submenu else { return }
@@ -142,7 +144,12 @@ import SwiftUI
         let now = DictationHistory.now()
         for entry in entries {
             let item = NSMenuItem(title: entry.menuTitle, action: #selector(pasteEntry), keyEquivalent: "")
-            item.subtitle = entry.age(now: now)
+            item.subtitle = entry.details(now: now)
+            item.image = Self.appIcon(entry.bundleID)
+            if #available(macOS 27, *) { item.preferredImageVisibility = .visible }
+            // Spelled out: a clock's "0:07" reads badly aloud, and the icon says nothing.
+            let length = entry.durationMs.map { Duration.seconds(DictationHistoryEntry.seconds(ms: $0)).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide)) }
+            item.setAccessibilityLabel([entry.menuTitle, entry.application, entry.age(now: now), length, entry.words].compactMap(\.self).joined(separator: ", "))
             item.tag = entry.id
             item.target = self
             submenu.addItem(item)
@@ -233,6 +240,14 @@ import SwiftUI
         copy.size = NSSize(width: 16, height: 16)
         copy.isTemplate = true
         return copy
+    }
+
+    /// The app's icon at menu size, every representation kept so it stays sharp; the generic application icon where the
+    /// app is unknown or no longer installed, as Settings shows, so the titles stay aligned.
+    private static func appIcon(_ bundleID: String?) -> NSImage? {
+        let icon = (bundleID.map(AppScope.icon) ?? NSWorkspace.shared.icon(for: .application)).copy() as? NSImage
+        icon?.size = NSSize(width: 16, height: 16)
+        return icon
     }
 
     static func symbol(_ name: String) -> NSImage? { NSImage(systemSymbolName: name, accessibilityDescription: nil) }

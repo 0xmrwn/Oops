@@ -18,6 +18,7 @@ import XCTest
         let run = try DictationSessionRun(self, mode: .holdOnly, language: "fr", history: history.value)
         try await dictate(run)
         XCTAssertEqual(history.recorded, ["Hello fr"])
+        XCTAssertGreaterThan(history.durations.first ?? 0, 0, "how long the microphone listened")
     }
 
     func testADictationWithNoTextFieldIsRecorded() async throws {
@@ -120,16 +121,20 @@ import XCTest
     }
 }
 
-/// Records what the session hands its history, as "text language" ("auto" for none), then the model if any.
+/// Records what the session hands its history, as "text language" ("auto" for none), then the model if any, and the
+/// recording's length apart.
 @MainActor private final class HistorySpy {
     private(set) var recorded: [String] = []
+    private(set) var durations: [Int] = []
     private(set) var replaced: [String] = []
     var model: String?
     var last: (String?) -> String? = { $0 }
 
     var value: DictationSession.History {
-        DictationSession.History(model: { self.model }, record: { self.recorded.append(["\($0)", $1 ?? "auto", $2].compactMap(\.self).joined(separator: " ")) },
-                                 replaceLast: { self.replaced.append($0) }, last: { self.last($0) })
+        DictationSession.History(model: { self.model }, record: { text, language, model, durationMs in
+            self.recorded.append([text, language ?? "auto", model].compactMap(\.self).joined(separator: " "))
+            self.durations.append(durationMs)
+        }, replaceLast: { self.replaced.append($0) }, last: { self.last($0) })
     }
 }
 

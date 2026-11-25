@@ -66,9 +66,10 @@ extension DictationHistoryRetention {
     }
 
     /// Keeps a finished dictation, unless retention is Off. A failed save is logged, without the words.
-    func record(text: String, language: String?, model: String?, application: String?, bundleID: String?) {
+    func record(text: String, language: String?, model: String?, application: String?, bundleID: String?, durationMs: Int) {
         do {
-            last = try history.record(DictationHistoryDraft(text: text, application: application, bundleID: bundleID, model: model, language: language))
+            last = try history.record(DictationHistoryDraft(text: text, application: application, bundleID: bundleID, model: model, language: language,
+                                                            durationMs: durationMs))
                 .map { ($0, text) }
         } catch {
             // A failed save still keeps the entry in memory, as the newest.

@@ -62,7 +62,7 @@ extension DictationSession {
             lastTranscript = polished
             // Words refused at a password field or in an app kept from writing never reach the disk.
             if ![.refused(.secureField), .refused(.appDenied), .refused(.appTurnedOff)].contains(outcome) {
-                history.record(polished, language, historyModel)
+                history.record(polished, language, historyModel, Int(seconds * 1_000))
             }
         }
         if outcome == .inserted {

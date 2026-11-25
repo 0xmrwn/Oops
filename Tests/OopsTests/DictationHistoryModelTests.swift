@@ -22,7 +22,7 @@ import XCTest
     private func model() -> DictationHistoryModel { DictationHistoryModel(file: file, defaults: defaults) }
 
     private func record(_ model: DictationHistoryModel, _ text: String) {
-        model.record(text: text, language: "en", model: "Whisper", application: "Notes", bundleID: "com.apple.Notes")
+        model.record(text: text, language: "en", model: "Whisper", application: "Notes", bundleID: "com.apple.Notes", durationMs: 7_000)
     }
 
     func testRetentionIsAWeekUntilChosenAndIsSaved() {
