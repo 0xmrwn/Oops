@@ -25,7 +25,8 @@ struct RunsWithAgent: View {
 
     private func unavailable(_ problem: String) -> some View {
         VStack(spacing: 0) {
-            Button { store.wantsProvidersPage = true } label: {
+            // The list, where Claude Code has its section, rather than a provider's page left open.
+            Button { store.closeDetail(); store.wantsProvidersPage = true } label: {
                 HStack(spacing: 14) {
                     Image("ClaudeMark", bundle: .main).renderingMode(.template).resizable().interpolation(.high).foregroundStyle(.primary)
                         .frame(width: 18, height: 18).frame(width: 24).accessibilityHidden(true)

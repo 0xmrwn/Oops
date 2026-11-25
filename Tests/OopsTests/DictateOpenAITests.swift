@@ -5,7 +5,7 @@ import Testing
 
 /// OpenAI's live transcription as a Dictate model: offered with a key, gone without one.
 @MainActor struct DictateOpenAITests {
-    private final class Keys { var values: [String: String] = [:] }
+    private final class Keys { var values: [String: String] = [:]; var reads = 0 }
 
     private let parakeet = SpeechModelCatalog.model(id: "parakeet_unified_en")!
     private let keys = Keys()
@@ -16,7 +16,7 @@ import Testing
         defaults.removePersistentDomain(forName: suite)
         let keys = keys
         let store = ProviderStore(chatGPT: ChatGPTAuth(store: NoChatGPTCredentials(), openBrowser: { _ in }), preview: false,
-                                  defaults: defaults, writeKey: { keys.values[$1] = $0 }, readKey: { keys.values[$0] ?? "" })
+                                  defaults: defaults, writeKey: { keys.values[$1] = $0 }, readKey: { keys.reads += 1; return keys.values[$0] ?? "" })
         if openAI {
             let preset = try #require(ProviderPreset(id: "openai"))
             try store.addOnboardingAPI(preset: preset, endpoint: preset.endpoint.absoluteString, key: key ?? "",
@@ -79,5 +79,23 @@ import Testing
         #expect(store.dictationCleanupLanguage(local, override: nil) == "fr")
         #expect(store.dictationVocabulary(local, override: nil, entries: entries) == .openAIKeywords(["Ghostty", "Oops"]))
         #expect(store.dictationVocabulary(local, override: nil, entries: []) == nil)
+    }
+
+    @Test func `speech-only is dictation's OpenAI key with no model on, and reads no key`() async throws {
+        let (store, _) = try await make(key: "test-key")
+        let id = try #require(store.openAITranscriptionProvider?.id)
+        store.chooseDictateModel(try #require(store.openAIDictateReference))
+        #expect(store.speechOnlyID == nil) // Fix still uses one of its models.
+        store.setShown(id, model: "gpt-5", false)
+        let reads = keys.reads
+        #expect(store.speechOnlyID == id)
+        #expect(keys.reads == reads)
+        store.chooseDictateModel(.local(parakeet.id))
+        #expect(store.speechOnlyID == nil)
+    }
+
+    @Test func `without a key nothing is speech-only`() async throws {
+        let (store, _) = try await make(key: nil)
+        #expect(store.speechOnlyID == nil)
     }
 }

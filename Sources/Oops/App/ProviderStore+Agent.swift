@@ -17,6 +17,13 @@ extension ProviderStore {
         return ClaudeAgentRunner(executable: runtime.executable, limit: DebugFlags.agentLimit ?? ClaudeAgent.limit)
     }
 
+    /// Opens Terminal on `claude auth login`, which keeps the credentials to itself, and checks again once it's done;
+    /// without a known executable, the check alone.
+    func signInToClaude() {
+        if let executable = claudeExecutable, ClaudeCodeSignIn.open(executable, finished: { [weak self] in self?.refreshClaude(force: true) }) { return }
+        refreshClaude(force: true)
+    }
+
     /// Claude Code as a provider: set up, installed, signed in and reachable (a check under way counts as fine).
     func checkAgentProvider() throws {
         switch agentProblem {

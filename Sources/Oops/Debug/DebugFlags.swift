@@ -155,10 +155,11 @@ enum DebugFlags {
     static var update: String? { string("SettingsPreviewUpdate") }
     /// Fake provider states: ChatGPT `signedIn`, `signedOut` or `reauth`; a provider page to open (General → Providers →
     /// that provider). `-SettingsPreviewProviders none`: a fresh Mac's, ChatGPT alone and signed out; `working`: the
-    /// set without the one that can't connect.
-    static var providers: Bool { bool("SettingsPreviewProviders") || noProviders || workingProviders || brandReview }
+    /// set without the one that can't connect; `full`: the set plus an OpenAI key used only for dictation and a long name.
+    static var providers: Bool { bool("SettingsPreviewProviders") || noProviders || workingProviders || fullProviders || brandReview }
     static var noProviders: Bool { string("SettingsPreviewProviders") == "none" }
     static var workingProviders: Bool { string("SettingsPreviewProviders") == "working" }
+    static var fullProviders: Bool { string("SettingsPreviewProviders") == "full" }
     /// Actions starts from the starters in memory and saves nothing, so a capture never reads or writes a person's library.
     static var actionsPreview: Bool { bool("SettingsPreviewActions") }
     /// Opens an Actions page: an action's name (a prefix), `new` for a new one, or `typed` for how a typed instruction runs.
@@ -172,7 +173,7 @@ enum DebugFlags {
     /// Skill names an Agent action's instruction knows without asking Claude Code, comma separated (`review,summarize,research`).
     /// With `-SettingsPreviewActionRuns agentSetup`, the opened action runs with the person's setup.
     static var skillNames: [String]? { string("SettingsPreviewSkills").map { $0.split(separator: ",").map(String.init) } }
-    /// `notInstalled`, `signedOut` or `missing`: Runs with's Agent side as if Claude Code were so.
+    /// `notInstalled`, `signedOut` or `missing`: Runs with's Agent side, and the providers preview, as if Claude Code were so.
     static var claudeCodeState: String? { string("SettingsPreviewClaudeCode") }
     /// The model list opens with this search typed (Fix's and an action's).
     static var modelSearch: String? { string("SettingsPreviewModelSearch") }

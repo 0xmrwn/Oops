@@ -5,7 +5,7 @@ extension ProviderStore {
     static let openAITranscriptionModel = RealtimeTranscription.model
 
     /// The OpenAI API providers, with a key or not.
-    private var openAIProviders: [Provider] {
+    var openAIProviders: [Provider] {
         providers.filter { provider in
             guard case .api(let preset) = provider.kind else { return false }
             return preset == "openai" || provider.baseURL.flatMap { URL(string: $0)?.host } == "api.openai.com"
@@ -36,6 +36,16 @@ extension ProviderStore {
     func dictatesWithOpenAI(_ local: LocalModels) -> Bool {
         guard let reference = openAIDictateReference else { return false }
         return dictateModel(local) == reference
+    }
+
+    /// The provider that only dictation uses: the OpenAI key it transcribes with, none of whose models is switched on.
+    /// From the noted key and the saved choice, so the Providers list reads no Keychain. The screenshot preview, which
+    /// holds no keys, has its own OpenAI for this.
+    var speechOnlyID: String? {
+        if preview { return provider("preview-openai")?.id }
+        guard let id = openAIKeyID, provider(id)?.shownModels.isEmpty == true,
+              dictateSelection.model == .provider(.init(providerID: id, modelID: Self.openAITranscriptionModel)) else { return nil }
+        return id
     }
 
     /// The chosen language as an ISO 639-1 code, which is all the service takes; nil under Automatic.
