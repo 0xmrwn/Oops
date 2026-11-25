@@ -214,3 +214,51 @@ struct LiveWordsPreview: View {
         }
     }
 }
+
+/// Animation's tip: the chosen voice in the drop's glass, on the acted speech the dictation lab plays, so it moves as
+/// it would while dictating, with no microphone. Reduce Motion holds it still at a spoken level.
+struct AnimationPreview: View {
+    let kind: DictationVisualizer
+    let label: String
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.colorScheme) private var scheme
+    @State private var start = Date()
+    private var reduceMotion: Bool { systemReduceMotion || DebugFlags.brandReduceMotion }
+
+    var body: some View {
+        let start = start, still = reduceMotion
+        VStack(alignment: .leading, spacing: 5) {
+            Group {
+                // Hex draws on its own display link and reads the level there; the others are handed it each frame.
+                if kind == .hex {
+                    voice(loudness: 0) { @MainActor in actedLevel(Date().timeIntervalSince(start), still: still) }
+                } else {
+                    TimelineView(.animation(paused: still)) { context in
+                        voice(loudness: actedLevel(context.date.timeIntervalSince(start), still: still), live: nil)
+                    }
+                }
+            }
+            .padding(8).frame(height: 62).frame(maxWidth: .infinity)
+            .background(Color.primary.opacity(0.05), in: .rect(cornerRadius: 10))
+            Text(label).font(.caption).secondaryText()
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func voice(loudness: Float, live: (@MainActor () -> Float)?) -> some View {
+        DictationCapsule(state: .recording, action: nil) {
+            DictationVisualizerView(kind: kind, phase: .recording, loudness: loudness, live: live, isDark: scheme == .dark,
+                                    reduceMotion: reduceMotion)
+        }
+        .glassEffect(.regular, in: .capsule)
+    }
+}
+
+/// The acted speech from just before its first word to just after its last fades, so each loop opens on speech and
+/// the pause between loops is a breath rather than the curve's long silences; both ends are silent, so it loops
+/// without a jump. Held still, a phrase at a spoken level.
+private func actedLevel(_ elapsed: Double, still: Bool) -> Float {
+    guard !still else { return 0.5 }
+    let first = 1.6, last = 11.2
+    return SyntheticLoudness.level(at: first + elapsed.truncatingRemainder(dividingBy: last - first))
+}

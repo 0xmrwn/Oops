@@ -10,6 +10,7 @@ Written by hand for people using Oops, not from commits: list what someone would
 - Providers is now in Settings → General, below your features, instead of a tab of its own, and groups your accounts, agents on this Mac and APIs, each with its own way to add one. While none is set up, General says so at the top.
 - Settings → Fix → Apps is now Settings → General → Turn off in apps, and lists the apps you dictate in as well as those you fix in. Its row shows how many apps Oops is off in.
 - Recent dictations in the menu bar menu shows each one's app icon and, under its words, how long ago you said it, how long you spoke and how many words it has. Settings → Dictate → History shows how long you spoke too. Dictations from before this update show what they have.
+- In Settings → Dictate, the ⓘ beside Animation shows the drop's animation you chose moving as it does while you speak, without dictating.
 
 ## 0.2.0
 
