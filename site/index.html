@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oops</title>
-<meta name="description" content="Oops fixes the draft you are writing, in place, in whichever Mac app you are in.">
+<title>Oops: fix, dictate and rewrite text in any Mac app</title>
+<link rel="canonical" href="https://0xmrwn.github.io/Oops/">
+<meta name="description" content="Free, open-source Mac app that puts your AI where you type: fix typos in place, dictate, and translate, shorten or retone a draft, in any app.">
 <meta name="theme-color" content="#e3eaf1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#10151b" media="(prefers-color-scheme: dark)">
-<meta property="og:title" content="Oops">
-<meta property="og:description" content="Oops fixes the draft you are writing, in place, in whichever Mac app you are in.">
+<meta property="og:title" content="Oops: fix, dictate and rewrite text in any Mac app">
+<meta property="og:site_name" content="Oops">
+<meta property="og:description" content="Free, open-source Mac app that puts your AI where you type: fix typos in place, dictate, and translate, shorten or retone a draft, in any app.">
 <meta property="og:image" content="https://0xmrwn.github.io/Oops/preview.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -21,7 +23,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hero.css">
+<link rel="stylesheet" href="faq.css">
 <link rel="stylesheet" href="drops.css">
+<!-- For search engines and assistants. The FAQ entries repeat the answers in the sheet below: change both together. -->
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Oops","url":"https://0xmrwn.github.io/Oops/","description":"Free, open-source Mac app that puts your AI where you type: fix typos in place, dictate, and translate, shorten or retone a draft, in any app.","applicationCategory":"ProductivityApplication","operatingSystem":"macOS 26 or later","processorRequirements":"Apple silicon","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/0xmrwn/Oops/releases/latest/download/Oops.dmg","license":"https://github.com/0xmrwn/Oops/blob/main/LICENSE","isAccessibleForFree":true,"image":"https://0xmrwn.github.io/Oops/preview.png","sameAs":"https://github.com/0xmrwn/Oops","featureList":["Fix typos and grammar in place, in the app you are typing in","Dictation written at the cursor, transcribed on the Mac","Actions on a draft: translate, shorten, change tone","Works with ChatGPT, Claude Code, an API key or a local model"]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Oops is free and open source, under the MIT license. There is no Oops account and no subscription: it works with an AI you already have."}},{"@type":"Question","name":"Where does it work?","acceptedAnswer":{"@type":"Answer","text":"Anywhere you type. Mail, chat, notes, documents, and any text box in a browser. It stays out of terminals and password fields on purpose."}},{"@type":"Question","name":"Can it mess up my text?","acceptedAnswer":{"@type":"Answer","text":"It is built not to. Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. When it is not sure, it changes nothing. Press the shortcut again to get your original back."}},{"@type":"Question","name":"What leaves my Mac?","acceptedAnswer":{"@type":"Answer","text":"Only the draft you fix. It goes straight to the AI you chose, with no Oops server in between. Oops looks at the field you are in when you press the shortcut, and never otherwise."}},{"@type":"Question","name":"Which AI does it use?","acceptedAnswer":{"@type":"Answer","text":"Yours. Sign in with ChatGPT, use Claude Code, add an API key, or run a model on your own Mac. Oops asks it for small corrections, not a rewrite."}},{"@type":"Question","name":"How does dictation work?","acceptedAnswer":{"@type":"Answer","text":"Hold, talk, release. What you say is written where your cursor is. By default the speech-to-text model runs on your Mac, so your voice is not sent anywhere, and the recording is never kept."}}]}</script>
 </head>
 <body>
 
@@ -40,6 +46,9 @@
 </header>
 
 <main class="hero">
+  <!-- The page's real heading. The draft below is a performance: it is typed,
+       misspelt and corrected by script, so it cannot be the heading. -->
+  <h1 class="sr">Oops: fix, dictate and rewrite text in place, in any Mac app</h1>
   <div class="scene" id="field" data-kind="chat">
     <div class="outline" id="outline" aria-hidden="true">
       <span class="send"><svg viewBox="0 0 20 20"><path d="M10 15.5v-11M5.5 9L10 4.5 14.5 9"/></svg></span>
@@ -62,7 +71,7 @@
       </div>
     </div>
   <div class="stage" id="stage">
-    <h1 class="draft" id="draft">Typos happen. Oops fixes them right where you typed.</h1>
+    <p class="draft" id="draft">Typos happen. Oops fixes them right where you typed.</p>
 
     <canvas class="glass" id="glass" aria-hidden="true"></canvas>
     <div class="drop" id="drop" aria-hidden="true">
@@ -96,10 +105,56 @@
 <p class="sr" id="said" role="status"></p>
 
 <footer class="foot">
-  <span>Apple silicon</span>
-  <span>macOS 26 or later</span>
-  <span>Free and open source</span>
+  <span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="5.5" width="13" height="13" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="0.8" fill="currentColor" stroke="none"/><path d="M9 2.8v2.7M15 2.8v2.7M9 18.5v2.7M15 18.5v2.7M2.8 9h2.7M2.8 15h2.7M18.5 9h2.7M18.5 15h2.7"/></svg>Apple silicon</span>
+  <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9V6.5A2.5 2.5 0 1 0 6.5 9H9zm0 0v6m0-6h6m-6 6H6.5A2.5 2.5 0 1 0 9 17.5V15zm0 0h6m0 0v2.5a2.5 2.5 0 1 0 2.5-2.5H15zm0 0V9m0 0V6.5A2.5 2.5 0 1 1 17.5 9H15z"/></svg>macOS 26 or later</span>
+  <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7.5 4 12l4.5 4.5M15.5 7.5 20 12l-4.5 4.5M13.5 5.5l-3 13"/></svg>Open source</span>
+  <button type="button" class="help" id="ask" aria-haspopup="dialog"><kbd>?</kbd><span>FAQ</span></button>
 </footer>
+
+<dialog class="faq" id="faq" aria-label="Questions" tabindex="-1">
+  <button type="button" class="shut" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+  <div class="asks" role="tablist" aria-orientation="vertical">
+    <div class="guide" aria-hidden="true"><svg viewBox="0 0 32 32"><g><path d="M12.7 12.85v7.7M19.3 13.4v5.2"/></g></svg></div>
+    <button type="button" role="tab" class="q" id="q1" aria-controls="a1" aria-selected="false" tabindex="-1">Is it free?</button>
+    <button type="button" role="tab" class="q" id="q2" aria-controls="a2" aria-selected="false" tabindex="-1">Where does it work?</button>
+    <button type="button" role="tab" class="q" id="q3" aria-controls="a3" aria-selected="false" tabindex="-1">Can it mess up my text?</button>
+    <button type="button" role="tab" class="q" id="q4" aria-controls="a4" aria-selected="false" tabindex="-1">What leaves my Mac?</button>
+    <button type="button" role="tab" class="q" id="q5" aria-controls="a5" aria-selected="false" tabindex="-1">Which AI does it use?</button>
+    <button type="button" role="tab" class="q" id="q6" aria-controls="a6" aria-selected="false" tabindex="-1">How does dictation work?</button>
+  </div>
+  <div class="answers">
+    <section class="a" id="a1" role="tabpanel" aria-labelledby="q1">
+      <p class="lead">Yes.</p>
+      <p class="say">Oops is free and open source, under the MIT license. There is <mark>no Oops account and no subscription</mark>: it works with an AI you already have.</p>
+      <p class="how">MIT license · signed and notarized · automatic updates</p>
+    </section>
+    <section class="a" id="a2" role="tabpanel" aria-labelledby="q2">
+      <p class="lead">Anywhere you type.</p>
+      <p class="say">Mail, chat, notes, documents, and <mark>any text box in a browser</mark>. It stays out of terminals and password fields on purpose.</p>
+      <p class="how">Tested in 254 editor setups: 15 web editors × 5 browser engines, 11 native toolkits</p>
+    </section>
+    <section class="a" id="a3" role="tabpanel" aria-labelledby="q3">
+      <p class="lead">It is built not to.</p>
+      <p class="say">Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. <mark>When it is not sure, it changes nothing.</mark> Press the shortcut again to get your original back.</p>
+      <p class="how">Edit-by-edit validation · rewrites rejected · restore for 5 minutes</p>
+    </section>
+    <section class="a" id="a4" role="tabpanel" aria-labelledby="q4">
+      <p class="lead">Only the draft you fix.</p>
+      <p class="say">It goes <mark>straight to the AI you chose</mark>, with no Oops server in between. Oops looks at the field you are in when you press the shortcut, and never otherwise.</p>
+      <p class="how">Direct HTTPS requests · keys in the macOS Keychain · statistics stay on the Mac</p>
+    </section>
+    <section class="a" id="a5" role="tabpanel" aria-labelledby="q5">
+      <p class="lead">Yours.</p>
+      <p class="say"><mark>Sign in with ChatGPT, use Claude Code, add an API key, or run a model on your own Mac.</mark> Oops asks it for small corrections, not a rewrite.</p>
+      <p class="how">ChatGPT · Claude Code · OpenAI API · any OpenAI-compatible server</p>
+    </section>
+    <section class="a" id="a6" role="tabpanel" aria-labelledby="q6">
+      <p class="lead">Hold, talk, release.</p>
+      <p class="say">What you say is written where your cursor is. By default <mark>the speech-to-text model runs on your Mac</mark>, so your voice is not sent anywhere, and the recording is never kept.</p>
+      <p class="how">transcribe.cpp · on-device models you choose · OpenAI as an option</p>
+    </section>
+  </div>
+</dialog>
 </div>
 
 <script src="glass.js"></script>
@@ -107,6 +162,7 @@
 <script src="drop.js"></script>
 <script src="voice.js"></script>
 <script src="wheel.js"></script>
+<script src="faq.js"></script>
 <script src="hero.js"></script>
 </body>
 </html>

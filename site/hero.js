@@ -23,6 +23,7 @@ function later(step, ms) {
   auto = setTimeout(function go() {
     if (mine !== turn) return;
     if (document.hidden) return document.addEventListener("visibilitychange", go, { once: true });
+    if (Faq.isOpen()) return Faq.whenClosed(go);
     step();
   }, ms * SLOW);
 }
@@ -288,7 +289,7 @@ again.addEventListener("click", start);
 addEventListener("keydown", (event) => {
   const letter = event.key.length === 1 ? event.key : event.code.replace("Key", "");
   const act = KEYS[letter.toLowerCase()];
-  if (!act || !event.ctrlKey || !event.metaKey) return;
+  if (!act || !event.ctrlKey || !event.metaKey || Faq.isOpen()) return;
   event.preventDefault();
   triggers[act].classList.add("is-pressed");
   setTimeout(() => triggers[act].classList.remove("is-pressed"), 160);

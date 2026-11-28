@@ -336,33 +336,23 @@ kbd {
 
 /* Footer */
 
-/* What the app needs, as one quiet row of three facts. */
+/* What the app needs, as one quiet row of three facts, each with its sign. */
 .foot {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.25rem;
+  gap: 2rem;
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
-.foot span + span::before {
-  content: "";
-  display: inline-block;
-  width: 3px;
-  height: 3px;
-  margin-right: 1.25rem;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.55;
-  vertical-align: middle;
-}
+.foot > span { display: inline-flex; align-items: center; gap: 0.45rem; }
+.foot svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
 @media (max-width: 560px) {
   .get { padding: 0.5rem 0.9rem 0.5rem 0.8rem; font-size: 0.875rem; }
-  .foot { flex-direction: column; gap: 0.3rem; }
-  .foot span + span::before { display: none; }
+  .foot { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
