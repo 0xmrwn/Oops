@@ -47,7 +47,9 @@ body {
 }
 
 /* The first screen: bar, hero, and the line of small print at its foot. */
-.first { min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(16px, 3.2vh, 40px) var(--pad); }
+/* The glass canvas reaches past the field: it is cut at the page's edge here,
+   or a phone would widen its viewport to fit it. */
+.first { overflow-x: clip; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(16px, 3.2vh, 40px) var(--pad); }
 
 ::selection { background: color-mix(in oklab, var(--accent) 32%, transparent); }
 

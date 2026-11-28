@@ -14,6 +14,8 @@ let did = { fixed: false, spoken: false, acted: false };
 let busy = false;
 let run = 0; // bumps on every reset so stale timers do nothing
 let auto = 0, turn = 0;
+let solo = false; // the act in flight is the hero playing by itself
+let held = did;   // the draft's state when that act began
 
 // Self-play: runs `step` after a pause, and waits while the tab is in the
 // background, so nothing plays to an empty room.
@@ -113,7 +115,8 @@ async function swapText(content, changed) {
 function refresh() {
   const state = { fix: !did.acted, dictate: !did.acted && !did.spoken, actions: true };
   for (const [act, button] of Object.entries(triggers)) {
-    button.setAttribute("aria-disabled", String(busy || !state[act]));
+    // The triggers stay live while the hero plays by itself: a press takes over.
+    button.setAttribute("aria-disabled", String((busy && !solo) || !state[act]));
   }
   again.disabled = busy || typing || !(did.fixed || did.spoken || did.acted);
   again.classList.toggle("is-in", !again.disabled);
@@ -121,6 +124,14 @@ function refresh() {
   // The next act worth trying taps its own keys, so the eye lands on it.
   const next = !did.fixed ? "fix" : !did.spoken ? "dictate" : !did.acted ? "actions" : "";
   for (const [act, button] of Object.entries(triggers)) button.classList.toggle("is-next", !busy && act === next && !did.acted);
+}
+
+// A pause inside an act. It throws once the act has been superseded, so a
+// stale act stops at its next beat and never touches the drops again.
+const STALE = Symbol("stale");
+async function beat(mine, ms) {
+  await sleep(ms);
+  if (mine !== run) throw STALE;
 }
 
 const acts = {
@@ -133,22 +144,22 @@ const acts = {
       eyes.pose({ gx: 0.1, gy: -0.95 });
       await swapText(text());
       Drop.widen(words);
-      await sleep(T.note);
+      await beat(mine, T.note);
     } else {
       eyes.pose({ gx: -0.6, gy: -0.5, lid: 0.15 });
-      await sleep(T.invoked);
+      await beat(mine, T.invoked);
       Drop.work(true);
       eyes.read();
-      await sleep(T.working);
+      await beat(mine, T.working);
       if (mine !== run) return;
       await swapText(text(), changedWords(before, text()));
       Drop.work(false);
       Drop.widen(words);
       Sound.success();
       eyes.pose({ check: 1 });
-      await sleep(T.check);
+      await beat(mine, T.check);
       eyes.pose({ gx: -0.9, gy: 0.35, lid: 0.55 });
-      await sleep(T.result - T.check);
+      await beat(mine, T.result - T.check);
     }
     if (mine === run) Drop.hide();
   },
@@ -156,22 +167,22 @@ const acts = {
   async dictate(mine) {
     const base = text();
     Voice.listen(...anchor(168 * unit(), caretAfter(`${base} ${SCENE.spoken}`)));
-    await sleep(500);
+    await beat(mine, 500);
     let heard = "";
     for (const word of SCENE.spoken.split(" ")) {
       if (mine !== run) return;
       heard += (heard ? " " : "") + word;
       render(base, undefined, heard);
-      await sleep(160 + 35 * word.length);
+      await beat(mine, 160 + 35 * word.length);
     }
-    await sleep(350);
+    await beat(mine, 350);
     Voice.transcribe();
-    await sleep(450);
+    await beat(mine, 450);
     if (mine !== run) return;
     did.spoken = true;
     await swapText(text());
     Voice.written();
-    await sleep(T.note);
+    await beat(mine, T.note);
     if (mine === run) Voice.hide();
   },
 
@@ -186,11 +197,11 @@ const acts = {
     Drop.show(x - d / 2, ay + 66 * u);
     eyes.pose({ gx: -0.6, gy: -0.5 });
     Wheel.open(x, ay + d / 2 + 66 * u, did.acted ? did.acted.split(":")[0] : "");
-    const choice = byVisitor ? await Wheel.pick() : (await sleep(850), await Wheel.demo(SCENE.action));
+    const choice = byVisitor ? await Wheel.pick() : (await beat(mine, 850), await Wheel.demo(SCENE.action));
     if (mine !== run) return;
     Wheel.close();
     if (!choice) return Drop.hide();
-    await sleep(240);
+    await beat(mine, 240);
 
     if (choice.restore) {
       did.acted = false;
@@ -198,7 +209,7 @@ const acts = {
       await swapText(text());
       Drop.move(...anchor(Drop.widthFor("Restored")));
       Drop.widen("Restored");
-      await sleep(T.note);
+      await beat(mine, T.note);
     } else {
       const asked = choice.choice ? `${choice.action}:${choice.choice}` : choice.action;
       // The wait is the time the answer really took.
@@ -206,7 +217,7 @@ const acts = {
       Drop.widen(`${choice.action}…`);
       Drop.work(true);
       eyes.read();
-      await sleep(took);
+      await beat(mine, took);
       if (mine !== run) return;
       did.acted = asked;
       await swapText(text());
@@ -217,9 +228,9 @@ const acts = {
       Drop.widen(done);
       Sound.success();
       eyes.pose({ check: 1 });
-      await sleep(T.check);
+      await beat(mine, T.check);
       eyes.pose({ gx: -0.9, gy: 0.35, lid: 0.55 });
-      await sleep(T.result - T.check);
+      await beat(mine, T.result - T.check);
     }
     if (mine === run) Drop.hide();
   },
@@ -230,20 +241,35 @@ async function play(act, byVisitor) {
   if (act === "actions" && Wheel.isOpen()) return Wheel.cancel();
   // A visitor who acts while the draft is still being typed gets it whole.
   if (typing && byVisitor) { run++; typing = false; render(text()); }
+  // A visitor who acts while the hero plays by itself takes over: the act in
+  // flight stops, and the draft goes back to where that act found it.
+  if (busy && solo && byVisitor) {
+    run++;
+    busy = false;
+    did = held;
+    Drop.hide();
+    Voice.hide();
+    Wheel.close();
+    render(text());
+    refresh();
+  }
   if (busy || triggers[act].getAttribute("aria-disabled") === "true") return;
   if (byVisitor) stopSelfPlay();
   Sound.aloud = byVisitor;
   const mine = ++run;
   busy = true;
+  solo = !byVisitor;
+  held = { ...did };
   refresh();
   if (field.dataset.kind !== PLACE[act]) {
     // The field redraws itself around the draft before the act begins.
     field.dataset.kind = PLACE[act];
     await sleep(650);
+    if (mine !== run) return;
   }
   // The questions sheet may have opened meanwhile: nothing starts behind it.
   if (mine === run && Faq.isOpen()) { busy = false; return refresh(); }
-  await acts[act](mine, byVisitor);
+  try { await acts[act](mine, byVisitor); } catch (stale) { if (stale !== STALE) throw stale; }
   if (mine !== run) return;
   busy = false;
   refresh();
