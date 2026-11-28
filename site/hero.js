@@ -31,6 +31,7 @@ function later(step, ms) {
 }
 function stopSelfPlay() { turn++; clearTimeout(auto); }
 let typing = false;
+let tipped = false; // the shortcut has been pointed out once already
 
 const escapeHTML = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
@@ -113,11 +114,10 @@ async function swapText(content, changed) {
 }
 
 function refresh() {
-  const state = { fix: !did.acted, dictate: !did.acted && !did.spoken, actions: true };
-  for (const [act, button] of Object.entries(triggers)) {
-    // The triggers stay live while the hero plays by itself: a press takes over.
-    button.setAttribute("aria-disabled", String((busy && !solo) || !state[act]));
-  }
+  // The triggers stay live while the hero plays by itself: a press takes over.
+  for (const button of Object.values(triggers)) button.setAttribute("aria-disabled", String(busy && !solo));
+  // Once all three acts have played, the page points at what to do next.
+  $("get").classList.toggle("is-due", !busy && Boolean(did.acted));
   again.disabled = busy || typing || !(did.fixed || did.spoken || did.acted);
   again.classList.toggle("is-in", !again.disabled);
   triggers.fix.querySelector(".word").textContent = did.fixed && !did.acted ? "Undo" : "Fix";
@@ -161,7 +161,6 @@ const acts = {
       eyes.pose({ gx: -0.9, gy: 0.35, lid: 0.55 });
       await beat(mine, T.result - T.check);
     }
-    if (mine === run) Drop.hide();
   },
 
   async dictate(mine) {
@@ -200,7 +199,7 @@ const acts = {
     const choice = byVisitor ? await Wheel.pick() : (await beat(mine, 850), await Wheel.demo(SCENE.action));
     if (mine !== run) return;
     Wheel.close();
-    if (!choice) return Drop.hide();
+    if (!choice) return "left";
     await beat(mine, 240);
 
     if (choice.restore) {
@@ -232,11 +231,10 @@ const acts = {
       eyes.pose({ gx: -0.9, gy: 0.35, lid: 0.55 });
       await beat(mine, T.result - T.check);
     }
-    if (mine === run) Drop.hide();
   },
 };
 
-async function play(act, byVisitor) {
+async function play(act, byVisitor, byMouse) {
   // With the wheel open and waiting, its own trigger closes it.
   if (act === "actions" && Wheel.isOpen()) return Wheel.cancel();
   // A visitor who acts while the draft is still being typed gets it whole.
@@ -253,7 +251,12 @@ async function play(act, byVisitor) {
     render(text());
     refresh();
   }
-  if (busy || triggers[act].getAttribute("aria-disabled") === "true") return;
+  if (busy) return;
+  // An act with nothing left to do here plays again on the draft as it began.
+  if (byVisitor && { fix: did.acted, dictate: did.acted || did.spoken }[act]) {
+    did = { fixed: false, spoken: false, acted: false };
+    render(text());
+  }
   if (byVisitor) stopSelfPlay();
   Sound.aloud = byVisitor;
   const mine = ++run;
@@ -269,8 +272,22 @@ async function play(act, byVisitor) {
   }
   // The questions sheet may have opened meanwhile: nothing starts behind it.
   if (mine === run && Faq.isOpen()) { busy = false; return refresh(); }
-  try { await acts[act](mine, byVisitor); } catch (stale) { if (stale !== STALE) throw stale; }
+  let left = false;
+  try { left = await acts[act](mine, byVisitor) === "left"; } catch (stale) { if (stale !== STALE) throw stale; }
   if (mine !== run) return;
+  // To whoever used the mouse on a Mac, the drop says once that the keys are real.
+  if (byMouse && !left && !tipped && !document.documentElement.classList.contains("no-keys")) {
+    tipped = true;
+    const tip = `or press ${[...triggers[act].querySelectorAll("kbd")].map((key) => key.textContent).join("")}`;
+    Sound.aloud = false;
+    if (!drop.classList.contains("is-in")) Drop.show(...anchor(Drop.widthFor(tip)), tip);
+    Drop.move(...anchor(Drop.widthFor(tip)));
+    Drop.widen(tip);
+    eyes.pose({ gx: 0, gy: 0.9 });
+    await sleep(2000);
+    if (mine !== run) return;
+  }
+  Drop.hide();
   busy = false;
   refresh();
   // Left alone, the hero goes on to the next act by itself.
@@ -312,7 +329,7 @@ document.documentElement.classList.toggle("no-keys", !/Mac/.test(navigator.platf
 
 // Shortcuts are matched on the letter, wherever the keyboard layout puts it.
 const KEYS = { w: "fix", x: "dictate", e: "actions" };
-for (const [act, button] of Object.entries(triggers)) button.addEventListener("click", () => play(act, true));
+for (const [act, button] of Object.entries(triggers)) button.addEventListener("click", () => play(act, true, true));
 again.addEventListener("click", start);
 addEventListener("keydown", (event) => {
   const letter = event.key.length === 1 ? event.key : event.code.replace("Key", "");

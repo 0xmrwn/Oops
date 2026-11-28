@@ -101,6 +101,12 @@ body {
   transition: transform 0.3s var(--out), background 0.2s;
 }
 .get svg { translate: 0 -0.06em; }
+/* After the three acts, a ring leaves the button now and then. */
+.get.is-due { animation: due 2.6s var(--out) infinite; }
+@keyframes due {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 60%, transparent); }
+  60%, 100% { box-shadow: 0 0 0 14px transparent; }
+}
 .get:hover { transform: translateY(-1px); background: color-mix(in oklab, var(--ink) 86%, var(--accent)); }
 .get:active { transform: scale(0.97); }
 
@@ -366,6 +372,7 @@ kbd {
   .draft mark::before { animation: flash 1.55s linear both; }
   .outline, .head > *, .triggers { transition: none; }
   .is-next kbd, .triggers button { animation: none; }
+  .get.is-due { animation: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 60%, transparent); }
 }
 
 /* On a short window the first screen tightens so the footer stays in view. */
