@@ -127,7 +127,7 @@ const Drop = {
 const eyes = (() => {
   const pair = $("eyePair"), left = $("eyeL"), right = $("eyeR"), lid = $("lidRect");
   const now = { gx: 0, gy: 0, lid: 0, check: 0 };
-  let target = { ...now }, reading = 0, last = performance.now();
+  let target = { ...now }, reading = 0, last = 0, running = false;
   const mix = (a, b, t) => a + (b - a) * t;
   const line = (el, eye, tick, t) => {
     el.setAttribute("x1", mix(eye[0], tick[0], t));
@@ -151,11 +151,19 @@ const eyes = (() => {
     line(right, [19.3, 13.4, 19.3, 18.6], [20.5, 12.2, 14.25, 19.1], c);
     pair.setAttribute("transform", `translate(${now.gx * 4.5 * (1 - c)} ${now.gy * 3.5 * (1 - c)})`);
     lid.setAttribute("y", mix(10.95 + now.lid * 0.75 * 11.5, 0, c));
+    // Nothing to draw once the drop is gone: the loop rests until the next pose.
+    if (!drop.classList.contains("is-in")) { running = false; return; }
     requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  function wake() {
+    if (running) return;
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(frame);
+  }
+  wake();
   return {
-    pose(next) { reading = 0; target = { gx: 0, gy: 0, lid: 0, check: 0, ...next }; },
-    read() { reading = performance.now(); },
+    pose(next) { reading = 0; target = { gx: 0, gy: 0, lid: 0, check: 0, ...next }; wake(); },
+    read() { reading = performance.now(); wake(); },
   };
 })();

@@ -212,3 +212,10 @@
 /* The liquid neck that joins the drop to what is pointed at. */
 .neck { position: absolute; border-radius: 999px; pointer-events: none; opacity: 0; transition: opacity 0.14s; }
 .neck.is-in { opacity: 1; transition: opacity 0.2s 0.05s; }
+
+/* Kept last so it wins over the entrances above. */
+@media (prefers-reduced-motion: reduce) {
+  .orbit { animation: none; }
+  .drop, .drop.is-in, .voice, .voice.is-in { transition: opacity 0.2s, width 0.01s; transform: none; }
+  .petal, .petal.is-in { transition: opacity 0.2s; scale: 1; }
+}

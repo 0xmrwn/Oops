@@ -29,6 +29,15 @@ const Wheel = (() => {
   const make = (item, kind) => {
     const el = document.createElement("div");
     el.className = kind;
+    el.setAttribute("role", "button");
+    el.tabIndex = -1;
+    el.addEventListener("focus", () => live?.point(item));
+    el.addEventListener("blur", () => live?.point(null));
+    el.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      live?.choose(item);
+    });
     el.addEventListener("pointerenter", () => live?.point(item));
     el.addEventListener("pointerleave", () => live?.point(null));
     el.addEventListener("click", () => live?.choose(item));
@@ -61,6 +70,10 @@ const Wheel = (() => {
     for (const item of [...petals, ...pills]) item.el.classList.remove("is-in", "is-pointed", "is-quiet");
     neck.classList.remove("is-in");
     ring = items;
+    for (const item of [...petals, ...pills]) {
+      item.el.tabIndex = ring.includes(item) ? 0 : -1;
+      item.el.setAttribute("aria-label", item.label || "");
+    }
     // Let the pieces take their closed place before they bud out.
     requestAnimationFrame(() => ring.forEach((item) => item.el.classList.add("is-in")));
     glass?.wake();
@@ -72,6 +85,7 @@ const Wheel = (() => {
       other.el.classList.toggle("is-quiet", Boolean(item) && other !== item);
     }
     if (item) stage.classList.add("is-named");
+    if (item) $("said").textContent = item.label;
     // A neck of glass reaches from the drop to what is pointed at.
     neck.classList.toggle("is-in", Boolean(item));
     if (item) {
@@ -107,6 +121,7 @@ const Wheel = (() => {
     neck.classList.remove("is-in");
     hint.classList.remove("is-in");
     Drop.glyph(null);
+    for (const item of ring) item.el.tabIndex = -1;
     ring = [];
   }
 
@@ -117,7 +132,9 @@ const Wheel = (() => {
     cancel: () => live?.done(null),
     close,
 
-    // `restore` names the action just run: its petal offers to undo it.
+    // `restore` names the action just run: its petal offers to undo it, and it
+    // is the only one offered, since the answers here were all written for the
+    // draft as it was before any action.
     open(x, y, restore) {
       hub = { x, y };
       for (const petal of petals) {
@@ -125,7 +142,7 @@ const Wheel = (() => {
         petal.el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[petal.label]}</svg><span>${petal.label}</span>`;
         place(petal, 55, 74);
       }
-      show(petals);
+      show(restore ? petals.filter((petal) => petal.label === "Restore") : petals);
     },
 
     // The hero playing by itself: looks at a petal, then takes it.

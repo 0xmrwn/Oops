@@ -114,7 +114,8 @@ function refresh() {
   for (const [act, button] of Object.entries(triggers)) {
     button.setAttribute("aria-disabled", String(busy || !state[act]));
   }
-  again.classList.toggle("is-in", !busy && !typing && Boolean(did.fixed || did.spoken || did.acted));
+  again.disabled = busy || typing || !(did.fixed || did.spoken || did.acted);
+  again.classList.toggle("is-in", !again.disabled);
   triggers.fix.querySelector(".word").textContent = did.fixed && !did.acted ? "Undo" : "Fix";
   // The next act worth trying taps its own keys, so the eye lands on it.
   const next = !did.fixed ? "fix" : !did.spoken ? "dictate" : !did.acted ? "actions" : "";
@@ -245,7 +246,8 @@ async function play(act, byVisitor) {
   refresh();
   // Left alone, the hero goes on to the next act by itself.
   const next = { fix: "dictate", dictate: "actions" }[act];
-  if (byVisitor) return;
+  // Only what a visitor asked for is read out, and only once it is whole.
+  if (byVisitor) return void ($("said").textContent = text());
   if (next) later(() => play(next, false), T.next);
   else later(start, T.rest);
 }
