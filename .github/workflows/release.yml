@@ -107,8 +107,12 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           folder="dist/publish/oops-$version-$BUILD_NUMBER"
           shopt -s nullglob
+          # A second copy without the version in its name, so releases/latest/download/Oops.dmg
+          # always fetches the newest installer: the landing page's button links there.
+          cp "$folder/Oops-$version.dmg" "$RUNNER_TEMP/Oops.dmg"
           gh release create "$GITHUB_REF_NAME" --verify-tag --latest --title "Oops $version" \
-            --notes-file "$folder/Oops-$version.md" "$folder"/*.zip "$folder/Oops-$version.dmg" "$folder/appcast.xml"
+            --notes-file "$folder/Oops-$version.md" "$folder"/*.zip "$folder/Oops-$version.dmg" "$RUNNER_TEMP/Oops.dmg" \
+            "$folder/appcast.xml"
 
       - name: Remove signing keychain
         if: always()
