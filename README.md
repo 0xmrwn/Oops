@@ -1,5 +1,9 @@
 # Oops
 
+[![The Oops website fixing a draft in place, writing dictation into it, then shortening it with an action](docs/demo.gif)](https://0xmrwn.github.io/Oops/)
+
+**[Website](https://0xmrwn.github.io/Oops/)** · **[Download for Mac](https://github.com/0xmrwn/Oops/releases/latest/download/Oops.dmg)**
+
 A macOS menu-bar app that corrects text in the focused editor. Select a passage,
 or leave the cursor in a draft, and press **⌃⌘W**. Oops asks your chosen model for
 small corrections, checks the result, and applies the edits in place. It never
