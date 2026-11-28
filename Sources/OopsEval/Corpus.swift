@@ -45,6 +45,12 @@ struct EvalCase: Codable, Sendable {
         var protected: [String]?
         var clean: Bool?
         var layout: String?
+        var englishTerms: [String]?
+
+        enum CodingKeys: String, CodingKey {
+            case errors, register, protected, clean, layout
+            case englishTerms = "english_terms"
+        }
     }
 
     /// Nothing to fix: tagged clean, labelled clear, or expected to come back as it is.

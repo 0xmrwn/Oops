@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from .comparison import ROLES, VERSION
+from .comparison import ROLES, SUPPORTED_VERSIONS
 from .records import canonical, digest, lines, load_run, lock, read_json, write_json
 
 
@@ -10,7 +10,12 @@ def import_lane(directory, role, path):
     with lock(directory / ".generation.lock"):
         experiment, manifest, cases, _ = load_run(directory)
         plan = read_json(directory / "config.json").get("comparison", {})
-        if not experiment or plan.get("protocol") != VERSION or role not in ROLES or manifest["attempts"] != 1:
+        if (
+            not experiment
+            or plan.get("protocol") not in SUPPORTED_VERSIONS
+            or role not in ROLES
+            or manifest["attempts"] != 1
+        ):
             raise ValueError("Import requires a registered single-attempt comparison.")
         file = plan["lanes"][role]
         destination = (directory / file).resolve()

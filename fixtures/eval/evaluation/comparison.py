@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from statistics import mean, variance
 
 from .campaign import validate_cases
+from .english_terms import preservation, reviewed_terms
 from .records import digest, lines, load_run, read_json
 from .scoring import judge_records, percentile
 from .tasks import collect, raw_text, task_for
@@ -13,7 +14,9 @@ STUDENTS = ("qwen-stock", "qwen-tuned", "liquid-stock", "liquid-tuned")
 TEACHERS = ("luna", "haiku")
 NATIVE = ("autocorrect", "apple-model", "proofread")
 ROLES = STUDENTS + TEACHERS + NATIVE
-VERSION = "blind-fix-v1"
+LEGACY_VERSION = "blind-fix-v1"
+VERSION = "blind-fix-v2"
+SUPPORTED_VERSIONS = (LEGACY_VERSION, VERSION)
 
 
 def paired(differences, margin):
@@ -82,25 +85,28 @@ def comparison(directory, rubric):
         raise ValueError("Comparison requires a frozen generation run.")
     plan = read_json(directory / "config.json").get("comparison", {})
     roles = plan.get("lanes", {})
-    if plan.get("protocol") != VERSION or set(roles) != set(ROLES) or len(set(roles.values())) != len(ROLES):
+    protocol = plan.get("protocol")
+    if protocol not in SUPPORTED_VERSIONS or set(roles) != set(ROLES) or len(set(roles.values())) != len(ROLES):
         raise ValueError("Freeze the comparison protocol and nine distinct lane files in the generation config.")
     if manifest["attempts"] != 1 or {lane["file"] for lane in manifest["lanes"]} != set(roles.values()):
         raise ValueError("Use exactly the registered lanes and one first attempt per case.")
     validate_cases(list(cases.values()))
     fixture = plan.get("purpose") == "fixture"
+    legacy = protocol == LEGACY_VERSION
+    languages = {"en", "fr", "mixed"} if legacy else {"en", "fr"}
     if not fixture and (
         plan.get("purpose") != "qualification"
         or any(
-            c["split"] != "held"
-            or c["origin"] != "real"
-            or not c.get("family")
-            or c.get("lang") not in {"en", "fr", "mixed"}
+            c["split"] != "held" or c["origin"] != "real" or not c.get("family") or c.get("lang") not in languages
             for c in cases.values()
         )
     ):
         raise ValueError("Qualification requires held-out real cases with family and language.")
-    if not fixture and {c["lang"] for c in cases.values()} != {"en", "fr", "mixed"}:
-        raise ValueError("Qualification needs English, French and mixed drafts.")
+    if not fixture and {c["lang"] for c in cases.values()} != languages:
+        coverage = "English, French and mixed" if legacy else "English and French"
+        raise ValueError(f"Qualification needs {coverage} drafts.")
+    terms = {} if legacy else {key: counts for key, case in cases.items() if (counts := reviewed_terms(case))}
+    occurrences = sum(sum(counts.values()) for counts in terms.values())
     if plan.get("rubric_sha256") != digest(rubric):
         raise ValueError("The rubric differs from the comparison freeze.")
     timing = {}
@@ -134,13 +140,19 @@ def comparison(directory, rubric):
     for role, file in roles.items():
         scores[role] = {}
         totals, slices, samples = Counter(), defaultdict(Counter), []
+        raw_terms = Counter(preserved=0, changed=0, unavailable=0)
+        applied_terms = raw_terms.copy()
         twins = defaultdict(list)
         for key, case in cases.items():
             row = indexed.get((file, key))
             output = row.get("output") if row else None
+            raw = raw_text(row) if row else None
             failure = row is not None and (
                 output is None or row.get("error") is not None or row.get("verdict") in {"invalid", "error"}
             )
+            if key in terms:
+                raw_terms.update(preservation(terms[key], raw))
+                applied_terms.update(preservation(terms[key], None if failure else output))
             ballot = {}
             if output is not None:
                 ballot = judgments[task_for(case, output, rubric)["key"]].get("human", {})
@@ -162,9 +174,8 @@ def comparison(directory, rubric):
                 counters["raw_protection_failed"] = int(checks.get("protected_kept") is False)
                 counters["applied_protection_failed"] = int(checks.get("applied_protected_kept") is False)
                 counters["applied_protection_unmeasured"] = int(type(checks.get("applied_protected_kept")) is not bool)
-                counters["raw_differs_from_applied"] = int(raw_text(row) is not None and raw_text(row) != output)
+                counters["raw_differs_from_applied"] = int(raw is not None and raw != output)
                 samples.append((case, timing.get((role, key))))
-                raw = raw_text(row)
                 if raw is not None:
                     raw_label = judgments[task_for(case, raw, rubric)["key"]].get("human", {})
                     counters["raw_harmful"] = int(
@@ -174,7 +185,7 @@ def comparison(directory, rubric):
             counters["fixed_sendable"] = int(not clean and send is True and output != case["input"])
             counters["clean_changed"] = int(clean and output is not None and output != case["input"])
             totals.update(counters)
-            tags = case.get("tags", {})
+            tags = case.get("tags") or {}
             for group in [
                 "lang/" + (case.get("lang") or "unknown"),
                 "layout/" + (tags.get("layout") or "unknown"),
@@ -197,6 +208,13 @@ def comparison(directory, rubric):
             "preference_groups": len(pairs),
             "all_preferences_sendable": sum(all(v is True for _, v in group) for group in pairs),
         }
+        if not legacy:
+            summaries[role]["english_term_preservation"] = {
+                "drafts": len(terms),
+                "occurrences": occurrences,
+                "raw": raw_terms,
+                "applied": applied_terms,
+            }
     for student in ("qwen-tuned", "liquid-tuned"):
         comparisons[student] = {}
         for baseline in (student.replace("tuned", "stock"), *TEACHERS, *NATIVE):
@@ -249,7 +267,7 @@ def comparison(directory, rubric):
             else "inconclusive"
         )
     return {
-        "protocol": VERSION,
+        "protocol": protocol,
         "purpose": plan["purpose"],
         "fixture_only": fixture,
         "models": summaries,
