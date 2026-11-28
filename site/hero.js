@@ -298,3 +298,14 @@ addEventListener("keydown", (event) => {
 addEventListener("resize", reserve);
 document.fonts?.ready.then(reserve);
 start();
+
+// The download button fetches the installer itself. The file's name carries
+// the version, so the latest one is looked up; until then, and if the lookup
+// fails, the button opens the release page.
+fetch("https://api.github.com/repos/0xmrwn/Oops/releases/latest")
+  .then((answer) => answer.json())
+  .then((release) => {
+    const installer = release.assets?.find((asset) => asset.name.endsWith(".dmg"));
+    if (installer) document.querySelector(".get").href = installer.browser_download_url;
+  })
+  .catch(() => {});
