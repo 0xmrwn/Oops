@@ -58,6 +58,10 @@ body {
 
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 
+/* The app icon, then the name. */
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand img { display: block; width: 38px; height: 38px; }
+
 .wordmark {
   width: 75px;
   height: 28px;
