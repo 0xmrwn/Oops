@@ -1,0 +1,379 @@
+:root {
+  color-scheme: light dark;
+  --bg: #e3eaf1;
+  --ink: #17202b;
+  --glass: #e6edf4;
+  --arc: #fff;
+  --halo: rgb(255 255 255 / 0.85);
+  --mark: 0.24;
+  --accent: #007aff;
+  --muted: color-mix(in oklab, var(--ink) 70%, var(--bg));
+  --d: clamp(46px, 4vw, 58px);
+  --sheet: #eef3f8;
+  --u: calc(var(--d) / 46);
+  --pad: clamp(20px, 4vw, 56px);
+  --out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@supports (color: AccentColor) {
+  :root { --accent: AccentColor; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #10151b;
+    --ink: #e9eff5;
+    --glass: #131920;
+    --sheet: #151b23;
+    --halo: rgb(0 0 0 / 0.85);
+    --mark: 0.38;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* The glass canvas reaches past the field; it must never widen the page. */
+html { background: var(--bg); overflow-x: clip; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 1rem;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--accent);
+}
+
+/* The first screen: bar, hero, and the line of small print at its foot. */
+.first { min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(16px, 3.2vh, 40px) var(--pad); }
+
+::selection { background: color-mix(in oklab, var(--accent) 32%, transparent); }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+
+/* Top bar */
+
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+
+.wordmark {
+  width: 75px;
+  height: 28px;
+  background: var(--ink);
+  -webkit-mask: url(wordmark.svg) left center / contain no-repeat;
+  mask: url(wordmark.svg) left center / contain no-repeat;
+}
+
+.actions { display: flex; align-items: center; gap: clamp(8px, 1.4vw, 16px); }
+.actions svg { width: 1.05em; height: 1.05em; fill: currentColor; flex: none; }
+
+.repo {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  color: var(--muted);
+  transition: color 0.2s, background 0.2s;
+}
+.repo svg { width: 1.4rem; height: 1.4rem; }
+.repo:hover { color: var(--ink); background: color-mix(in oklab, var(--ink) 7%, transparent); }
+
+.get {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.62rem 1.1rem 0.62rem 0.95rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: transform 0.3s var(--out), background 0.2s;
+}
+.get svg { translate: 0 -0.06em; }
+.get:hover { transform: translateY(-1px); background: color-mix(in oklab, var(--ink) 86%, var(--accent)); }
+.get:active { transform: scale(0.97); }
+
+/* The stage. The draft keeps one place on the page from start to finish;
+   the field around it, the drops and the wheel all move, it does not. */
+
+.hero { align-self: center; padding-block: clamp(8px, 2vh, 40px) clamp(12px, 3vh, 56px); }
+
+.hero {
+  --px: clamp(18px, 2.3vw, 30px);
+  --py: clamp(13px, 1.5vw, 20px);
+  --head: 7rem;
+  --line: color-mix(in oklab, var(--ink) 15%, transparent);
+}
+
+.scene {
+  position: relative;
+  width: min(100%, 46rem);
+  margin-inline: auto;
+  padding-top: var(--head);
+}
+
+.stage {
+  position: relative;
+  padding: var(--py) calc(var(--px) + var(--d) * 0.85) calc(var(--py) + var(--d) * 3.5) var(--px);
+}
+
+.draft {
+  margin: 0;
+  font-size: clamp(1.55rem, 3.2vw, 2.7rem);
+  font-weight: 550;
+  font-variation-settings: "opsz" 60;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
+  transition: opacity 0.07s ease-in-out;
+}
+.draft.is-swapping { opacity: 0.5; }
+
+.draft code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.8em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  padding: 0.04em 0.22em;
+  border-radius: 0.2em;
+  background: color-mix(in oklab, var(--ink) 9%, transparent);
+}
+
+.caret {
+  display: inline-block;
+  width: max(2px, 0.045em);
+  height: 0.84em;
+  margin-left: 0.05em;
+  vertical-align: -0.09em;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: blink 1.06s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Changed words flash in the accent colour, as they do in the app. */
+.draft mark {
+  position: relative;
+  color: inherit;
+  background: none;
+  isolation: isolate;
+}
+.draft mark::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0.08em -0.07em 0.02em;
+  border-radius: 0.16em;
+  background: color-mix(in oklab, var(--accent) calc(var(--mark) * 100%), transparent);
+  opacity: 0;
+  animation: flash 1.55s linear both, pop 0.34s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  animation-delay: calc(min(var(--i), 8) * 40ms);
+}
+@keyframes flash { 10%, 50% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pop { from { transform: scale(0.82); } }
+
+/* The field the draft sits in. One outline that redraws itself between acts:
+   a chat composer hugging the words, then an email, then a document page. */
+
+.outline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--head);
+  height: calc(var(--text-h, 4rem) + var(--py) * 2);
+  border: 1.5px solid var(--line);
+  border-radius: 1.6rem;
+  background: var(--sheet);
+  box-shadow: 0 0 0 0 transparent;
+  transition: top 0.65s var(--out), height 0.65s var(--out), border-radius 0.65s var(--out), box-shadow 0.65s;
+}
+.scene[data-kind="mail"] .outline, .scene[data-kind="doc"] .outline {
+  top: 0;
+  height: 100%;
+  box-shadow: 0 24px 48px -30px color-mix(in oklab, var(--ink) 45%, transparent);
+}
+.scene[data-kind="mail"] .outline { border-radius: 14px; }
+.scene[data-kind="doc"] .outline { border-radius: 4px; }
+
+.send {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  display: grid;
+  place-items: center;
+  width: calc(var(--d) * 0.74);
+  height: calc(var(--d) * 0.74);
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  opacity: 0;
+  scale: 0.5;
+  transition: opacity 0.18s, scale 0.3s var(--out);
+}
+.send svg { width: 54%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.scene[data-kind="chat"] .send { opacity: 1; scale: 1; transition: opacity 0.25s 0.3s, scale 0.5s var(--out) 0.3s; }
+
+/* What sits above the words: nothing in a chat, the address rows of an
+   email, the toolbar and ruler of a document. */
+
+.head { position: absolute; inset: 0 0 auto; height: var(--head); color: var(--muted); font-size: 0.875rem; font-weight: 500; }
+.head > * { position: absolute; inset: 0; opacity: 0; transition: opacity 0.16s; }
+.scene[data-kind="mail"] .mail, .scene[data-kind="doc"] .doc { opacity: 1; transition: opacity 0.4s 0.28s; }
+.head svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.mail { display: grid; grid-template-rows: 2.5rem 2.25rem 2.25rem; }
+.mail .title { position: relative; display: grid; place-items: center; font-weight: 600; color: color-mix(in oklab, var(--ink) 82%, var(--bg)); }
+.mail .title svg { position: absolute; right: var(--px); color: var(--accent); }
+.mail .row { display: flex; align-items: center; padding-inline: var(--px); border-top: 1px solid var(--line); }
+.mail .row:last-child { border-bottom: 1px solid var(--line); }
+
+.doc { display: grid; grid-template-rows: 2.6rem 1.1rem; }
+.tools { display: flex; align-items: center; gap: 0.95rem; padding-inline: var(--px); border-bottom: 1px solid var(--line); }
+.tools .style { display: inline-flex; align-items: center; gap: 0.3rem; margin-right: 0.35rem; padding: 0.2rem 0.4rem 0.2rem 0.6rem; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line); }
+.tools .style svg { width: 0.95rem; height: 0.95rem; }
+.tools b, .tools i, .tools u { font: 600 1rem Georgia, "Times New Roman", serif; }
+.tools i { font-weight: 500; }
+.tools u + svg { margin-left: 0.4rem; }
+.ruler {
+  margin-inline: var(--px);
+  border-bottom: 1px solid var(--line);
+  background:
+    repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 2.5rem) left bottom / 100% 70% no-repeat,
+    repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 0.5rem) left bottom / 100% 32% no-repeat;
+}
+
+/* The triggers: each feature's shortcut is the button that plays it. */
+
+.triggers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px clamp(22px, 3.4vw, 44px);
+  margin-top: clamp(22px, 4vh, 40px);
+  transition: translate 0.65s var(--out);
+}
+/* Under a chat composer the triggers tuck up beneath it, leaving the drop its room. */
+.scene[data-kind="chat"] + .triggers { translate: 0 calc(var(--text-h, 4rem) + var(--py) * 2 + var(--d) * 1.25 - var(--body-h, 20rem)); }
+
+.triggers button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 9px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -14px color-mix(in oklab, var(--ink) 50%, transparent);
+  transition: translate 0.25s var(--out), border-color 0.2s, box-shadow 0.25s, opacity 0.3s;
+}
+.triggers button:hover { translate: 0 -2px; border-color: color-mix(in oklab, var(--ink) 34%, transparent); box-shadow: 0 14px 24px -14px color-mix(in oklab, var(--ink) 60%, transparent); }
+.triggers button:active { translate: 0 1px; }
+.triggers button[aria-disabled="true"] { opacity: 0.45; cursor: default; translate: none; }
+.triggers button.is-next { border-color: color-mix(in oklab, var(--accent) 70%, transparent); }
+
+.keys { display: inline-flex; gap: 4px; }
+
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.85rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border-radius: 7px;
+  font: 500 0.9375rem system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--ink) 13%, transparent),
+    0 2px 0 color-mix(in oklab, var(--ink) 20%, transparent);
+  transition: transform 0.12s var(--out), box-shadow 0.12s;
+}
+/* The next act's keys tap themselves, one after the other. */
+.is-next kbd { animation: tap 3s var(--out) infinite; }
+.is-next kbd:nth-child(2) { animation-delay: 0.09s; }
+.is-next kbd:nth-child(3) { animation-delay: 0.18s; }
+@keyframes tap { 0%, 8%, 100% { transform: none; } 4% { transform: translateY(2px); } }
+.triggers .is-pressed kbd, .triggers button:active kbd {
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 18%, transparent);
+  animation: none;
+}
+/* Without a Mac keyboard there are no keys to show: the names are the buttons. */
+.no-keys .keys { display: none; }
+.no-keys .triggers button { padding: 11px 18px; }
+
+/* Starting over: a small round key that appears once something has been done. */
+.triggers .again {
+  align-self: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+  scale: 0.7;
+  transition: opacity 0.25s, scale 0.4s var(--out), translate 0.25s var(--out), border-color 0.2s, color 0.2s;
+}
+.triggers .again.is-in { opacity: 1; pointer-events: auto; scale: 1; }
+.triggers .again:hover { color: var(--ink); }
+.again svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* The triggers arrive one after the other when the page opens. */
+.triggers button { animation: arrive 0.7s var(--out) backwards; }
+.triggers button:nth-child(2) { animation-delay: 0.07s; }
+.triggers button:nth-child(3) { animation-delay: 0.14s; }
+@keyframes arrive { from { opacity: 0; transform: translateY(10px); } }
+
+/* Footer */
+
+/* What the app needs, as one quiet row of three facts. */
+.foot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.foot span + span::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-right: 1.25rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  vertical-align: middle;
+}
+
+@media (max-width: 560px) {
+  .get { padding: 0.5rem 0.9rem 0.5rem 0.8rem; font-size: 0.875rem; }
+  .foot { flex-direction: column; gap: 0.3rem; }
+  .foot span + span::before { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret { animation: none; }
+  .draft mark::before { animation: flash 1.55s linear both; }
+  .outline, .head > *, .triggers { transition: none; }
+  .is-next kbd, .triggers button { animation: none; }
+}
+
+/* On a short window the first screen tightens so the footer stays in view. */
+@media (max-height: 780px) {
+  .stage { padding-bottom: calc(var(--py) + var(--d) * 2.9); }
+  .triggers { margin-top: 16px; }
+}
