@@ -49,6 +49,8 @@ const Faq = (() => {
     if (!step) return;
     event.preventDefault();
     show((at + step + questions.length) % questions.length);
+    // Focus follows the selection, so Enter and the focus ring agree with it.
+    if (questions.includes(document.activeElement)) questions[at].focus();
   });
   addEventListener("keydown", (event) => {
     if (event.key !== "?" || event.metaKey || event.ctrlKey || event.altKey) return;

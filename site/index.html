@@ -6,6 +6,7 @@
 <title>Oops: fix, dictate and rewrite text in any Mac app</title>
 <link rel="canonical" href="https://0xmrwn.github.io/Oops/">
 <meta name="description" content="Free, open-source Mac app that puts your AI where you type: fix typos in place, dictate, and translate, shorten or retone a draft, in any app.">
+<meta name="google-site-verification" content="bWhd8Wxa9eG-uNNkkMxUT6DYuNs7WrhPA-StvTEvjU8">
 <meta name="theme-color" content="#e3eaf1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#10151b" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Oops: fix, dictate and rewrite text in any Mac app">
@@ -27,7 +28,7 @@
 <link rel="stylesheet" href="drops.css">
 <!-- For search engines and assistants. The FAQ entries repeat the answers in the sheet below: change both together. -->
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Oops","url":"https://0xmrwn.github.io/Oops/","description":"Free, open-source Mac app that puts your AI where you type: fix typos in place, dictate, and translate, shorten or retone a draft, in any app.","applicationCategory":"ProductivityApplication","operatingSystem":"macOS 26 or later","processorRequirements":"Apple silicon","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"downloadUrl":"https://github.com/0xmrwn/Oops/releases/latest/download/Oops.dmg","license":"https://github.com/0xmrwn/Oops/blob/main/LICENSE","isAccessibleForFree":true,"image":"https://0xmrwn.github.io/Oops/preview.png","sameAs":"https://github.com/0xmrwn/Oops","featureList":["Fix typos and grammar in place, in the app you are typing in","Dictation written at the cursor, transcribed on the Mac","Actions on a draft: translate, shorten, change tone","Works with ChatGPT, Claude Code, an API key or a local model"]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Oops is free and open source, under the MIT license. There is no Oops account and no subscription: it works with an AI you already have."}},{"@type":"Question","name":"Where does it work?","acceptedAnswer":{"@type":"Answer","text":"Anywhere you type. Mail, chat, notes, documents, and any text box in a browser. It stays out of terminals and password fields on purpose."}},{"@type":"Question","name":"Can it mess up my text?","acceptedAnswer":{"@type":"Answer","text":"It is built not to. Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. When it is not sure, it changes nothing. Press the shortcut again to get your original back."}},{"@type":"Question","name":"What leaves my Mac?","acceptedAnswer":{"@type":"Answer","text":"Only the draft you fix. It goes straight to the AI you chose, with no Oops server in between. Oops looks at the field you are in when you press the shortcut, and never otherwise."}},{"@type":"Question","name":"Which AI does it use?","acceptedAnswer":{"@type":"Answer","text":"Yours. Sign in with ChatGPT, use Claude Code, add an API key, or run a model on your own Mac. Oops asks it for small corrections, not a rewrite."}},{"@type":"Question","name":"How does dictation work?","acceptedAnswer":{"@type":"Answer","text":"Hold, talk, release. What you say is written where your cursor is. By default the speech-to-text model runs on your Mac, so your voice is not sent anywhere, and the recording is never kept."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is it free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Oops is free and open source, under the MIT license. There is no Oops account and no subscription: it works with an AI you already have."}},{"@type":"Question","name":"Where does it work?","acceptedAnswer":{"@type":"Answer","text":"Almost anywhere you type. Mail, chat, notes, documents, and the text boxes in your browser. It stays out of terminals and password fields on purpose."}},{"@type":"Question","name":"Can it mess up my text?","acceptedAnswer":{"@type":"Answer","text":"It is built not to. Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. When it is not sure, it changes nothing. Press the shortcut again within five minutes and, if you have not typed since, your original is back."}},{"@type":"Question","name":"What leaves my Mac?","acceptedAnswer":{"@type":"Answer","text":"Only the text you act on. It goes straight to the AI you chose, with no Oops server in between. Dictation is transcribed on your Mac unless you pick an online option. Oops looks at the field you are in only when you press the shortcut."}},{"@type":"Question","name":"Which AI does it use?","acceptedAnswer":{"@type":"Answer","text":"Yours. Sign in with ChatGPT, use Claude Code, add an API key, or run a model on your own Mac. Oops asks it for small corrections, not a rewrite."}},{"@type":"Question","name":"How does dictation work?","acceptedAnswer":{"@type":"Answer","text":"Hold, talk, release. What you say is written where your cursor is. By default the speech-to-text model runs on your Mac, so your voice is not sent anywhere, and the recording is never kept."}}]}</script>
 </head>
 <body>
 
@@ -129,18 +130,18 @@
       <p class="how">MIT license · signed and notarized · automatic updates</p>
     </section>
     <section class="a" id="a2" role="tabpanel" aria-labelledby="q2">
-      <p class="lead">Anywhere you type.</p>
-      <p class="say">Mail, chat, notes, documents, and <mark>any text box in a browser</mark>. It stays out of terminals and password fields on purpose.</p>
+      <p class="lead">Almost anywhere you type.</p>
+      <p class="say">Mail, chat, notes, documents, and <mark>the text boxes in your browser</mark>. It stays out of terminals and password fields on purpose.</p>
       <p class="how">Tested in 254 editor setups: 15 web editors × 5 browser engines, 11 native toolkits</p>
     </section>
     <section class="a" id="a3" role="tabpanel" aria-labelledby="q3">
       <p class="lead">It is built not to.</p>
-      <p class="say">Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. <mark>When it is not sure, it changes nothing.</mark> Press the shortcut again to get your original back.</p>
+      <p class="say">Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. <mark>When it is not sure, it changes nothing.</mark> Press the shortcut again within five minutes and, if you have not typed since, your original is back.</p>
       <p class="how">Edit-by-edit validation · rewrites rejected · restore for 5 minutes</p>
     </section>
     <section class="a" id="a4" role="tabpanel" aria-labelledby="q4">
-      <p class="lead">Only the draft you fix.</p>
-      <p class="say">It goes <mark>straight to the AI you chose</mark>, with no Oops server in between. Oops looks at the field you are in when you press the shortcut, and never otherwise.</p>
+      <p class="lead">Only the text you act on.</p>
+      <p class="say">It goes <mark>straight to the AI you chose</mark>, with no Oops server in between. Dictation is transcribed on your Mac unless you pick an online option. Oops looks at the field you are in only when you press the shortcut.</p>
       <p class="how">Direct HTTPS requests · keys in the macOS Keychain · statistics stay on the Mac</p>
     </section>
     <section class="a" id="a5" role="tabpanel" aria-labelledby="q5">

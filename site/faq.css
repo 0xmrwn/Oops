@@ -157,8 +157,9 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   padding: 2.6rem 3.4rem 2.4rem 3rem;
+  overflow-y: auto;
   opacity: 0;
   visibility: hidden;
   translate: 0 10px;
@@ -198,7 +199,9 @@
 
 /* On a phone the sheet is the screen: the questions, then the answer. */
 @media (max-width: 760px) {
-  .faq { --row: 2.85rem; grid-template-columns: 1fr; grid-template-rows: auto 1fr; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; border-radius: 0; }
+  .faq { --row: 2.85rem; grid-template-columns: 1fr; grid-template-rows: auto 1fr; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; border-radius: 0; overflow-y: auto; }
+  /* On a screen too short for both, the sheet scrolls and the answer keeps its room. */
+  .answers { min-height: 20rem; }
   .asks { align-self: start; padding: 3.4rem 12px 0.9rem 16px; border-right: 0; border-bottom: 1px solid var(--hair); }
   .guide { left: 16px; top: calc(3.4rem + (var(--row) - 2.6rem) / 2); }
   .q { font-size: 1rem; }

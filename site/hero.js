@@ -241,6 +241,8 @@ async function play(act, byVisitor) {
     field.dataset.kind = PLACE[act];
     await sleep(650);
   }
+  // The questions sheet may have opened meanwhile: nothing starts behind it.
+  if (mine === run && Faq.isOpen()) { busy = false; return refresh(); }
   await acts[act](mine, byVisitor);
   if (mine !== run) return;
   busy = false;
