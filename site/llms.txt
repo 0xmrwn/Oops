@@ -1,0 +1,33 @@
+# Oops
+
+> Free, open-source Mac app that puts your AI where you type: fix typos in place, dictate, and translate, shorten or retone a draft, in any app.
+
+Oops is a macOS menu-bar app. It works in the text field you are already typing in, in any app, and is driven by keyboard shortcuts.
+
+## What it does
+
+- Fix: corrects typos and grammar in the draft or selection, in place. Pressing the shortcut again within five minutes restores the original, if the draft has not been edited since.
+- Dictate: hold a shortcut and talk; the words are written at the cursor. Speech is transcribed on the Mac by default.
+- Actions: run an action on a draft, such as translate, shorten or change tone.
+
+## Facts
+
+- Price: free. License: MIT, open source.
+- Requirements: Apple silicon, macOS 26 or later.
+- AI: bring your own. ChatGPT sign-in, Claude Code, an OpenAI API key, or any OpenAI-compatible server, including a local one.
+- Privacy: text goes straight to the chosen AI provider, with no Oops server in between. Dictation is transcribed on the Mac unless an online speech model is chosen.
+
+## Questions
+
+- Is it free? Yes. Oops is free and open source, under the MIT license. There is no Oops account and no subscription: it works with an AI you already have.
+- Where does it work? Anywhere you type. Mail, chat, notes, documents, and the text boxes in your browser. It stays out of terminals and password fields on purpose.
+- Can it mess up my text? It is built not to. Oops checks every change before applying it, and keeps code, links, mentions and line breaks exactly as you wrote them. When it is not sure, it changes nothing. Press the shortcut again within five minutes and, if you have not typed since, your original is back.
+- What leaves my Mac? Only the text you act on. It goes straight to the AI you chose, with no Oops server in between. Dictation is transcribed on your Mac unless you pick an online option. Oops looks at the field you are in only when you press the shortcut.
+- Which AI does it use? Yours. Sign in with ChatGPT, use Claude Code, add an API key, or run a model on your own Mac. Oops asks it for small corrections, not a rewrite.
+- How does dictation work? Hold, talk, release. What you say is written where your cursor is. By default the speech-to-text model runs on your Mac, so your voice is not sent anywhere, and the recording is never kept.
+
+## Links
+
+- [Website](https://0xmrwn.github.io/Oops/)
+- [Download](https://github.com/0xmrwn/Oops/releases/latest/download/Oops.dmg)
+- [Source code and documentation](https://github.com/0xmrwn/Oops)

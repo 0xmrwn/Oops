@@ -47,7 +47,9 @@ body {
 }
 
 /* The first screen: bar, hero, and the line of small print at its foot. */
-.first { min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(16px, 3.2vh, 40px) var(--pad); }
+/* The glass canvas reaches past the field: it is cut at the page's edge here,
+   or a phone would widen its viewport to fit it. */
+.first { overflow-x: clip; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(16px, 3.2vh, 40px) var(--pad); }
 
 ::selection { background: color-mix(in oklab, var(--accent) 32%, transparent); }
 
@@ -57,6 +59,10 @@ body {
 /* Top bar */
 
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+
+/* The app icon, then the name. */
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand img { display: block; width: 38px; height: 38px; }
 
 .wordmark {
   width: 75px;
@@ -95,6 +101,12 @@ body {
   transition: transform 0.3s var(--out), background 0.2s;
 }
 .get svg { translate: 0 -0.06em; }
+/* After the three acts, a ring leaves the button now and then. */
+.get.is-due { animation: due 2.6s var(--out) infinite; }
+@keyframes due {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 60%, transparent); }
+  60%, 100% { box-shadow: 0 0 0 14px transparent; }
+}
 .get:hover { transform: translateY(-1px); background: color-mix(in oklab, var(--ink) 86%, var(--accent)); }
 .get:active { transform: scale(0.97); }
 
@@ -336,33 +348,23 @@ kbd {
 
 /* Footer */
 
-/* What the app needs, as one quiet row of three facts. */
+/* What the app needs, as one quiet row of three facts, each with its sign. */
 .foot {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.25rem;
+  gap: 2rem;
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
-.foot span + span::before {
-  content: "";
-  display: inline-block;
-  width: 3px;
-  height: 3px;
-  margin-right: 1.25rem;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.55;
-  vertical-align: middle;
-}
+.foot > span { display: inline-flex; align-items: center; gap: 0.45rem; }
+.foot svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
 @media (max-width: 560px) {
   .get { padding: 0.5rem 0.9rem 0.5rem 0.8rem; font-size: 0.875rem; }
-  .foot { flex-direction: column; gap: 0.3rem; }
-  .foot span + span::before { display: none; }
+  .foot { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -370,6 +372,7 @@ kbd {
   .draft mark::before { animation: flash 1.55s linear both; }
   .outline, .head > *, .triggers { transition: none; }
   .is-next kbd, .triggers button { animation: none; }
+  .get.is-due { animation: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 60%, transparent); }
 }
 
 /* On a short window the first screen tightens so the footer stays in view. */

@@ -1,0 +1,221 @@
+/* The questions sheet: a "?" key in the footer opens a pane of glass over the
+   hero, so the page answers without growing past one screen. The drop keeps
+   the reader's place: it sits by the question being answered. */
+
+.foot { position: relative; }
+
+.help {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  translate: 0 -50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 6px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: translate 0.25s var(--out);
+}
+.help kbd { color: var(--ink); transition: color 0.2s, transform 0.1s, box-shadow 0.1s; }
+.help:hover { translate: 0 calc(-50% - 2px); }
+.help:hover kbd { color: var(--ink); }
+.help:active kbd, .help.is-pressed kbd {
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 18%, transparent);
+}
+
+.faq {
+  --rim: rgb(255 255 255 / 0.8);
+  --shade: color-mix(in oklab, var(--ink) 42%, transparent);
+  --row: 3.3rem;
+  --hair: color-mix(in oklab, var(--ink) 9%, transparent);
+  display: grid;
+  grid-template-columns: 20.5rem 1fr;
+  width: min(58rem, calc(100vw - var(--pad) * 2));
+  height: min(26rem, calc(100dvh - var(--pad) * 2));
+  padding: 0;
+  border: 0;
+  border-radius: 30px;
+  overflow: hidden;
+  color: var(--ink);
+  background: linear-gradient(150deg, color-mix(in oklab, var(--sheet) 80%, transparent), color-mix(in oklab, var(--sheet) 56%, transparent));
+  -webkit-backdrop-filter: blur(34px) saturate(1.8);
+  backdrop-filter: blur(34px) saturate(1.8);
+  box-shadow:
+    inset 0 1px 0 var(--rim),
+    inset 0 0 0 1px color-mix(in oklab, var(--rim) 45%, transparent),
+    0 0 0 0.5px color-mix(in oklab, var(--ink) 16%, transparent),
+    0 40px 80px -36px var(--shade);
+  opacity: 0;
+  scale: 0.5;
+  transition:
+    opacity 0.18s ease-out,
+    scale 0.55s cubic-bezier(0.3, 1.25, 0.5, 1),
+    display 0.25s allow-discrete,
+    overlay 0.25s allow-discrete;
+}
+.faq:not([open]) { display: none; transition-timing-function: ease-in; transition-duration: 0.18s, 0.25s, 0.25s, 0.25s; }
+.faq:focus { outline: none; }
+.faq[open] { opacity: 1; scale: 1; }
+@starting-style { .faq[open] { opacity: 0; scale: 0.5; } }
+
+/* A band of light crosses the glass once as it opens. */
+.faq::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, color-mix(in oklab, var(--rim) 55%, transparent) 50%, transparent 62%);
+  translate: -110% 0;
+}
+.faq[open]::before { animation: sheen 1.1s var(--out) 0.12s both; }
+@keyframes sheen { from { translate: -110% 0; } to { translate: 110% 0; } }
+
+/* The hero steps back while the sheet is up. */
+.faq::backdrop {
+  background: transparent;
+  transition: background 0.3s, display 0.3s allow-discrete, overlay 0.3s allow-discrete;
+}
+.faq[open]::backdrop { background: color-mix(in oklab, var(--bg) 62%, transparent); }
+@starting-style { .faq[open]::backdrop { background: transparent; } }
+
+.shut {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.shut:hover { background: color-mix(in oklab, var(--ink) 8%, transparent); color: var(--ink); }
+.shut svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* The questions, and the drop that waits beside the one being answered. */
+.asks { position: relative; align-self: center; padding: 0 12px 0 22px; border-right: 1px solid var(--hair); }
+.q {
+  display: block;
+  width: 100%;
+  height: var(--row);
+  padding: 0 0 0 3.6rem;
+  border: 0;
+  background: none;
+  color: color-mix(in oklab, var(--ink) 66%, transparent);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.25s, translate 0.5s var(--out);
+}
+.q[aria-selected="true"] { color: var(--ink); translate: 4px 0; }
+
+.guide {
+  position: absolute;
+  left: 22px;
+  top: calc((var(--row) - 2.6rem) / 2);
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  pointer-events: none;
+  translate: 0 calc(var(--at, 0) * var(--row));
+  transition: translate 0.6s cubic-bezier(0.3, 1.3, 0.5, 1);
+  background: radial-gradient(120% 120% at 30% 15%, color-mix(in oklab, var(--rim) 70%, transparent), transparent 60%);
+  -webkit-backdrop-filter: brightness(1.06) saturate(1.4);
+  backdrop-filter: brightness(1.06) saturate(1.4);
+  box-shadow:
+    inset 0 1px 1px var(--rim),
+    inset 0 -7px 10px -7px var(--rim),
+    inset 0 0 0 0.8px color-mix(in oklab, var(--ink) 11%, transparent),
+    0 8px 16px -8px var(--shade);
+}
+.guide svg { width: 100%; height: 100%; translate: 2px 0; fill: none; stroke: var(--ink); stroke-width: 3.8; stroke-linecap: round; }
+.guide g { transform-origin: 16px 16.5px; animation: blink 4.6s infinite; }
+@keyframes blink { 0%, 95%, 100% { transform: none; } 97.5% { transform: scaleY(0.12); } }
+.guide.is-off { animation: hop 0.5s var(--out); }
+@keyframes hop { 30% { scale: 1.12 0.9; } }
+
+/* An answer: the answer itself in a few words, then how, then a line for
+   the curious. */
+.answers { position: relative; }
+.a {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  padding: 2.6rem 3.4rem 2.4rem 3rem;
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 10px;
+  transition: opacity 0.14s, translate 0s 0.14s, visibility 0s 0.14s;
+}
+.a.is-on { opacity: 1; visibility: visible; translate: none; transition: opacity 0.35s 0.08s, translate 0.6s var(--out) 0.08s, visibility 0s; }
+.a p { margin: 0; }
+
+.lead { font-size: 2.9rem; font-weight: 650; font-variation-settings: "opsz" 96; line-height: 1.05; letter-spacing: -0.035em; text-wrap: balance; }
+
+.say { margin-top: 1.1rem !important; font-size: 1.125rem; font-weight: 500; line-height: 1.5; text-wrap: pretty; }
+.say mark {
+  padding: 0.05em 0.14em;
+  margin: 0 -0.14em;
+  border-radius: 0.22em;
+  color: inherit;
+  background: color-mix(in oklab, var(--accent) calc(var(--mark) * 42%), transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* The words that carry the answer light up as a fix does, then settle. */
+.a.is-on mark { animation: lit 1.7s linear 0.25s backwards; }
+@keyframes lit { 0% { background-color: transparent; } 12%, 50% { background-color: color-mix(in oklab, var(--accent) calc(var(--mark) * 100%), transparent); } }
+
+.how {
+  margin-top: 1.5rem !important;
+  padding-top: 1rem;
+  border-top: 1px solid var(--hair);
+  color: var(--muted);
+  font: 500 0.78rem/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .faq { --rim: rgb(255 255 255 / 0.12); --shade: rgb(0 0 0 / 0.8); }
+  .q { color: color-mix(in oklab, var(--ink) 54%, transparent); }
+  .q[aria-selected="true"] { color: var(--ink); }
+}
+
+/* On a phone the sheet is the screen: the questions, then the answer. */
+@media (max-width: 760px) {
+  .faq { --row: 2.85rem; grid-template-columns: 1fr; grid-template-rows: auto 1fr; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; border-radius: 0; overflow-y: auto; }
+  /* On a screen too short for both, the sheet scrolls and the answer keeps its room. */
+  .answers { min-height: 20rem; }
+  .asks { align-self: start; padding: 3.4rem 12px 0.9rem 16px; border-right: 0; border-bottom: 1px solid var(--hair); }
+  .guide { left: 16px; top: calc(3.4rem + (var(--row) - 2.6rem) / 2); }
+  .q { font-size: 1rem; }
+  .a { justify-content: flex-start; padding: 1.6rem 1.4rem; }
+  .lead { font-size: 2.4rem; }
+  .say { font-size: 1.0625rem; }
+}
+@media (max-width: 560px) {
+  .help { top: auto; bottom: -6px; translate: none; }
+  .help:hover { translate: 0 -2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq, .faq::backdrop, .a, .a.is-on, .q, .guide { transition-duration: 0.01s; transition-delay: 0s; }
+  .faq[open]::before, .guide g, .guide.is-off, .a.is-on mark { animation: none; }
+}
